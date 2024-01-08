@@ -81,10 +81,11 @@ class Cegis:
         logger = logging.getLogger("CEGIS")
         ch = logging.StreamHandler()
 
-        if verbose > 0:
-            verbosity_levels = [logging.WARNING, logging.INFO, logging.DEBUG]
-            logger.setLevel(verbosity_levels[verbose])
-            ch.setLevel(verbosity_levels[verbose])
+        verbose = min(max(verbose, 0), 2)
+        verbosity_levels = [logging.WARNING, logging.INFO, logging.DEBUG]
+
+        logger.setLevel(verbosity_levels[verbose])
+        ch.setLevel(verbosity_levels[verbose])
 
         ch.setFormatter(CustomFormatter())
         logger.addHandler(ch)

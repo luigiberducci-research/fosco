@@ -37,7 +37,7 @@ def main():
     elif system_name == "noisy_single_integrator":
         XD = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
         UD = domains.Rectangle(vars=["u0", "u1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
-        ZD = domains.Rectangle(vars=["z0", "z1"], lb=(-0.5, -0.5), ub=(0.5, 0.5))
+        ZD = domains.Rectangle(vars=["z0", "z1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
         XI = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(-4.0, -4.0))
         XU = domains.Sphere(
             vars=["x0", "x1"], centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1]

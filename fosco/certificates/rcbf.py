@@ -50,6 +50,7 @@ class RobustControlBarrierFunction(Certificate):
         ), f"CBF only works with rectangular input domains, got {self.u_set}"
         self.n_vars = len(self.x_vars)
         self.n_controls = len(self.u_vars)
+        self.n_uncertain = len(self.z_vars)
 
         # loss parameters
         # todo: bring it outside
@@ -112,7 +113,7 @@ class RobustControlBarrierFunction(Certificate):
         }
 
         # debug
-        # print("\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
+        #print("\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
 
         return loss, accuracy
 
@@ -141,6 +142,7 @@ class RobustControlBarrierFunction(Certificate):
             [datasets[label][:, : self.n_vars] for label in label_order]
         )
         U_d = datasets[XD][:, self.n_vars : self.n_vars + self.n_controls]
+        Z_d = datasets[XD][:, self.n_vars + self.n_controls : self.n_vars + self.n_controls + self.n_uncertain]
 
         for t in range(self.epochs):
             optimizer.zero_grad()
@@ -158,7 +160,7 @@ class RobustControlBarrierFunction(Certificate):
             ), f"expected pairs of state,input data. Got {B_d.shape[0]} and {U_d.shape[0]}"
             X_d = state_samples[:i1]
             gradB_d = gradB[:i1]
-            Sdot_d = f_torch(X_d, U_d)
+            Sdot_d = f_torch(X_d, U_d, Z_d)
             Bdot_d = torch.sum(torch.mul(gradB_d, Sdot_d), dim=1)
 
             loss, accuracy = self.compute_loss(B_i, B_u, B_d, Bdot_d, alpha=1.0)
@@ -227,7 +229,7 @@ class RobustControlBarrierFunction(Certificate):
         logging.debug(f"unsafe_constr: {unsafe_constr}")
 
         for cs in (
-            {XI: (inital_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
+            #{XI: (inital_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
             {XD: (lie_constr, self.x_vars + self.u_vars + self.z_vars)},
         ):
             yield cs

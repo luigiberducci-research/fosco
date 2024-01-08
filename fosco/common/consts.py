@@ -6,10 +6,12 @@ class DomainNames(Enum):
     XU = "unsafe"
     XI = "init"
     UD = "input"
+    ZD = "uncertainty"
 
 
 class CertificateType(Enum):
     CBF = auto()
+    RCBF = auto()
 
     @classmethod
     def get_certificate_sets(
@@ -19,6 +21,9 @@ class CertificateType(Enum):
         if certificate_type == CertificateType.CBF:
             domains = [dn.XD, dn.UD, dn.XI, dn.XU]
             data = [dn.XD, dn.UD, dn.XI, dn.XU]
+        elif certificate_type == CertificateType.RCBF:
+            domains = [dn.XD, dn.UD, dn.ZD, dn.XI, dn.XU]
+            data = [dn.XD, dn.UD, dn.ZD, dn.XI, dn.XU]
         else:
             raise NotImplementedError(
                 f"Certificate type {certificate_type} not implemented"

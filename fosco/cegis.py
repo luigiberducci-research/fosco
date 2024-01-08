@@ -5,7 +5,7 @@ from typing import Any, Type
 
 import matplotlib.pyplot as plt
 
-from fosco.certificates.cbf import ControlBarrierFunction
+from fosco.certificates import make_certificate
 from fosco.common.formatter import CustomFormatter
 from fosco.common.plotting import benchmark_3d
 from fosco.consolidator import make_consolidator
@@ -50,6 +50,8 @@ class CegisConfig:
 
     def __getitem__(self, item):
         return getattr(self, item)
+
+
 
 
 class Cegis:
@@ -143,7 +145,7 @@ class Cegis:
         return datasets
 
     def _initialise_certificate(self):
-        certificate_type = ControlBarrierFunction
+        certificate_type = make_certificate(certificate_type=self.config.CERTIFICATE)
         return certificate_type(vars=self.x_map, domains=self.config.DOMAINS)
 
     def _initialise_consolidator(self):

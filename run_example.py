@@ -14,7 +14,7 @@ from systems import make_system
 
 def main():
     seed = 916104
-    system_name = "single_integrator"
+    system_name = "noisy_single_integrator"
     n_hidden_neurons = 10
     activations = (ActivationType.RELU, ActivationType.LINEAR)
     n_data_samples = 500
@@ -86,6 +86,7 @@ def main():
             "init": lambda n: XI.generate_data(n),
             "unsafe": lambda n: XU.generate_data(n),
         }
+        certificate_type = CertificateType.CBF
     else:
         sets = {
             "lie": XD,
@@ -101,12 +102,13 @@ def main():
             "init": lambda n: XI.generate_data(n),
             "unsafe": lambda n: XU.generate_data(n),
         }
+        certificate_type = CertificateType.RCBF
 
     config = fosco.cegis.CegisConfig(
         SYSTEM=system,
         DOMAINS=sets,
         DATA_GEN=data_gen,
-        CERTIFICATE=CertificateType.CBF,
+        CERTIFICATE=certificate_type,
         TIME_DOMAIN=TimeDomain.CONTINUOUS,
         VERIFIER=VerifierType.Z3,
         ACTIVATION=activations,

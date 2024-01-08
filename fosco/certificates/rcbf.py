@@ -5,20 +5,21 @@ from typing import Generator
 import torch
 from torch.optim import Optimizer
 
-from fosco.certificates.certificate import Certificate
+from fosco.certificates import Certificate
 from fosco.common.domains import Set, Rectangle
 from fosco.common.consts import DomainNames
 from fosco.common.utils import _set_assertion
-from fosco.learner import LearnerNN
+from fosco.learner import LearnerCT
 from fosco.verifier import SYMBOL
 
 XD = DomainNames.XD.value
 XI = DomainNames.XI.value
 XU = DomainNames.XU.value
 UD = DomainNames.UD.value
+ZD = DomainNames.ZD.value
 
 
-class ControlBarrierFunction(Certificate):
+class RobustControlBarrierFunction(Certificate):
     """
     Certifies Safety for continuous time controlled systems with control affine dynamics.
 
@@ -31,13 +32,16 @@ class ControlBarrierFunction(Certificate):
     """
 
     def __init__(self, vars: dict[str, list], domains: dict[str, Set]) -> None:
-        assert all([sv in vars for sv in ["v", "u"]]), f"Missing symbolic variables, got {vars}"
+        assert all([sv in vars for sv in ["v", "u", "z"]]), f"Missing symbolic variables, got {vars}"
         self.x_vars = vars["v"]
         self.u_vars = vars["u"]
+        self.z_vars = vars["z"]
 
         self.x_domain: SYMBOL = domains[XD].generate_domain(self.x_vars)
         self.u_set: Set = domains[UD]
         self.u_domain: SYMBOL = domains[UD].generate_domain(self.u_vars)
+        self.z_domain: SYMBOL = domains[ZD].generate_domain(self.z_vars)
+
         self.initial_domain: SYMBOL = domains[XI].generate_domain(self.x_vars)
         self.unsafe_domain: SYMBOL = domains[XU].generate_domain(self.x_vars)
 
@@ -114,7 +118,7 @@ class ControlBarrierFunction(Certificate):
 
     def learn(
         self,
-        learner: LearnerNN,
+        learner: LearnerCT,
         optimizer: Optimizer,
         datasets: dict,
         f_torch: callable,
@@ -214,7 +218,7 @@ class ControlBarrierFunction(Certificate):
         unsafe_constr = _And(B >= 0, self.unsafe_domain)
 
         # add domain constraints
-        lie_constr = _And(lie_constr, self.x_domain)
+        lie_constr = _And(_And(lie_constr, self.x_domain), self.z_domain)
         inital_constr = _And(initial_constr, self.x_domain)
         unsafe_constr = _And(unsafe_constr, self.x_domain)
 
@@ -224,7 +228,7 @@ class ControlBarrierFunction(Certificate):
 
         for cs in (
             {XI: (inital_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
-            {XD: (lie_constr, self.x_vars + self.u_vars)},
+            {XD: (lie_constr, self.x_vars + self.u_vars + self.z_vars)},
         ):
             yield cs
 
@@ -234,7 +238,7 @@ class ControlBarrierFunction(Certificate):
         domain_labels = set(domains.keys())
         data_labels = set(data.keys())
         _set_assertion(
-            {dn.XD.value, dn.UD.value, dn.XI.value, dn.XU.value},
+            {dn.XD.value, dn.UD.value, dn.ZD.value, dn.XI.value, dn.XU.value},
             domain_labels,
             "Symbolic Domains",
         )

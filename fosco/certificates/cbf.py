@@ -26,18 +26,16 @@ class ControlBarrierFunction:
     B(Xi)>0, B(Xu)<0, Bdot(Xd) > -alpha(B(Xd)) for alpha class-k function
 
     Arguments:
+        vars {dict}: dictionary of symbolic variables
         domains {dict}: dictionary of (string,domain) pairs
-        config {CegisConfig}: configuration dictionary
     """
 
-    def __init__(self, vars: list, domains: dict[str, Set]) -> None:
-        self.x_vars = [
-            v for v in vars if str(v).startswith("x")
-        ]  # todo: dont like checking initial letter
-        self.u_vars = [v for v in vars if str(v).startswith("u")]
+    def __init__(self, vars: dict[str, list], domains: dict[str, Set]) -> None:
+        self.x_vars = vars["v"]
+        self.u_vars = vars["u"]
 
         self.x_domain: SYMBOL = domains[XD].generate_domain(self.x_vars)
-        self.u_set: Rectangle = domains[UD]
+        self.u_set: Set = domains[UD]
         self.u_domain: SYMBOL = domains[UD].generate_domain(self.u_vars)
         self.initial_domain: SYMBOL = domains[XI].generate_domain(self.x_vars)
         self.unsafe_domain: SYMBOL = domains[XU].generate_domain(self.x_vars)

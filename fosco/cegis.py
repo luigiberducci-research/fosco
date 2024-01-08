@@ -144,7 +144,7 @@ class Cegis:
 
     def _initialise_certificate(self):
         certificate_type = ControlBarrierFunction
-        return certificate_type(vars=self.x, domains=self.config.DOMAINS)
+        return certificate_type(vars=self.x_map, domains=self.config.DOMAINS)
 
     def _initialise_consolidator(self):
         return make_consolidator()

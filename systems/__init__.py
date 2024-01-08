@@ -8,6 +8,10 @@ def make_system(id: str) -> Type[ControlAffineControllableDynamicalModel]:
         from systems.single_integrator import SingleIntegrator
 
         return SingleIntegrator
+    if id == "noisy_single_integrator":
+        from systems.single_integrator import NoisySingleIntegrator
+
+        return NoisySingleIntegrator
     elif id == "double_integrator":
         from systems.double_integrator import DoubleIntegrator
 

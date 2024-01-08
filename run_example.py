@@ -18,7 +18,7 @@ def main():
     n_hidden_neurons = 10
     activations = (ActivationType.RELU, ActivationType.LINEAR)
     n_data_samples = 500
-    verbose = 0
+    verbose = 1
 
     log_levels = [logging.INFO, logging.DEBUG]
     logging.basicConfig(level=log_levels[verbose])
@@ -26,6 +26,7 @@ def main():
     n_hidden_neurons = (n_hidden_neurons,) * len(activations)
 
     system = make_system(id=system_name)
+    ZD = None   # no uncertainty by default
     if system_name == "single_integrator":
         XD = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
         UD = domains.Rectangle(vars=["u0", "u1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
@@ -33,6 +34,15 @@ def main():
         XU = domains.Sphere(
             vars=["x0", "x1"], centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1]
         )
+    elif system_name == "noisy_single_integrator":
+        XD = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
+        UD = domains.Rectangle(vars=["u0", "u1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
+        ZD = domains.Rectangle(vars=["z0", "z1"], lb=(-0.5, -0.5), ub=(0.5, 0.5))
+        XI = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(-4.0, -4.0))
+        XU = domains.Sphere(
+            vars=["x0", "x1"], centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1]
+        )
+
     elif system_name == "double_integrator":
         XD = domains.Rectangle(
             vars=["x0", "x1", "x2", "x3"],
@@ -58,19 +68,39 @@ def main():
         seed = random.randint(0, 1000000)
     print("Seed:", seed)
 
-    sets = {
-        "lie": XD,
-        "input": UD,
-        "init": XI,
-        "unsafe": XU,
-    }
-    data_gen = {
-        "lie": lambda n: torch.concatenate(
-            [XD.generate_data(n), UD.generate_data(n)], dim=1
-        ),
-        "init": lambda n: XI.generate_data(n),
-        "unsafe": lambda n: XU.generate_data(n),
-    }
+
+
+    # add uncertainty if applicable
+    # todo: clean this
+    if ZD is None:
+        sets = {
+            "lie": XD,
+            "input": UD,
+            "init": XI,
+            "unsafe": XU,
+        }
+        data_gen = {
+            "lie": lambda n: torch.concatenate(
+                [XD.generate_data(n), UD.generate_data(n)], dim=1
+            ),
+            "init": lambda n: XI.generate_data(n),
+            "unsafe": lambda n: XU.generate_data(n),
+        }
+    else:
+        sets = {
+            "lie": XD,
+            "input": UD,
+            "uncertainty": ZD,
+            "init": XI,
+            "unsafe": XU,
+        }
+        data_gen = {
+            "lie": lambda n: torch.concatenate(
+                [XD.generate_data(n), UD.generate_data(n), ZD.generate_data(n)], dim=1
+            ),
+            "init": lambda n: XI.generate_data(n),
+            "unsafe": lambda n: XU.generate_data(n),
+        }
 
     config = fosco.cegis.CegisConfig(
         SYSTEM=system,

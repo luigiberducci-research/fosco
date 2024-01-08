@@ -59,3 +59,52 @@ class ControlAffineControllableDynamicalModel:
         self, v: np.ndarray | torch.Tensor, u: np.ndarray | torch.Tensor
     ) -> np.ndarray | torch.Tensor:
         return self.f(v, u)
+
+class UncertainControlAffineControllableDynamicalModel(ControlAffineControllableDynamicalModel):
+    """
+    Implements a controllable dynamical model with control-affine dynamics dx = f(x) + g(x) u
+    """
+
+    @property
+    @abstractmethod
+    def n_uncertain(self) -> int:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def fz_torch(self, x, z) -> np.ndarray | torch.Tensor:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def fz_smt(self, x, z) -> np.ndarray | torch.Tensor:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def gz_torch(self, x, z) -> np.ndarray | torch.Tensor:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def gz_smt(self, x, z) -> np.ndarray | torch.Tensor:
+        raise NotImplementedError()
+
+    def f(
+        self, v: np.ndarray | torch.Tensor, u: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
+    ) -> np.ndarray | torch.Tensor:
+        if torch.is_tensor(v) or isinstance(v, np.ndarray):
+            return self._f_torch(v, u, z)
+        elif contains_object(v, z3.ArithRef):
+            dvs = self.fx_smt(v) + self.gx_smt(v) @ u + self.fz_smt(v, z) + self.gz_smt(v, z) @ u
+            return [z3.simplify(dv) for dv in dvs]
+        else:
+            raise NotImplementedError(f"Unsupported type {type(v)}")
+
+    def _f_torch(self, v: torch.Tensor, u: torch.Tensor, z: torch.Tensor) -> list:
+        v = v.reshape(-1, self.n_vars, 1)
+        u = u.reshape(-1, self.n_controls, 1)
+        z = z.reshape(-1, self.n_uncertain, 1)
+        vdot = self.fx_torch(v) + self.gx_torch(v) @ u + self.fz_torch(v, z) + self.gz_torch(v, z) @ u
+        return vdot.reshape(-1, self.n_vars)
+
+    def __call__(
+        self, v: np.ndarray | torch.Tensor, u: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
+    ) -> np.ndarray | torch.Tensor:
+        return self.f(v, u, z)

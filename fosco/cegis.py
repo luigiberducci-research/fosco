@@ -1,12 +1,11 @@
 import logging
-import math
 from collections import namedtuple
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Any, Type
 
 import matplotlib.pyplot as plt
 
-from fosco.cbf import ControlBarrierFunction
+from fosco.certificates.cbf import ControlBarrierFunction
 from fosco.common.formatter import CustomFormatter
 from fosco.common.plotting import benchmark_3d
 from fosco.consolidator import make_consolidator
@@ -20,6 +19,7 @@ from fosco.learner import make_learner, LearnerNN
 from fosco.translator import make_translator
 from fosco.verifier import make_verifier
 from systems import ControlAffineControllableDynamicalModel
+from systems.system import UncertainControlAffineControllableDynamicalModel
 
 CegisResult = namedtuple("CegisResult", ["found", "net", "infos"])
 
@@ -43,7 +43,7 @@ class CegisConfig:
     LEARNING_RATE: float = 1e-3
     WEIGHT_DECAY: float = 1e-4
     # net architecture
-    N_HIDDEN_NEURONS: tuple[int] = (10,)
+    N_HIDDEN_NEURONS: tuple[int, ...] = (10,)
     ACTIVATION: tuple[ActivationType, ...] = (ActivationType.SQUARE,)
     # seeding
     SEED: int = None
@@ -109,13 +109,23 @@ class Cegis:
         return verifier_instance
 
     def _initialise_domains(self):
+        # todo: create domains based on input instead of hardcoding x, u
         verifier_type = make_verifier(type=self.config.VERIFIER)
         x = verifier_type.new_vars(self.f.n_vars, base="x")
         u = verifier_type.new_vars(self.f.n_controls, base="u")
 
+        if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
+            z = verifier_type.new_vars(self.f.n_uncertain, base="z")
+        else:
+            z = None
+
         # create map id -> variable
-        x_map = {"v": x, "u": u}
-        x = x + u
+        if z:
+            x_map = {"v": x, "u": u, "z": z}
+            x = x + u + z
+        else:
+            x_map = {"v": x, "u": u}
+            x = x + u
 
         # create domains
         domains = {

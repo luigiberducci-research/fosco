@@ -61,6 +61,9 @@ class Set:
         # return partial to deal with pickle
         return partial(self.sample_border, batch_size)
 
+    def check_containment(self, x: np.ndarray | torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError
+
 
 class Rectangle(Set):
     def __init__(
@@ -142,11 +145,13 @@ class Rectangle(Set):
         vertices = np.array([v.flatten() for v in vertices]).T
         return vertices
 
-    def check_containment(self, x: torch.Tensor) -> torch.Tensor:
+    def check_containment(self, x: np.ndarray | torch.Tensor) -> torch.Tensor:
         if self.dim_select:
-            x = [x[:, i] for i in self.dim_select]
+            x = np.array([x[:, i] for i in self.dim_select])
+        x = torch.from_numpy(x)
         all_constr = torch.logical_and(
-            torch.tensor(self.upper_bounds) >= x, torch.tensor(self.lower_bounds) <= x
+            torch.tensor(self.upper_bounds) >= x,
+            torch.tensor(self.lower_bounds) <= x
         )
         ans = torch.zeros((x.shape[0]))
         for idx in range(all_constr.shape[0]):
@@ -251,9 +256,10 @@ class Sphere(Set):
             self.centre, self.radius**2, batch_size, on_border=True
         )
 
-    def check_containment(self, x: torch.Tensor) -> torch.Tensor:
+    def check_containment(self, x: np.ndarray | torch.Tensor) -> torch.Tensor:
         if self.dim_select:
-            x = [x[:, i] for i in self.dim_select]
+            x = np.array([x[:, i] for i in self.dim_select])
+        x = torch.from_numpy(x)
         c = torch.tensor(self.centre).reshape(1, -1)
         return (x - c).norm(2, dim=-1) <= self.radius**2
 

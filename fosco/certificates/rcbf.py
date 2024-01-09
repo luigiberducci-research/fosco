@@ -148,7 +148,7 @@ class RobustControlBarrierFunction(Certificate):
             optimizer.zero_grad()
 
             # net gradient
-            B, gradB = learner.compute_net_gradnet(state_samples)
+            B, gradB = learner.net.compute_net_gradnet(state_samples)
 
             B_d = B[:i1, 0]
             B_i = B[i1 : i1 + i2, 0]
@@ -224,7 +224,7 @@ class RobustControlBarrierFunction(Certificate):
         inital_constr = _And(initial_constr, self.x_domain)
         unsafe_constr = _And(unsafe_constr, self.x_domain)
 
-        logging.debug(f"lie_constr: {lie_constr}")
+        logging.info(f"lie_constr: {lie_constr}")
         logging.debug(f"inital_constr: {inital_constr}")
         logging.debug(f"unsafe_constr: {unsafe_constr}")
 

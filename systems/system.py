@@ -3,6 +3,7 @@ from abc import abstractmethod
 import numpy as np
 import torch
 import z3
+from matplotlib import pyplot as plt
 
 from fosco.common.utils import contains_object
 
@@ -39,7 +40,7 @@ class ControlAffineControllableDynamicalModel:
         raise NotImplementedError()
 
     def f(
-        self, v: np.ndarray | torch.Tensor, u: np.ndarray | torch.Tensor
+            self, v: np.ndarray | torch.Tensor, u: np.ndarray | torch.Tensor
     ) -> np.ndarray | torch.Tensor:
         if torch.is_tensor(v) or isinstance(v, np.ndarray):
             return self._f_torch(v, u)
@@ -56,9 +57,54 @@ class ControlAffineControllableDynamicalModel:
         return vdot.reshape(-1, self.n_vars)
 
     def __call__(
-        self, v: np.ndarray | torch.Tensor, u: np.ndarray | torch.Tensor
+            self, v: np.ndarray | torch.Tensor, u: np.ndarray | torch.Tensor
     ) -> np.ndarray | torch.Tensor:
         return self.f(v, u)
+
+    def plot(
+            self,
+            xrange: tuple,
+            yrange: tuple,
+            ctrl: callable,
+            ax: plt.Axes = None,
+
+    ):
+        ax = ax or plt.gca()
+
+        xx = np.linspace(xrange[0], xrange[1], 50)
+        yy = np.linspace(yrange[0], yrange[1], 50)
+
+        XX, YY = np.meshgrid(xx, yy)
+        obs = torch.stack(
+                    [torch.tensor(XX).ravel(), torch.tensor(YY).ravel()]
+                ).T.float()
+        uu = ctrl(obs)
+
+        dx, dy = (
+            self.f(v=obs, u=uu)
+            .detach()
+            .numpy()
+            .T
+        )
+        # color = np.sqrt((np.hypot(dx, dy)))
+        dx = dx.reshape(XX.shape)
+        dy = dy.reshape(YY.shape)
+        # color = color.reshape(XX.shape)
+        ax.set_ylim(xrange)
+        ax.set_xlim(yrange)
+        plt.streamplot(
+            XX,
+            YY,
+            dx,
+            dy,
+            linewidth=0.8,
+            density=1.5,
+            arrowstyle="fancy",
+            arrowsize=1.5,
+            color="tab:gray",
+        )
+        return ax
+
 
 class UncertainControlAffineControllableDynamicalModel(ControlAffineControllableDynamicalModel):
     """
@@ -87,7 +133,7 @@ class UncertainControlAffineControllableDynamicalModel(ControlAffineControllable
         raise NotImplementedError()
 
     def f(
-        self, v: np.ndarray | torch.Tensor, u: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
+            self, v: np.ndarray | torch.Tensor, u: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
     ) -> np.ndarray | torch.Tensor:
         if torch.is_tensor(v) or isinstance(v, np.ndarray):
             return self._f_torch(v, u, z)
@@ -105,6 +151,55 @@ class UncertainControlAffineControllableDynamicalModel(ControlAffineControllable
         return vdot.reshape(-1, self.n_vars)
 
     def __call__(
-        self, v: np.ndarray | torch.Tensor, u: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
+            self, v: np.ndarray | torch.Tensor, u: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
     ) -> np.ndarray | torch.Tensor:
         return self.f(v, u, z)
+
+    def plot(
+            self,
+            xrange: tuple,
+            yrange: tuple,
+            ctrl: callable,
+            zmodel: callable = None,
+            ax: plt.Axes = None,
+    ):
+        ax = ax or plt.gca()
+
+        xx = np.linspace(xrange[0], xrange[1], 50)
+        yy = np.linspace(yrange[0], yrange[1], 50)
+
+        XX, YY = np.meshgrid(xx, yy)
+        obs = torch.stack(
+                    [torch.tensor(XX).ravel(), torch.tensor(YY).ravel()]
+                ).T.float()
+        uu = ctrl(obs)
+
+        if zmodel is not None:
+            zz = zmodel(obs)
+        else:
+            zz = torch.zeros(obs.shape[0], self.n_uncertain)
+
+        dx, dy = (
+            self.f(v=obs, u=uu, z=zz)
+            .detach()
+            .numpy()
+            .T
+        )
+        # color = np.sqrt((np.hypot(dx, dy)))
+        dx = dx.reshape(XX.shape)
+        dy = dy.reshape(YY.shape)
+        # color = color.reshape(XX.shape)
+        ax.set_ylim(xrange)
+        ax.set_xlim(yrange)
+        plt.streamplot(
+            XX,
+            YY,
+            dx,
+            dy,
+            linewidth=0.8,
+            density=1.5,
+            arrowstyle="fancy",
+            arrowsize=1.5,
+            color="tab:gray",
+        )
+        return ax

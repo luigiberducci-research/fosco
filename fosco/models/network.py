@@ -1,26 +1,32 @@
+import torch
 from torch import nn
 
 from fosco.common.activations import activation
 from fosco.common.consts import ActivationType
 
 
-class MLP(nn.Module):
+class TorchMLP(nn.Module):
     def __init__(
         self,
         input_size: int,
         hidden_sizes: tuple[int, ...],
-        activation: tuple[ActivationType, ...],
+        activation: tuple[str | ActivationType, ...],
         output_size: int = 1,
     ):
-        super(MLP, self).__init__()
+        super(TorchMLP, self).__init__()
         assert len(hidden_sizes) == len(
             activation
         ), "hidden sizes and activation must have the same length"
 
         self.input_size = input_size
         self.output_size = output_size
-        self.acts = activation
         self.layers = []
+
+        # activations
+        self.acts = []
+        for act in activation:
+            act = ActivationType[act.upper()] if isinstance(act, str) else act
+            self.acts.append(act)
 
         # hidden layers
         n_prev, k = self.input_size, 1
@@ -46,3 +52,64 @@ class MLP(nn.Module):
 
         y = self.layers[-1](y)
         return y
+
+    def compute_net_gradnet(self, S: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Computes the value of the neural network and its gradient.
+
+        Computes gradient using autograd.
+
+            S (torch.Tensor): input tensor
+
+        Returns:
+            tuple[torch.Tensor, torch.Tensor]: (nn, grad_nn)
+        """
+        S_clone = torch.clone(S).requires_grad_()
+        nn = self(S_clone)
+
+        grad_nn = torch.autograd.grad(
+            outputs=nn,
+            inputs=S_clone,
+            grad_outputs=torch.ones_like(nn),
+            create_graph=True,
+            retain_graph=True,
+        )[0]
+        return nn, grad_nn
+
+    def save(self, outdir: str):
+        import pathlib
+        import yaml
+
+        outdir = pathlib.Path(outdir)
+        outdir.mkdir(parents=True, exist_ok=True)
+
+        # save model.pt
+        torch.save(self.state_dict(), outdir / "model.pt")
+
+        # save params.yaml with net configuration
+        params = {
+            "input_size": self.input_size,
+            "output_size": self.output_size,
+            "hidden_sizes": [layer.out_features for layer in self.layers[:-1]],
+            "activation": [act.name for act in self.acts],
+        }
+        with open(outdir / "params.yaml", "w") as f:
+            yaml.dump(params, f)
+
+    @staticmethod
+    def load(logdir: str):
+        import pathlib
+        import yaml
+
+        logdir = pathlib.Path(logdir)
+        assert logdir.exists(), f"directory {logdir} does not exist"
+
+        # load params.yaml
+        with open(logdir / "params.yaml", "r") as f:
+            params = yaml.load(f, Loader=yaml.FullLoader)
+
+        # load model.pt
+        model = TorchMLP(**params)
+        model.load_state_dict(torch.load(logdir / "model.pt"))
+        return model
+
+

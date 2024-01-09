@@ -137,8 +137,8 @@ class Verifier:
                     Vdot_ctx = self.replace_point(
                         Vdot_symbolic, solver_vars[label], original_point.numpy().T
                     )
-                    logging.info("\nV_ctx: {} ".format(V_ctx))
-                    logging.info("\nVdot_ctx: {} ".format(Vdot_ctx))
+                    logging.debug("\nV_ctx: {} ".format(V_ctx))
+                    logging.debug("\nVdot_ctx: {} ".format(Vdot_ctx))
 
                     ces[label] = self.randomise_counterex(original_point)
                 else:

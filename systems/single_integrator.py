@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 
+from fosco.models.network import TorchMLP
 from systems import ControlAffineControllableDynamicalModel
 from systems.system import UncertainControlAffineControllableDynamicalModel
 
@@ -22,7 +23,7 @@ class SingleIntegrator(ControlAffineControllableDynamicalModel):
     def fx_torch(self, x: np.ndarray | torch.Tensor) -> np.ndarray | torch.Tensor:
         assert (
             len(x.shape) == 3
-        ), "expected batched input with shape (batch_size, state_dim, 1)"
+        ), f"expected batched input with shape (batch_size, state_dim, 1), got shape {x.shape}"
         if isinstance(x, np.ndarray):
             fx = np.zeros_like(x)
         else:
@@ -128,3 +129,29 @@ class NoisySingleIntegrator(UncertainControlAffineControllableDynamicalModel, Si
             z, list
         ), "expected list of symbolic state variables, [z0, z1, ...]"
         return np.zeros((self.n_vars, self.n_controls))
+
+
+class SingleIntegratorKnownCBF(torch.nn.Module):
+
+
+    def forward(self, x):
+        assert len(x.shape) >= 2 and x.shape[1] == 2, "expected input batch (N, 2)"
+        radius = 1.0
+        y = x[:, 0] ** 2 + x[:, 1] ** 2 - radius ** 2
+        return y
+
+    def compute_net_gradnet(self, S: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        assert len(S.shape) >= 2 and S.shape[1] == 2, "expected input batch (N, 2)"
+
+        S_clone = torch.clone(S).requires_grad_()
+        nn = self(S_clone)
+
+        grad_nn = torch.autograd.grad(
+            outputs=nn,
+            inputs=S_clone,
+            grad_outputs=torch.ones_like(nn),
+            create_graph=True,
+            retain_graph=True,
+        )[0]
+
+        return nn, grad_nn

@@ -7,7 +7,7 @@ from torch import nn
 
 from fosco.common.activations import activation
 from fosco.common.consts import ActivationType, TimeDomain
-from fosco.models.network import MLP
+from fosco.models.network import TorchMLP
 
 
 class LearnerNN(nn.Module):
@@ -86,7 +86,7 @@ class LearnerCT(LearnerNN):
     ):
         super(LearnerCT, self).__init__()
 
-        self.net = MLP(
+        self.net = TorchMLP(
             input_size=input_size,
             output_size=1,
             hidden_sizes=hidden_sizes,
@@ -104,28 +104,6 @@ class LearnerCT(LearnerNN):
     def update(self, datasets, xdot_func, **kwargs) -> dict:
         output = self.learn(datasets=datasets, xdot_func=xdot_func)
         return output
-
-    def compute_net_gradnet(self, S: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """Computes the value of the neural network and its gradient.
-
-        Computes gradient using autograd.
-
-            S (torch.Tensor): input tensor
-
-        Returns:
-            tuple[torch.Tensor, torch.Tensor]: (nn, grad_nn)
-        """
-        S_clone = torch.clone(S).requires_grad_()
-        nn = self(S_clone)
-
-        grad_nn = torch.autograd.grad(
-            outputs=nn,
-            inputs=S_clone,
-            grad_outputs=torch.ones_like(nn),
-            create_graph=True,
-            retain_graph=True,
-        )[0]
-        return nn, grad_nn
 
     def compute_dV(self, gradV: torch.Tensor, Sdot: torch.Tensor) -> torch.Tensor:
         """Computes the  lie derivative of the function.

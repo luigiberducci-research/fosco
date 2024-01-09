@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import torch
 
-from fosco.models.network import MLP
+from fosco.models.network import TorchMLP
 from fosco.translator import MLPZ3Translator, make_translator
 from fosco.verifier import VerifierZ3
 
@@ -17,7 +17,7 @@ class TestTranslator(unittest.TestCase):
         x = VerifierZ3.new_vars(n_vars, base="x")
         x = np.array(x).reshape(-1, 1)
 
-        nn = MLP(input_size=n_vars, hidden_sizes=(), activation=(), output_size=1)
+        nn = TorchMLP(input_size=n_vars, hidden_sizes=(), activation=(), output_size=1)
 
         xdot = np.array(x).reshape(-1, 1)
 
@@ -50,7 +50,7 @@ class TestTranslator(unittest.TestCase):
         x = VerifierZ3.new_vars(n_vars, base="x")
         x = np.array(x).reshape(-1, 1)
 
-        nn = MLP(input_size=n_vars, hidden_sizes=(), activation=(), output_size=1)
+        nn = TorchMLP(input_size=n_vars, hidden_sizes=(), activation=(), output_size=1)
 
         xdot = np.array(x).reshape(-1, 1)
 

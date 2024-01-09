@@ -210,7 +210,9 @@ class Cegis:
 
         infos = {"iter": iter}
         self._result = CegisResult(
-            found=state["found"], net=state["V_net"], infos=infos
+            found=state["found"],
+            net=state["V_net"],
+            infos=infos
         )
 
         return self._result

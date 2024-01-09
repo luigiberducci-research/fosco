@@ -2,3 +2,6 @@ torch
 numpy
 matplotlib
 z3-solver
+cvxpy
+gymnasium
+pyyaml

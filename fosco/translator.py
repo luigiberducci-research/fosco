@@ -6,7 +6,7 @@ import z3
 
 from fosco.common.activations_symbolic import activation_sym, activation_der_sym
 from fosco.common.consts import VerifierType, TimeDomain
-from fosco.models.network import MLP
+from fosco.models.network import TorchMLP
 from fosco.verifier import SYMBOL
 
 
@@ -20,7 +20,7 @@ class Translator(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_symbolic_net(self, input_vars: Iterable[SYMBOL], net: MLP) -> SYMBOL:
+    def get_symbolic_net(self, input_vars: Iterable[SYMBOL], net: TorchMLP) -> SYMBOL:
         """
         Translate a network forward pass into a symbolic expression.
 
@@ -32,7 +32,7 @@ class Translator(ABC):
 
     @abstractmethod
     def get_symbolic_net_grad(
-        self, input_vars: Iterable[SYMBOL], net: MLP
+        self, input_vars: Iterable[SYMBOL], net: TorchMLP
     ) -> Iterable[SYMBOL]:
         """
         Translate the network gradient w.r.t. the input into a symbolic expression.
@@ -55,7 +55,7 @@ class MLPZ3Translator(Translator):
     def translate(
         self,
         x_v_map: dict[str, Iterable[SYMBOL]],
-        V_net: MLP,
+        V_net: TorchMLP,
         xdot: Iterable[SYMBOL],
         **kwargs,
     ):
@@ -75,7 +75,7 @@ class MLPZ3Translator(Translator):
             "Vdot_symbolic": Vdot_symbolic,
         }
 
-    def get_symbolic_net(self, input_vars: Iterable[SYMBOL], net: MLP) -> SYMBOL:
+    def get_symbolic_net(self, input_vars: Iterable[SYMBOL], net: TorchMLP) -> SYMBOL:
         """
         Translate a MLP forward pass into a symbolic expression.
 
@@ -103,7 +103,7 @@ class MLPZ3Translator(Translator):
         return V
 
     def get_symbolic_net_grad(
-        self, input_vars: Iterable[SYMBOL], net: MLP
+        self, input_vars: Iterable[SYMBOL], net: TorchMLP
     ) -> Iterable[SYMBOL]:
         """
         Translate the MLP gradient w.r.t. the input into a symbolic expression.
@@ -183,7 +183,7 @@ class MLPZ3Translator(Translator):
         return V, Vdot
 
     def network_until_last_layer(
-        self, net: MLP, input_vars: Iterable[SYMBOL]
+        self, net: TorchMLP, input_vars: Iterable[SYMBOL]
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Symbolic forward pass excluding the last layer.

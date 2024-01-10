@@ -19,7 +19,7 @@ def main():
     system_name = "noisy_single_integrator"
     n_hidden_neurons = 10
     activations = (ActivationType.RELU, ActivationType.LINEAR)
-    n_data_samples = 1
+    n_data_samples = 1000
     verbose = 0
 
     log_levels = [logging.INFO, logging.DEBUG]
@@ -39,7 +39,7 @@ def main():
     elif system_name == "noisy_single_integrator":
         XD = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
         UD = domains.Rectangle(vars=["u0", "u1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
-        ZD = domains.Rectangle(vars=["z0", "z1"], lb=(-10.0, -10.0), ub=(10.0, 10.0))
+        ZD = domains.Rectangle(vars=["z0", "z1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
         XI = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(-4.0, -4.0))
         XU = domains.Sphere(
             vars=["x0", "x1"], centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1]
@@ -98,11 +98,14 @@ def main():
             "unsafe": XU,
         }
         data_gen = {
+            "init": lambda n: XI.generate_data(n),
+            "unsafe": lambda n: XU.generate_data(n),
             "lie": lambda n: torch.concatenate(
                 [XD.generate_data(n), UD.generate_data(n), ZD.generate_data(n)], dim=1
             ),
-            "init": lambda n: XI.generate_data(n),
-            "unsafe": lambda n: XU.generate_data(n),
+            "uncertainty": lambda n: torch.concatenate(
+                [XD.generate_data(n), UD.generate_data(n), ZD.generate_data(n)], dim=1
+            ),
         }
         certificate_type = CertificateType.RCBF
 

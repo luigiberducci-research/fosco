@@ -39,6 +39,7 @@ class LearnerNN(nn.Module):
     def compute_V_gradV(
         self, nn: torch.Tensor, grad_nn: torch.Tensor, S: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        # todo deprecated?
         """Computes the value of the function and its gradient.
 
         The function is defined as:

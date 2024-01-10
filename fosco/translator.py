@@ -57,11 +57,34 @@ class MLPZ3Translator(Translator):
         x_v_map: dict[str, Iterable[SYMBOL]],
         V_net: TorchMLP,
         xdot: Iterable[SYMBOL],
+        xdotz: Iterable[SYMBOL] = None,
         **kwargs,
     ):
+        """
+        Translate a network forward pass and gradients into a symbolic expression
+        of the function and Lie derivative w.r.t. the system dynamics.
+
+        Args:
+            x_v_map: dict of symbolic variables
+            V_net: network model
+            xdot: symbolic expression of the nominal system dynamics
+            xdotz: symbolic expression of the uncertain system dynamics (optional)
+            **kwargs:
+
+        Returns:
+            dict of symbolic expressions
+        """
         x_vars = x_v_map["v"]
         xdot = np.array(xdot).reshape(-1, 1)
+
         V_symbolic, Vdot_symbolic = self.get_symbolic_formula(x_vars, V_net, xdot)
+
+        if xdotz is not None:
+            xdotz = np.array(xdotz).reshape(-1, 1)
+            _, Vdotz_symbolic = self.get_symbolic_formula(x_vars, V_net, xdotz)
+        else:
+            Vdotz_symbolic = None
+
 
         assert isinstance(
             V_symbolic, z3.ArithRef
@@ -73,6 +96,7 @@ class MLPZ3Translator(Translator):
         return {
             "V_symbolic": V_symbolic,
             "Vdot_symbolic": Vdot_symbolic,
+            "Vdotz_symbolic": Vdotz_symbolic,
         }
 
     def get_symbolic_net(self, input_vars: Iterable[SYMBOL], net: TorchMLP) -> SYMBOL:
@@ -151,6 +175,7 @@ class MLPZ3Translator(Translator):
         :param xdot:
         :return:
         """
+        # todo check if possible to simply by using get_symbolic_net_grad
         x = np.array(x).reshape(-1, 1)
 
         z, jacobian = self.network_until_last_layer(net, x)

@@ -59,12 +59,12 @@ class RobustControlBarrierFunction(Certificate):
         self.epochs = 1000
 
     def compute_loss(
-        self,
-        B_i: torch.Tensor,
-        B_u: torch.Tensor,
-        B_d: torch.Tensor,
-        Bdot_d: torch.Tensor,
-        alpha: torch.Tensor | float,
+            self,
+            B_i: torch.Tensor,
+            B_u: torch.Tensor,
+            B_d: torch.Tensor,
+            Bdot_d: torch.Tensor,
+            alpha: torch.Tensor | float,
     ) -> tuple[torch.Tensor, dict]:
         """Computes loss function for CBF and its accuracy w.r.t. the batch of data.
 
@@ -79,7 +79,7 @@ class RobustControlBarrierFunction(Certificate):
             tuple[torch.Tensor, float]: loss and accuracy
         """
         assert (
-            Bdot_d is None or B_d.shape == Bdot_d.shape
+                Bdot_d is None or B_d.shape == Bdot_d.shape
         ), f"B_d and Bdot_d must have the same shape, got {B_d.shape} and {Bdot_d.shape}"
         margin = self.margin
 
@@ -113,16 +113,16 @@ class RobustControlBarrierFunction(Certificate):
         }
 
         # debug
-        #print("\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
+        # print("\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
 
         return loss, accuracy
 
     def learn(
-        self,
-        learner: LearnerCT,
-        optimizer: Optimizer,
-        datasets: dict,
-        f_torch: callable,
+            self,
+            learner: LearnerCT,
+            optimizer: Optimizer,
+            datasets: dict,
+            f_torch: callable,
     ) -> dict:
         """
         Updates the CBF model.
@@ -141,8 +141,8 @@ class RobustControlBarrierFunction(Certificate):
         state_samples = torch.cat(
             [datasets[label][:, : self.n_vars] for label in label_order]
         )
-        U_d = datasets[XD][:, self.n_vars : self.n_vars + self.n_controls]
-        Z_d = datasets[XD][:, self.n_vars + self.n_controls : self.n_vars + self.n_controls + self.n_uncertain]
+        U_d = datasets[XD][:, self.n_vars: self.n_vars + self.n_controls]
+        Z_d = datasets[XD][:, self.n_vars + self.n_controls: self.n_vars + self.n_controls + self.n_uncertain]
 
         for t in range(self.epochs):
             optimizer.zero_grad()
@@ -151,12 +151,12 @@ class RobustControlBarrierFunction(Certificate):
             B, gradB = learner.net.compute_net_gradnet(state_samples)
 
             B_d = B[:i1, 0]
-            B_i = B[i1 : i1 + i2, 0]
-            B_u = B[i1 + i2 :, 0]
+            B_i = B[i1: i1 + i2, 0]
+            B_u = B[i1 + i2:, 0]
 
             # compute lie derivative
             assert (
-                B_d.shape[0] == U_d.shape[0]
+                    B_d.shape[0] == U_d.shape[0]
             ), f"expected pairs of state,input data. Got {B_d.shape[0]} and {U_d.shape[0]}"
             X_d = state_samples[:i1]
             gradB_d = gradB[:i1]
@@ -178,9 +178,11 @@ class RobustControlBarrierFunction(Certificate):
             loss.backward()
             optimizer.step()
 
+        logging.info(f"Epoch {t}: loss={loss}, accuracy={accuracy}")
+
         return {}
 
-    def get_constraints(self, verifier, B, Bdot) -> Generator:
+    def get_constraints(self, verifier, B, Bdot, Bdotz) -> Generator:
         """
         :param verifier: verifier object
         :param B: symbolic formula of the CBF
@@ -196,11 +198,26 @@ class RobustControlBarrierFunction(Certificate):
 
         alpha = lambda x: 1.0 * x
 
-        # find cex requires ForAll quantifier on entire input domain
-        # spec := exists u Bdot + alpha * Bx >= 0 if x \in domain
-        # counterexample: x s.t. forall u Bdot + alpha * Bx < 0
+        # initial condition
+        # Bx >= 0 if x \in initial
+        # counterexample: B < 0 and x \in initial
+        initial_constr = _And(B < 0, self.initial_domain)
+        # add domain constraints
+        inital_constr = _And(initial_constr, self.x_domain)
+
+        # unsafe condition
+        # Bx < 0 if x \in unsafe
+        # counterexample: B >= 0 and x \in unsafe
+        unsafe_constr = _And(B >= 0, self.unsafe_domain)
+        # add domain constraints
+        unsafe_constr = _And(unsafe_constr, self.x_domain)
+
+        # feasibility condition
+        # exists u Bdot + alpha * Bx >= 0 if x \in domain
+        # counterexample: x \in domain s.t. forall u Bdot + alpha * Bx < 0
         #
-        # smart way: verify Lie condition only on vertices of convex input space
+        # note: smart trick for tractable verification using vertices of input convex-hull
+        # counterexample: x \in domain and AND_v (u=v and Bdot + alpha * Bx < 0)
         u_vertices = self.u_set.get_vertices()
         lie_constr = _True
         for u_vert in u_vertices:
@@ -210,27 +227,35 @@ class RobustControlBarrierFunction(Certificate):
             )
             lie_constr_uv = _And(vertex_constr, vertex_assignment)
             lie_constr = _And(lie_constr, lie_constr_uv)
-
-        # Bx >= 0 if x \in initial
-        # counterexample: B < 0 and x \in initial
-        initial_constr = _And(B < 0, self.initial_domain)
-
-        # Bx < 0 if x \in unsafe
-        # counterexample: B >= 0 and x \in unsafe
-        unsafe_constr = _And(B >= 0, self.unsafe_domain)
-
         # add domain constraints
-        lie_constr = _And(_And(lie_constr, self.x_domain), self.z_domain)
-        inital_constr = _And(initial_constr, self.x_domain)
-        unsafe_constr = _And(unsafe_constr, self.x_domain)
+        lie_constr = _And(lie_constr, self.x_domain)
 
-        logging.info(f"lie_constr: {lie_constr}")
+        # robustness constraint
+        # spec := forall z forall u (Bdot + alpha * Bx >= 0 implies Bdot(z) + alpha * B(z) >= 0)
+        # counterexample: x \in xdomain and z \in zdomain and u \in udomain and
+        #                 Bdot + alpha * Bx >= 0 and Bdot(z) + alpha * B(z) < 0
+        is_nominal_safe = Bdot + alpha(B) >= 0
+        is_uncertain_unsafe = Bdotz + alpha(B) < 0
+        robust_constr = _And(is_nominal_safe, is_uncertain_unsafe)
+        # add domain constraints
+        robust_constr = _And(robust_constr, self.x_domain)
+        robust_constr = _And(robust_constr, self.z_domain)
+        robust_constr = _And(robust_constr, self.u_domain)
+
         logging.debug(f"inital_constr: {inital_constr}")
         logging.debug(f"unsafe_constr: {unsafe_constr}")
+        logging.debug(f"lie_constr: {lie_constr}")
+        logging.debug(f"robust_constr: {robust_constr}")
 
         for cs in (
-            #{XI: (inital_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
-            {XD: (lie_constr, self.x_vars + self.u_vars + self.z_vars)},
+                {
+                    XI: (inital_constr, self.x_vars),
+                    XU: (unsafe_constr, self.x_vars)
+                },
+                {
+                    XD: (lie_constr, self.x_vars + self.u_vars),
+                    ZD: (robust_constr, self.x_vars + self.u_vars + self.z_vars)
+                },
         ):
             yield cs
 
@@ -245,5 +270,5 @@ class RobustControlBarrierFunction(Certificate):
             "Symbolic Domains",
         )
         _set_assertion(
-            {dn.XD.value, dn.XI.value, dn.XU.value}, data_labels, "Data Sets"
+            {dn.XD.value, dn.XI.value, dn.XU.value, dn.ZD.value}, data_labels, "Data Sets"
         )

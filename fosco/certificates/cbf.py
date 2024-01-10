@@ -174,7 +174,7 @@ class ControlBarrierFunction(Certificate):
 
         return {}
 
-    def get_constraints(self, verifier, B, Bdot) -> Generator:
+    def get_constraints(self, verifier, B, Bdot, *args) -> Generator:
         """
         :param verifier: verifier object
         :param B: symbolic formula of the CBF

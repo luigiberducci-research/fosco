@@ -82,16 +82,17 @@ class Verifier:
     def replace_point(expr, ver_vars, point):
         raise NotImplementedError("")
 
-    def verify(self, V_symbolic: SYMBOL, Vdot_symbolic: SYMBOL, **kwargs):
+    def verify(self, V_symbolic: SYMBOL, Vdot_symbolic: SYMBOL, Vdotz_symbolic: SYMBOL, **kwargs):
         """
-        :param V_symbolic: z3 expr
-        :param Vdot_symbolic: z3 expr
+        :param V_symbolic: z3 expr of function V
+        :param Vdot_symbolic: z3 expr of Lie derivative of V under nominal model
+        :param Vdotz_symbolic: z3 expr of Lie derivative of V under uncertain model
         :return:
                 found_lyap: True if C is valid
                 C: a list of ctx
         """
         found, timed_out = False, False
-        fmls = self.constraints_method(self, V_symbolic, Vdot_symbolic)
+        fmls = self.constraints_method(self, V_symbolic, Vdot_symbolic, Vdotz_symbolic)
         results = {}
         solvers = {}
         solver_vars = {}

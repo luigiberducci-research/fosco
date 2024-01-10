@@ -64,7 +64,7 @@ class Cegis:
         # intialization
         self.f = self.config.SYSTEM()
         self.x, self.x_map, self.domains = self._initialise_domains()
-        self.xdot = self.f(**self.x_map)
+        self.xdot, self.xdotz = self._initialise_dynamics()
         self.datasets = self._initialise_data()
 
         self.certificate = self._initialise_certificate()
@@ -138,6 +138,16 @@ class Cegis:
 
         self.logger.debug("Domains: {}".format(domains))
         return x, x_map, domains
+
+    def _initialise_dynamics(self):
+        if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
+            xdot = self.f(**self.x_map, only_nominal=True)
+            xdotz = self.f(**self.x_map)
+        else:
+            xdot = self.f(**self.x_map)
+            xdotz = None
+
+        return xdot, xdotz
 
     def _initialise_data(self):
         datasets = {}
@@ -219,17 +229,22 @@ class Cegis:
 
     def init_state(self) -> dict:
         state = {
-            "found": False,
-            "iter": 0,
-            "system": self.f,
-            "V_net": self.learner.net,
-            "xdot_func": self.f._f_torch,
-            "datasets": self.datasets,
-            "x_v_map": self.x_map,
-            "V_symbolic": None,
-            "Vdot_symbolic": None,
-            "xdot": self.xdot,
-            "cex": None,
+            "found": False,     # whether a valid cbf was found
+            "iter": 0,          # current iteration
+            "system": self.f,   # system object
+
+            "V_net": self.learner.net,  # cbf model as nn
+            "xdot_func": self.f._f_torch,   # numerical dynamics function
+            "datasets": self.datasets,  # dictionary of datasets of training data
+
+            "x_v_map": self.x_map,  # dictionary of symbolic variables
+            "V_symbolic": None,     # symbolic expression of cbf
+            "Vdot_symbolic": None,  # symbolic expression of lie derivative w.r.t. nominal dynamics
+            "Vdotz_symbolic": None, # symbolic expression of lie derivative w.r.t. uncertain dynamics
+            "xdot": self.xdot,      # symbolic expression of nominal dynamics
+            "xdotz": self.xdotz,    # symbolic expression of uncertain dynamics
+
+            "cex": None,    # counterexamples
             # CegisStateKeys.found: False,
             # CegisStateKeys.verification_timed_out: False,
             # CegisStateKeys.cex: None,

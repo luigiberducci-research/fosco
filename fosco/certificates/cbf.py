@@ -108,7 +108,8 @@ class ControlBarrierFunction(Certificate):
         }
 
         # debug
-        # print("\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
+        logging.debug("Dataset Accuracy:")
+        logging.debug("\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
 
         return loss, accuracy
 
@@ -187,6 +188,8 @@ class ControlBarrierFunction(Certificate):
         _Not = verifier.solver_fncts()["Not"]
         _Exists = verifier.solver_fncts()["Exists"]
         _ForAll = verifier.solver_fncts()["ForAll"]
+        _Substitute = verifier.solver_fncts()["Substitute"]
+        _RealVal = verifier.solver_fncts()["RealVal"]
 
         alpha = lambda x: 1.0 * x
 
@@ -196,14 +199,12 @@ class ControlBarrierFunction(Certificate):
         #
         # smart way: verify Lie condition only on vertices of convex input space
         u_vertices = self.u_set.get_vertices()
-        lie_constr = _True
+        lie_constr = self.x_domain
         for u_vert in u_vertices:
             vertex_constr = Bdot + alpha(B) < 0
-            vertex_assignment = _And(
-                [u_var == u_val for u_var, u_val in zip(self.u_vars, u_vert)]
-            )
-            lie_constr_uv = _And(vertex_constr, vertex_assignment)
-            lie_constr = _And(lie_constr, lie_constr_uv)
+            for u_var, u_val in zip(self.u_vars, u_vert):
+                vertex_constr = _Substitute(vertex_constr, (u_var, _RealVal(u_val)))
+            lie_constr = _And(lie_constr, vertex_constr)
 
         # Bx >= 0 if x \in initial
         # counterexample: B < 0 and x \in initial

@@ -4,10 +4,12 @@ from dataclasses import dataclass
 from typing import Any, Type
 
 import matplotlib.pyplot as plt
+import numpy as np
+import torch
 
 from fosco.certificates import make_certificate
 from fosco.common.formatter import CustomFormatter
-from fosco.common.plotting import benchmark_3d
+from fosco.common.plotting import benchmark_3d, benchmark_lie
 from fosco.consolidator import make_consolidator
 from fosco.common.consts import (
     CertificateType,
@@ -57,6 +59,12 @@ class CegisConfig:
 class Cegis:
     def __init__(self, config: CegisConfig, verbose: int = 0):
         self.config = config
+
+        # seeding
+        if self.config.SEED is None:
+            self.config.SEED = torch.randint(0, 1000000, (1,)).item()
+        torch.manual_seed(self.config.SEED)
+        np.random.seed(self.config.SEED)
 
         # logging
         self.logger = self._initialise_logger(verbose=verbose)
@@ -190,6 +198,12 @@ class Cegis:
                     yrange,
                     title=f"CBF - Iter {iter}",
                 )
+                zero_ctrl = lambda x: torch.ones(x.shape[0], self.f.n_controls)
+                ax3 = benchmark_lie(model=self.f, ctrl=zero_ctrl, certificate=self.learner.net,
+                                    domains=self.config.DOMAINS,
+                                    levels=[0.0],
+                                    xrange=xrange, yrange=yrange)
+
                 plt.show()
 
             # Learner component

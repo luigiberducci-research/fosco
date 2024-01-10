@@ -20,7 +20,9 @@ FUNCTIONS = {
     "True": True,
     "Exists": z3.Exists,
     "ForAll": z3.ForAll,
+    "Substitute": z3.substitute,
     "Check": lambda x: contains_object(x, z3.ArithRef),
+    "RealVal": z3.RealVal,
 }
 
 

@@ -76,8 +76,8 @@ class ControlAffineControllableDynamicalModel:
 
         XX, YY = np.meshgrid(xx, yy)
         obs = torch.stack(
-                    [torch.tensor(XX).ravel(), torch.tensor(YY).ravel()]
-                ).T.float()
+            [torch.tensor(XX).ravel(), torch.tensor(YY).ravel()]
+        ).T.float()
         uu = ctrl(obs)
 
         dx, dy = (
@@ -133,27 +133,42 @@ class UncertainControlAffineControllableDynamicalModel(ControlAffineControllable
         raise NotImplementedError()
 
     def f(
-            self, v: np.ndarray | torch.Tensor, u: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
+            self, v: np.ndarray | torch.Tensor,
+            u: np.ndarray | torch.Tensor,
+            z: np.ndarray | torch.Tensor,
+            only_nominal: bool = False
     ) -> np.ndarray | torch.Tensor:
         if torch.is_tensor(v) or isinstance(v, np.ndarray):
-            return self._f_torch(v, u, z)
+            return self._f_torch(v=v, u=u, z=z, only_nominal=only_nominal)
         elif contains_object(v, z3.ArithRef):
-            dvs = self.fx_smt(v) + self.gx_smt(v) @ u + self.fz_smt(v, z) + self.gz_smt(v, z) @ u
+            if only_nominal:
+                dvs = self.fx_smt(v) + self.gx_smt(v) @ u
+            else:
+                dvs = self.fx_smt(v) + self.gx_smt(v) @ u + self.fz_smt(v, z) + self.gz_smt(v, z) @ u
             return [z3.simplify(dv) for dv in dvs]
         else:
             raise NotImplementedError(f"Unsupported type {type(v)}")
 
-    def _f_torch(self, v: torch.Tensor, u: torch.Tensor, z: torch.Tensor) -> list:
+    def _f_torch(self, v: torch.Tensor, u: torch.Tensor, z: torch.Tensor, only_nominal: bool = False) -> list:
         v = v.reshape(-1, self.n_vars, 1)
         u = u.reshape(-1, self.n_controls, 1)
         z = z.reshape(-1, self.n_uncertain, 1)
-        vdot = self.fx_torch(v) + self.gx_torch(v) @ u + self.fz_torch(v, z) + self.gz_torch(v, z) @ u
+
+        if only_nominal:
+            vdot = self.fx_torch(v) + self.gx_torch(v) @ u
+        else:
+            vdot = self.fx_torch(v) + self.gx_torch(v) @ u + self.fz_torch(v, z) + self.gz_torch(v, z) @ u
+
         return vdot.reshape(-1, self.n_vars)
 
     def __call__(
-            self, v: np.ndarray | torch.Tensor, u: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
+            self,
+            v: np.ndarray | torch.Tensor,
+            u: np.ndarray | torch.Tensor,
+            z: np.ndarray | torch.Tensor,
+            only_nominal: bool = False
     ) -> np.ndarray | torch.Tensor:
-        return self.f(v, u, z)
+        return self.f(v, u, z, only_nominal=only_nominal)
 
     def plot(
             self,
@@ -170,8 +185,8 @@ class UncertainControlAffineControllableDynamicalModel(ControlAffineControllable
 
         XX, YY = np.meshgrid(xx, yy)
         obs = torch.stack(
-                    [torch.tensor(XX).ravel(), torch.tensor(YY).ravel()]
-                ).T.float()
+            [torch.tensor(XX).ravel(), torch.tensor(YY).ravel()]
+        ).T.float()
         uu = ctrl(obs)
 
         if zmodel is not None:

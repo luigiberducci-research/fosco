@@ -197,10 +197,7 @@ class Cegis:
                 xrange = domains["lie"].lower_bounds[0], domains["lie"].upper_bounds[0]
                 yrange = domains["lie"].lower_bounds[1], domains["lie"].upper_bounds[1]
 
-                if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
-                    func = lambda x: self.learner.net(x) - self.learner.xsigma(x)
-                else:
-                    func = self.learner.net
+                func = self.learner.net
                 ax2 = benchmark_3d(
                     func,
                     domains,
@@ -211,6 +208,21 @@ class Cegis:
                 )
                 #ax2.view_init(azim=0, elev=90)
                 plt.savefig(f"{logdir}/cbf_iter_{iter}.png")
+
+                plt.clf()
+                if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
+                    func = lambda x: self.learner.xsigma(x)
+                    ax2 = benchmark_3d(
+                        func,
+                        domains,
+                        [0.0],
+                        xrange,
+                        yrange,
+                        title=f"Compensator - Iter {iter}",
+                    )
+                    #ax2.view_init(azim=0, elev=90)
+                    plt.savefig(f"{logdir}/sigma_iter_{iter}.png")
+
 
             # Learner component
             self.logger.debug("Learner")

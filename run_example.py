@@ -11,6 +11,7 @@ from fosco.common.consts import ActivationType
 from fosco.common.consts import CertificateType, TimeDomain, VerifierType
 from fosco.common.plotting import benchmark_3d, benchmark_plane, benchmark_lie
 from systems import make_system
+from systems.system import UncertainControlAffineControllableDynamicalModel
 
 
 def main():
@@ -133,14 +134,20 @@ def main():
         zero_ctrl = lambda x: torch.ones(x.shape[0], cegis.f.n_controls)
 
         fig, ax = plt.subplots(1, 1, figsize=(10, 5))
+
+        if isinstance(cegis.f, UncertainControlAffineControllableDynamicalModel):
+            func = lambda x: cegis.learner.net(x) - cegis.learner.xsigma(x)
+        else:
+            func = cegis.learner.net
+
         ax1 = benchmark_plane(model=cegis.f,
                               ctrl=zero_ctrl,
-                              certificate=result.net, domains=config.DOMAINS, levels=[0.0], xrange=xrange,
+                              certificate=func, domains=config.DOMAINS, levels=[0.0], xrange=xrange,
                               yrange=yrange, ax=ax)
 
         fig = plt.figure()
         ax2 = benchmark_3d(
-            result.net, config.DOMAINS, [0.0], xrange, yrange, title="CBF", fig=fig
+            func, config.DOMAINS, [0.0], xrange, yrange, title="CBF", fig=fig
         )
 
         #ax3 = benchmark_lie(model=cegis.f, ctrl=zero_ctrl, certificate=result.net, domains=config.DOMAINS,

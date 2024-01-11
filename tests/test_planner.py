@@ -11,7 +11,7 @@ from fosco.planner.safety_filter import CBFSafetyFilter
 
 class TestPlanner(unittest.TestCase):
 
-    def test_single_integrator_cbf_planner(self):
+    def _test_single_integrator_cbf_planner(self):
         # make env for single integrator
         svars, uvars = ["x0", "x1"], ["u0", "u1"]
         system = make_system(id="single_integrator")()

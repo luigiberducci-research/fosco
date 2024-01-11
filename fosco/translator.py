@@ -56,6 +56,7 @@ class MLPZ3Translator(Translator):
         self,
         x_v_map: dict[str, Iterable[SYMBOL]],
         V_net: TorchMLP,
+        sigma_net: TorchMLP,
         xdot: Iterable[SYMBOL],
         xdotz: Iterable[SYMBOL] = None,
         **kwargs,
@@ -79,6 +80,13 @@ class MLPZ3Translator(Translator):
 
         V_symbolic, Vdot_symbolic = self.get_symbolic_formula(x_vars, V_net, xdot)
 
+        # robust cbf: compensation term
+        if sigma_net is not None:
+            sigma_symbolic = self.get_symbolic_net(x_vars, sigma_net)
+        else:
+            sigma_symbolic = None
+
+
         if xdotz is not None:
             xdotz = np.array(xdotz).reshape(-1, 1)
             _, Vdotz_symbolic = self.get_symbolic_formula(x_vars, V_net, xdotz)
@@ -97,6 +105,7 @@ class MLPZ3Translator(Translator):
             "V_symbolic": V_symbolic,
             "Vdot_symbolic": Vdot_symbolic,
             "Vdotz_symbolic": Vdotz_symbolic,
+            "sigma_symbolic": sigma_symbolic,
         }
 
     def get_symbolic_net(self, input_vars: Iterable[SYMBOL], net: TorchMLP) -> SYMBOL:

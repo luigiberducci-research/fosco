@@ -11,10 +11,10 @@ class TestVerifier(unittest.TestCase):
 
         verifier_fn = make_verifier(type=VerifierType.Z3)
 
-        def constraint_gen(verif: Verifier, C: SYMBOL, dC: SYMBOL):
+        def constraint_gen(verif: Verifier, C: SYMBOL, sigma, dC: SYMBOL, *args):
             yield {"sat": C >= 0.0}
 
-        def constraint_gen2(verif: Verifier, C: SYMBOL, dC: SYMBOL):
+        def constraint_gen2(verif: Verifier, C: SYMBOL, sigma, dC: SYMBOL, *args):
             yield {"unsat": z3.And(C >= 0.0, C < 0)}
 
         vars = verifier_fn.new_vars(n=1)
@@ -23,8 +23,8 @@ class TestVerifier(unittest.TestCase):
 
         C = vars[0] + 1.0
         dC = vars[0] + 6.0
-        results = verifier.verify(V_symbolic=C, Vdot_symbolic=dC)
-        results2 = verifier2.verify(V_symbolic=C, Vdot_symbolic=dC)
+        results = verifier.verify(V_symbolic=C, Vdot_symbolic=dC, sigma_symbolic=None, Vdotz_symbolic=None)
+        results2 = verifier2.verify(V_symbolic=C, Vdot_symbolic=dC, sigma_symbolic=None, Vdotz_symbolic=None)
 
         self.assertTrue(
             len(results["cex"]["sat"]) > 0,

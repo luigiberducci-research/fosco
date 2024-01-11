@@ -175,10 +175,11 @@ class ControlBarrierFunction(Certificate):
 
         return {}
 
-    def get_constraints(self, verifier, B, Bdot, *args) -> Generator:
+    def get_constraints(self, verifier, B, sigma, Bdot, *args) -> Generator:
         """
         :param verifier: verifier object
         :param B: symbolic formula of the CBF
+        :param sigma: symbolic formula of the compensator (not used here)
         :param Bdot: symbolic formula of the CBF derivative (not yet Lie derivative)
         :return: tuple of dictionaries of Barrier conditons
         """

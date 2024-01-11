@@ -27,7 +27,7 @@ from systems.system import UncertainControlAffineControllableDynamicalModel
 
 CegisResult = namedtuple("CegisResult", ["found", "net", "infos"])
 
-DEBUG_PLOT = False
+DEBUG_PLOT = True
 
 
 @dataclass
@@ -103,7 +103,7 @@ class Cegis:
         return logger
 
     def _initialise_learner(self) -> LearnerNN:
-        learner_type = make_learner(self.config.TIME_DOMAIN)
+        learner_type = make_learner(system=self.f, time_domain=self.config.TIME_DOMAIN)
         learner_instance = learner_type(
             state_size=self.f.n_vars,
             learn_method=self.certificate.learn,
@@ -196,8 +196,13 @@ class Cegis:
                 domains = self.config.DOMAINS
                 xrange = domains["lie"].lower_bounds[0], domains["lie"].upper_bounds[0]
                 yrange = domains["lie"].lower_bounds[1], domains["lie"].upper_bounds[1]
+
+                if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
+                    func = lambda x: self.learner.net(x) - self.learner.xsigma(x)
+                else:
+                    func = self.learner.net
                 ax2 = benchmark_3d(
-                    self.learner,
+                    func,
                     domains,
                     [0.0],
                     xrange,
@@ -243,6 +248,8 @@ class Cegis:
 
         # state = self.process_timers(state)
 
+        logging.info(f"CEGIS finished after {iter} iterations")
+
         infos = {"iter": iter}
         self._result = CegisResult(
             found=state["found"],
@@ -253,17 +260,23 @@ class Cegis:
         return self._result
 
     def init_state(self) -> dict:
+        # todo: extend to multiplicative uncertainty too
+        xsigma = self.learner.xsigma if hasattr(self.learner, "xsigma") else None
+
         state = {
             "found": False,     # whether a valid cbf was found
             "iter": 0,          # current iteration
             "system": self.f,   # system object
 
             "V_net": self.learner.net,  # cbf model as nn
+            "sigma_net": xsigma,  # sigma model as nn
+
             "xdot_func": self.f._f_torch,   # numerical dynamics function
             "datasets": self.datasets,  # dictionary of datasets of training data
 
             "x_v_map": self.x_map,  # dictionary of symbolic variables
             "V_symbolic": None,     # symbolic expression of cbf
+            "sigma_symbolic": None, # symbolic expression of compensator sigma
             "Vdot_symbolic": None,  # symbolic expression of lie derivative w.r.t. nominal dynamics
             "Vdotz_symbolic": None, # symbolic expression of lie derivative w.r.t. uncertain dynamics
             "xdot": self.xdot,      # symbolic expression of nominal dynamics

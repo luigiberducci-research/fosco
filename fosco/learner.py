@@ -8,6 +8,8 @@ from torch import nn
 from fosco.common.activations import activation
 from fosco.common.consts import ActivationType, TimeDomain
 from fosco.models.network import TorchMLP
+from systems import ControlAffineControllableDynamicalModel
+from systems.system import UncertainControlAffineControllableDynamicalModel
 
 
 class LearnerNN(nn.Module):
@@ -121,8 +123,70 @@ class LearnerCT(LearnerNN):
         return Vdot
 
 
-def make_learner(time_domain: TimeDomain) -> Type[LearnerNN]:
-    if time_domain == TimeDomain.CONTINUOUS:
+class LearnerRobustCT(LearnerNN):
+    """Leaner class for continuous time dynamical models.
+
+    Learns and evaluates V and Vdot.
+
+    """
+
+    def __init__(
+        self,
+        state_size,
+        learn_method,
+        hidden_sizes: tuple[int, ...],
+        activation: tuple[ActivationType, ...],
+        lr: float,
+        weight_decay: float,
+    ):
+        super(LearnerRobustCT, self).__init__()
+
+        self.net = TorchMLP(
+            input_size=state_size,
+            output_size=1,
+            hidden_sizes=hidden_sizes,
+            activation=activation,
+        )
+
+        # linear compensator for additive state disturbances
+        self.xsigma = TorchMLP(
+            input_size=state_size,
+            output_size=1,
+            hidden_sizes=(),
+            activation=(),
+        )
+
+        self.optimizer = torch.optim.AdamW(
+            params=self.parameters(),
+            lr=lr,
+            weight_decay=weight_decay,
+        )
+
+        self.learn_method = learn_method
+
+    def update(self, datasets, xdot_func, **kwargs) -> dict:
+        output = self.learn(datasets=datasets, xdot_func=xdot_func)
+        return output
+
+    def compute_dV(self, gradV: torch.Tensor, Sdot: torch.Tensor) -> torch.Tensor:
+        """Computes the  lie derivative of the function.
+
+        Args:
+            gradV (torch.Tensor): gradient of the function
+            Sdot (torch.Tensor): df/dt
+
+        Returns:
+            torch.Tensor: dV/dt
+        """
+        # Vdot = gradV * f(x)
+        Vdot = torch.sum(torch.mul(gradV, Sdot), dim=1)
+        return Vdot
+
+
+def make_learner(system: ControlAffineControllableDynamicalModel, time_domain: TimeDomain) -> Type[LearnerNN]:
+    if isinstance(system, UncertainControlAffineControllableDynamicalModel) and time_domain == TimeDomain.CONTINUOUS:
+        return LearnerRobustCT
+    elif time_domain == TimeDomain.CONTINUOUS:
         return LearnerCT
     else:
-        raise NotImplementedError(f"Unsupported time domain {time_domain}")
+        raise NotImplementedError(f"Unsupported learner for system {type(system)} and time domain {time_domain}")

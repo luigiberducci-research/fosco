@@ -63,8 +63,10 @@ class RobustControlBarrierFunction(Certificate):
             B_i: torch.Tensor,
             B_u: torch.Tensor,
             B_d: torch.Tensor,
+            sigma_d: torch.Tensor,
             Bdot_d: torch.Tensor,
             B_dz: torch.Tensor,
+            sigma_dz: torch.Tensor,
             Bdot_dz: torch.Tensor,
             Bdotz_dz: torch.Tensor,
             alpha: torch.Tensor | float,
@@ -75,7 +77,11 @@ class RobustControlBarrierFunction(Certificate):
             B_i (torch.Tensor): Barrier values for initial set
             B_u (torch.Tensor): Barrier values for unsafe set
             B_d (torch.Tensor): Barrier values for domain
+            sigma_d (torch.Tensor): Compensator values for domain
             Bdot_d (torch.Tensor): Barrier derivative values for domain according to nominal model
+            B_dz (torch.Tensor): Barrier values for domain according to uncertain model
+            sigma_dz (torch.Tensor): Compensator values for domain according to uncertain model
+            Bdot_dz (torch.Tensor): Barrier derivative values for domain according to uncertain model
             Bdotz_d (torch.Tensor): Barrier derivative values for domain according to uncertain model
             alpha (torch.Tensor): coeff. linear class-k function, f(x) = alpha * x, for alpha in R_+
 
@@ -110,13 +116,13 @@ class RobustControlBarrierFunction(Certificate):
         relu = self.loss_relu
         init_loss = (relu(margin - B_i)).mean()  # penalize B_i < 0
         unsafe_loss = (relu(B_u + margin)).mean()  # penalize B_u > 0
-        lie_loss = (relu(margin - (Bdot_d + alpha * B_d))).mean()  # penalize dB_d + alpha * B_d < 0
+        lie_loss = (relu(margin - (Bdot_d - sigma_d + alpha * B_d))).mean()  # penalize dB_d - sigma_d + alpha * B_d < 0
         robust_loss = (relu(
             torch.min(
-                margin - (Bdot_dz + alpha * B_dz),
-                (Bdotz_dz + alpha * B_dz) - margin
+                (Bdot_dz - sigma_dz + alpha * B_dz),
+                margin - (Bdotz_dz + alpha * B_dz)
             )
-        )).mean()  # penalize dB_d + alpha * B_d >=0 and Bdotz_d + alpha * B_d < 0
+        )).mean()  # penalize dB_d - sigma_d + alpha * B_d >=0 and Bdotz_d + alpha * B_d < 0
 
         losses = {
             "init loss": init_loss.item(),
@@ -172,11 +178,11 @@ class RobustControlBarrierFunction(Certificate):
 
             # net gradient
             B, gradB = learner.net.compute_net_gradnet(state_samples)
+            sigma = learner.xsigma(state_samples)
 
             B_d = B[:i1, 0]
             B_i = B[i1: i1 + i2, 0]
             B_u = B[i1 + i2: i1 + i2 + i3, 0]
-
 
             # compute lie derivative on lie dataset
             assert (
@@ -184,18 +190,21 @@ class RobustControlBarrierFunction(Certificate):
             ), f"expected pairs of state,input data. Got {B_d.shape[0]} and {U_d.shape[0]}"
             X_d = state_samples[:i1]
             gradB_d = gradB[:i1]
+            sigma_d = sigma[:i1]
             Sdot_d = f_torch(X_d, U_d, Z_d, only_nominal=True)
             Bdot_d = torch.sum(torch.mul(gradB_d, Sdot_d), dim=1)
 
             # compute lie derivative on uncertainty dataset
             B_dz = B[i1 + i2 + i3:, 0]
             gradB_dz = gradB[i1 + i2 + i3:]
+            sigma_dz = sigma[i1 + i2 + i3:]
             Sdot_dz = f_torch(X_dz, U_dz, Z_dz, only_nominal=True)
             Sdotz_dz = f_torch(X_dz, U_dz, Z_dz)
             Bdot_dz = torch.sum(torch.mul(gradB_dz, Sdot_dz), dim=1)
             Bdotz_dz = torch.sum(torch.mul(gradB_dz, Sdotz_dz), dim=1)
 
-            loss, losses, accuracy = self.compute_loss(B_i, B_u, B_d, Bdot_d, B_dz, Bdot_dz, Bdotz_dz, alpha=1.0)
+            loss, losses, accuracy = self.compute_loss(B_i, B_u, B_d, sigma_d, Bdot_d,
+                                                       B_dz, sigma_dz, Bdot_dz, Bdotz_dz, alpha=1.0)
 
             if t % math.ceil(self.epochs / 10) == 0 or self.epochs - t < 10:
                 # log_loss_acc(t, loss, accuracy, learner.verbose)
@@ -215,15 +224,17 @@ class RobustControlBarrierFunction(Certificate):
             optimizer.step()
 
         logging.info(f"Epoch {t}: loss={loss}")
+        logging.info(f"mean compensation: {sigma.mean().item()}")
         logging.info(f"losses={losses}")
         logging.info(f"accuracy={accuracy}")
 
         return {}
 
-    def get_constraints(self, verifier, B, Bdot, Bdotz) -> Generator:
+    def get_constraints(self, verifier, B, sigma, Bdot, Bdotz) -> Generator:
         """
         :param verifier: verifier object
         :param B: symbolic formula of the CBF
+        :param sigma: symbolic formula of compensator sigma
         :param Bdot: symbolic formula of the CBF derivative (not yet Lie derivative)
         :return: tuple of dictionaries of Barrier conditons
         """
@@ -261,7 +272,7 @@ class RobustControlBarrierFunction(Certificate):
         u_vertices = self.u_set.get_vertices()
         lie_constr = self.x_domain
         for u_vert in u_vertices:
-            vertex_constr = Bdot + alpha(B) < 0
+            vertex_constr = Bdot - sigma + alpha(B) < 0
             for u_var, u_val in zip(self.u_vars, u_vert):
                 vertex_constr = _Substitute(vertex_constr, (u_var, _RealVal(u_val)))
             lie_constr = _And(lie_constr, vertex_constr)
@@ -270,7 +281,7 @@ class RobustControlBarrierFunction(Certificate):
         # spec := forall z forall u (Bdot + alpha * Bx >= 0 implies Bdot(z) + alpha * B(z) >= 0)
         # counterexample: x \in xdomain and z \in zdomain and u \in udomain and
         #                 Bdot + alpha * Bx >= 0 and Bdot(z) + alpha * B(z) < 0
-        is_nominal_safe = Bdot + alpha(B) >= 0
+        is_nominal_safe = Bdot - sigma + alpha(B) >= 0
         is_uncertain_unsafe = Bdotz + alpha(B) < 0
         robust_constr = _And(is_nominal_safe, is_uncertain_unsafe)
         # add domain constraints

@@ -84,9 +84,12 @@ class Verifier:
     def replace_point(expr, ver_vars, point):
         raise NotImplementedError("")
 
-    def verify(self, V_symbolic: SYMBOL, Vdot_symbolic: SYMBOL, Vdotz_symbolic: SYMBOL, **kwargs):
+    def verify(self, V_symbolic: SYMBOL, sigma_symbolic: SYMBOL,
+               Vdot_symbolic: SYMBOL, Vdotz_symbolic: SYMBOL,
+               **kwargs):
         """
         :param V_symbolic: z3 expr of function V
+        :param sigma_symbolic: z3 expr of function sigma
         :param Vdot_symbolic: z3 expr of Lie derivative of V under nominal model
         :param Vdotz_symbolic: z3 expr of Lie derivative of V under uncertain model
         :return:
@@ -94,7 +97,8 @@ class Verifier:
                 C: a list of ctx
         """
         found, timed_out = False, False
-        fmls = self.constraints_method(self, V_symbolic, Vdot_symbolic, Vdotz_symbolic)
+        # todo: different verifier may require different inputs -> clean call constraints_method
+        fmls = self.constraints_method(self, V_symbolic, sigma_symbolic, Vdot_symbolic, Vdotz_symbolic)
         results = {}
         solvers = {}
         solver_vars = {}

@@ -152,8 +152,8 @@ class LearnerRobustCT(LearnerNN):
         self.xsigma = TorchMLP(
             input_size=state_size,
             output_size=1,
-            hidden_sizes=(),
-            activation=(),
+            hidden_sizes=hidden_sizes,
+            activation=activation,
         )
 
         self.optimizer = torch.optim.AdamW(

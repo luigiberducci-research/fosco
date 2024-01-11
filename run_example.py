@@ -17,7 +17,7 @@ from systems.system import UncertainControlAffineControllableDynamicalModel
 def main():
     seed = 916104
     system_name = "noisy_single_integrator"
-    n_hidden_neurons = 10
+    n_hidden_neurons = 5
     activations = (ActivationType.RELU, ActivationType.LINEAR)
     n_data_samples = 1000
     verbose = 0

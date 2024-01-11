@@ -104,7 +104,7 @@ class RobustControlBarrierFunction(Certificate):
         accuracy_d = (Bdot_d + alpha * B_d >= margin).count_nonzero().item()
 
         accuracy_z = torch.logical_or(
-            Bdot_dz + alpha * B_dz < margin,
+            Bdot_dz - sigma_dz + alpha * B_dz < margin,
             Bdotz_dz + alpha * B_dz >= margin
         ).count_nonzero().item()
 
@@ -119,7 +119,7 @@ class RobustControlBarrierFunction(Certificate):
         lie_loss = (relu(margin - (Bdot_d - sigma_d + alpha * B_d))).mean()  # penalize dB_d - sigma_d + alpha * B_d < 0
         robust_loss = (relu(
             torch.min(
-                (Bdot_dz - sigma_dz + alpha * B_dz),
+                (Bdot_dz - sigma_dz + alpha * B_dz) - margin,
                 margin - (Bdotz_dz + alpha * B_dz)
             )
         )).mean()  # penalize dB_d - sigma_d + alpha * B_d >=0 and Bdotz_d + alpha * B_d < 0
@@ -190,14 +190,14 @@ class RobustControlBarrierFunction(Certificate):
             ), f"expected pairs of state,input data. Got {B_d.shape[0]} and {U_d.shape[0]}"
             X_d = state_samples[:i1]
             gradB_d = gradB[:i1]
-            sigma_d = sigma[:i1]
+            sigma_d = sigma[:i1, 0]
             Sdot_d = f_torch(X_d, U_d, Z_d, only_nominal=True)
             Bdot_d = torch.sum(torch.mul(gradB_d, Sdot_d), dim=1)
 
             # compute lie derivative on uncertainty dataset
             B_dz = B[i1 + i2 + i3:, 0]
             gradB_dz = gradB[i1 + i2 + i3:]
-            sigma_dz = sigma[i1 + i2 + i3:]
+            sigma_dz = sigma[i1 + i2 + i3:, 0]
             Sdot_dz = f_torch(X_dz, U_dz, Z_dz, only_nominal=True)
             Sdotz_dz = f_torch(X_dz, U_dz, Z_dz)
             Bdot_dz = torch.sum(torch.mul(gradB_dz, Sdot_dz), dim=1)

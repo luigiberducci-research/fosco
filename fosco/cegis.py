@@ -209,18 +209,8 @@ class Cegis:
                     yrange,
                     title=f"CBF - Iter {iter}",
                 )
-                ax2.view_init(azim=0, elev=90)
+                #ax2.view_init(azim=0, elev=90)
                 plt.savefig(f"{logdir}/cbf_iter_{iter}.png")
-
-                # todo it does not work for uncertain systems
-                #zero_ctrl = lambda x: torch.ones(x.shape[0], self.f.n_controls)
-                #ax3 = benchmark_lie(model=self.f, ctrl=zero_ctrl, certificate=self.learner.net,
-                #                    domains=self.config.DOMAINS,
-                #                    levels=[0.0],
-                #                    xrange=xrange, yrange=yrange)
-                #plt.savefig(f"{logdir}/lie_cbf_iter_{iter}.png")
-
-
 
             # Learner component
             self.logger.debug("Learner")

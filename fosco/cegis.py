@@ -1,4 +1,6 @@
+import datetime
 import logging
+import pathlib
 from collections import namedtuple
 from dataclasses import dataclass
 from typing import Any, Type
@@ -103,7 +105,7 @@ class Cegis:
     def _initialise_learner(self) -> LearnerNN:
         learner_type = make_learner(self.config.TIME_DOMAIN)
         learner_instance = learner_type(
-            input_size=self.f.n_vars,
+            state_size=self.f.n_vars,
             learn_method=self.certificate.learn,
             hidden_sizes=self.config.N_HIDDEN_NEURONS,
             activation=self.config.ACTIVATION,
@@ -178,6 +180,8 @@ class Cegis:
         )
 
     def solve(self) -> CegisResult:
+        logdir = f"logs/{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}"
+
         state = self.init_state()
 
         iter = None
@@ -186,6 +190,8 @@ class Cegis:
 
             # debug print
             if DEBUG_PLOT:
+                pathlib.Path(logdir).mkdir(parents=True, exist_ok=True)
+
                 plt.clf()
                 domains = self.config.DOMAINS
                 xrange = domains["lie"].lower_bounds[0], domains["lie"].upper_bounds[0]
@@ -198,13 +204,18 @@ class Cegis:
                     yrange,
                     title=f"CBF - Iter {iter}",
                 )
-                zero_ctrl = lambda x: torch.ones(x.shape[0], self.f.n_controls)
-                ax3 = benchmark_lie(model=self.f, ctrl=zero_ctrl, certificate=self.learner.net,
-                                    domains=self.config.DOMAINS,
-                                    levels=[0.0],
-                                    xrange=xrange, yrange=yrange)
+                ax2.view_init(azim=0, elev=90)
+                plt.savefig(f"{logdir}/cbf_iter_{iter}.png")
 
-                plt.show()
+                # todo it does not work for uncertain systems
+                #zero_ctrl = lambda x: torch.ones(x.shape[0], self.f.n_controls)
+                #ax3 = benchmark_lie(model=self.f, ctrl=zero_ctrl, certificate=self.learner.net,
+                #                    domains=self.config.DOMAINS,
+                #                    levels=[0.0],
+                #                    xrange=xrange, yrange=yrange)
+                #plt.savefig(f"{logdir}/lie_cbf_iter_{iter}.png")
+
+
 
             # Learner component
             self.logger.debug("Learner")

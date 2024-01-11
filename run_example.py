@@ -11,7 +11,6 @@ from fosco.common.consts import ActivationType
 from fosco.common.consts import CertificateType, TimeDomain, VerifierType
 from fosco.common.plotting import benchmark_3d, benchmark_plane, benchmark_lie
 from systems import make_system
-from systems.single_integrator import SingleIntegratorKnownCBF
 
 
 def main():
@@ -70,8 +69,6 @@ def main():
         seed = random.randint(0, 1000000)
     print("Seed:", seed)
 
-
-
     # add uncertainty if applicable
     # todo: clean this
     if ZD is None:
@@ -101,7 +98,8 @@ def main():
             "init": lambda n: XI.generate_data(n),
             "unsafe": lambda n: XU.generate_data(n),
             "lie": lambda n: torch.concatenate(
-                [XD.generate_data(n), UD.generate_data(n), ZD.generate_data(n)], dim=1
+                [XD.generate_data(n),
+                torch.zeros(n, UD.dimension), ZD.generate_data(n)], dim=1
             ),
             "uncertainty": lambda n: torch.concatenate(
                 [XD.generate_data(n), UD.generate_data(n), ZD.generate_data(n)], dim=1
@@ -118,7 +116,7 @@ def main():
         VERIFIER=VerifierType.Z3,
         ACTIVATION=activations,
         N_HIDDEN_NEURONS=n_hidden_neurons,
-        CEGIS_MAX_ITERS=100,
+        CEGIS_MAX_ITERS=500,
         N_DATA=n_data_samples,
         SEED=seed,
     )

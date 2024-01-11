@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Callable
+from typing import Callable, Type
 
 import numpy as np
 import torch
@@ -78,7 +78,7 @@ class LearnerCT(LearnerNN):
 
     def __init__(
         self,
-        input_size,
+        state_size,
         learn_method,
         hidden_sizes: tuple[int, ...],
         activation: tuple[ActivationType, ...],
@@ -88,7 +88,7 @@ class LearnerCT(LearnerNN):
         super(LearnerCT, self).__init__()
 
         self.net = TorchMLP(
-            input_size=input_size,
+            input_size=state_size,
             output_size=1,
             hidden_sizes=hidden_sizes,
             activation=activation,
@@ -121,7 +121,7 @@ class LearnerCT(LearnerNN):
         return Vdot
 
 
-def make_learner(time_domain: TimeDomain) -> Callable:
+def make_learner(time_domain: TimeDomain) -> Type[LearnerNN]:
     if time_domain == TimeDomain.CONTINUOUS:
         return LearnerCT
     else:

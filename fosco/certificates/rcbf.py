@@ -64,15 +64,19 @@ class RobustControlBarrierFunction(Certificate):
             B_u: torch.Tensor,
             B_d: torch.Tensor,
             Bdot_d: torch.Tensor,
+            B_dz: torch.Tensor,
+            Bdot_dz: torch.Tensor,
+            Bdotz_dz: torch.Tensor,
             alpha: torch.Tensor | float,
-    ) -> tuple[torch.Tensor, dict]:
+    ) -> tuple[torch.Tensor, dict, dict]:
         """Computes loss function for CBF and its accuracy w.r.t. the batch of data.
 
         Args:
             B_i (torch.Tensor): Barrier values for initial set
             B_u (torch.Tensor): Barrier values for unsafe set
             B_d (torch.Tensor): Barrier values for domain
-            Bdot_d (torch.Tensor): Barrier derivative values for domain
+            Bdot_d (torch.Tensor): Barrier derivative values for domain according to nominal model
+            Bdotz_d (torch.Tensor): Barrier derivative values for domain according to uncertain model
             alpha (torch.Tensor): coeff. linear class-k function, f(x) = alpha * x, for alpha in R_+
 
         Returns:
@@ -81,41 +85,55 @@ class RobustControlBarrierFunction(Certificate):
         assert (
                 Bdot_d is None or B_d.shape == Bdot_d.shape
         ), f"B_d and Bdot_d must have the same shape, got {B_d.shape} and {Bdot_d.shape}"
+        assert (
+                Bdot_dz is None or B_dz.shape == Bdot_dz.shape
+        ), f"B_d and Bdot_dz must have the same shape, got {B_d.shape} and {Bdot_dz.shape}"
+        assert (
+                Bdotz_dz is None or B_dz.shape == Bdotz_dz.shape
+        ), f"B_d and Bdotz_dz must have the same shape, got {B_d.shape} and {Bdotz_dz.shape}"
         margin = self.margin
 
         accuracy_i = (B_i >= margin).count_nonzero().item()
         accuracy_u = (B_u < -margin).count_nonzero().item()
-        if Bdot_d is None:
-            accuracy_d = 0
-            percent_accuracy_belt = 0
-        else:
-            accuracy_d = (Bdot_d + alpha * B_d >= margin).count_nonzero().item()
-            percent_accuracy_belt = 100 * accuracy_d / Bdot_d.shape[0]
+        accuracy_d = (Bdot_d + alpha * B_d >= margin).count_nonzero().item()
+
+        accuracy_z = torch.logical_or(
+            Bdot_dz + alpha * B_dz < margin,
+            Bdotz_dz + alpha * B_dz >= margin
+        ).count_nonzero().item()
+
         percent_accuracy_init = 100 * accuracy_i / B_i.shape[0]
         percent_accuracy_unsafe = 100 * accuracy_u / B_u.shape[0]
+        percent_accuracy_belt = 100 * accuracy_d / Bdot_d.shape[0]
+        percent_accuracy_robust = 100 * accuracy_z / Bdot_dz.shape[0]
 
         relu = self.loss_relu
         init_loss = (relu(margin - B_i)).mean()  # penalize B_i < 0
         unsafe_loss = (relu(B_u + margin)).mean()  # penalize B_u > 0
-        if Bdot_d is None:
-            lie_loss = 0.0
-        else:
-            lie_loss = (
-                relu(margin - (Bdot_d + alpha * B_d))
-            ).mean()  # penalize dB_d + alpha * B_d < 0
+        lie_loss = (relu(margin - (Bdot_d + alpha * B_d))).mean()  # penalize dB_d + alpha * B_d < 0
+        robust_loss = (relu(
+            torch.min(
+                margin - (Bdot_dz + alpha * B_dz),
+                (Bdotz_dz + alpha * B_dz) - margin
+            )
+        )).mean()  # penalize dB_d + alpha * B_d >=0 and Bdotz_d + alpha * B_d < 0
 
-        loss = init_loss + unsafe_loss + lie_loss
+        losses = {
+            "init loss": init_loss.item(),
+            "unsafe loss": unsafe_loss.item(),
+            "lie loss": lie_loss.item(),
+            "robust loss": robust_loss.item(),
+        }
+        loss = init_loss + unsafe_loss + lie_loss + robust_loss
 
         accuracy = {
             "acc init": percent_accuracy_init,
             "acc unsafe": percent_accuracy_unsafe,
             "acc derivative": percent_accuracy_belt,
+            "acc robust": percent_accuracy_robust,
         }
 
-        # debug
-        # print("\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
-
-        return loss, accuracy
+        return loss, losses, accuracy
 
     def learn(
             self,
@@ -136,13 +154,18 @@ class RobustControlBarrierFunction(Certificate):
         condition_old = False
         i1 = datasets[XD].shape[0]
         i2 = datasets[XI].shape[0]
-        # samples = torch.cat([s for s in S.values()])
-        label_order = [XD, XI, XU]
+        i3 = datasets[XU].shape[0]
+
+        label_order = [XD, XI, XU, ZD]
         state_samples = torch.cat(
             [datasets[label][:, : self.n_vars] for label in label_order]
         )
         U_d = datasets[XD][:, self.n_vars: self.n_vars + self.n_controls]
         Z_d = datasets[XD][:, self.n_vars + self.n_controls: self.n_vars + self.n_controls + self.n_uncertain]
+
+        X_dz = datasets[ZD][:, : self.n_vars]
+        U_dz = datasets[ZD][:, self.n_vars: self.n_vars + self.n_controls]
+        Z_dz = datasets[ZD][:, self.n_vars + self.n_controls: self.n_vars + self.n_controls + self.n_uncertain]
 
         for t in range(self.epochs):
             optimizer.zero_grad()
@@ -152,22 +175,35 @@ class RobustControlBarrierFunction(Certificate):
 
             B_d = B[:i1, 0]
             B_i = B[i1: i1 + i2, 0]
-            B_u = B[i1 + i2:, 0]
+            B_u = B[i1 + i2: i1 + i2 + i3, 0]
 
-            # compute lie derivative
+
+            # compute lie derivative on lie dataset
             assert (
                     B_d.shape[0] == U_d.shape[0]
             ), f"expected pairs of state,input data. Got {B_d.shape[0]} and {U_d.shape[0]}"
             X_d = state_samples[:i1]
             gradB_d = gradB[:i1]
-            Sdot_d = f_torch(X_d, U_d, Z_d)
+            Sdot_d = f_torch(X_d, U_d, Z_d, only_nominal=True)
             Bdot_d = torch.sum(torch.mul(gradB_d, Sdot_d), dim=1)
 
-            loss, accuracy = self.compute_loss(B_i, B_u, B_d, Bdot_d, alpha=1.0)
+            # compute lie derivative on uncertainty dataset
+            B_dz = B[i1 + i2 + i3:, 0]
+            gradB_dz = gradB[i1 + i2 + i3:]
+            Sdot_dz = f_torch(X_dz, U_dz, Z_dz, only_nominal=True)
+            Sdotz_dz = f_torch(X_dz, U_dz, Z_dz)
+            Bdot_dz = torch.sum(torch.mul(gradB_dz, Sdot_dz), dim=1)
+            Bdotz_dz = torch.sum(torch.mul(gradB_dz, Sdotz_dz), dim=1)
+
+            loss, losses, accuracy = self.compute_loss(B_i, B_u, B_d, Bdot_d, B_dz, Bdot_dz, Bdotz_dz, alpha=1.0)
 
             if t % math.ceil(self.epochs / 10) == 0 or self.epochs - t < 10:
                 # log_loss_acc(t, loss, accuracy, learner.verbose)
-                logging.debug(f"Epoch {t}: loss={loss}, accuracy={accuracy}")
+                logging.debug(f"Epoch {t}")
+                logging.debug(f"accuracy={accuracy}")
+                logging.debug(f"losses={losses}")
+                logging.debug("")
+
 
             # early stopping after 2 consecutive epochs with ~100% accuracy
             condition = all(acc >= 99.9 for name, acc in accuracy.items())
@@ -178,7 +214,9 @@ class RobustControlBarrierFunction(Certificate):
             loss.backward()
             optimizer.step()
 
-        logging.info(f"Epoch {t}: loss={loss}, accuracy={accuracy}")
+        logging.info(f"Epoch {t}: loss={loss}")
+        logging.info(f"losses={losses}")
+        logging.info(f"accuracy={accuracy}")
 
         return {}
 
@@ -195,6 +233,8 @@ class RobustControlBarrierFunction(Certificate):
         _Not = verifier.solver_fncts()["Not"]
         _Exists = verifier.solver_fncts()["Exists"]
         _ForAll = verifier.solver_fncts()["ForAll"]
+        _Substitute = verifier.solver_fncts()["Substitute"]
+        _RealVal = verifier.solver_fncts()["RealVal"]
 
         alpha = lambda x: 1.0 * x
 
@@ -219,16 +259,12 @@ class RobustControlBarrierFunction(Certificate):
         # note: smart trick for tractable verification using vertices of input convex-hull
         # counterexample: x \in domain and AND_v (u=v and Bdot + alpha * Bx < 0)
         u_vertices = self.u_set.get_vertices()
-        lie_constr = _True
+        lie_constr = self.x_domain
         for u_vert in u_vertices:
             vertex_constr = Bdot + alpha(B) < 0
-            vertex_assignment = _And(
-                [u_var == u_val for u_var, u_val in zip(self.u_vars, u_vert)]
-            )
-            lie_constr_uv = _And(vertex_constr, vertex_assignment)
-            lie_constr = _And(lie_constr, lie_constr_uv)
-        # add domain constraints
-        lie_constr = _And(lie_constr, self.x_domain)
+            for u_var, u_val in zip(self.u_vars, u_vert):
+                vertex_constr = _Substitute(vertex_constr, (u_var, _RealVal(u_val)))
+            lie_constr = _And(lie_constr, vertex_constr)
 
         # robustness constraint
         # spec := forall z forall u (Bdot + alpha * Bx >= 0 implies Bdot(z) + alpha * B(z) >= 0)
@@ -253,7 +289,7 @@ class RobustControlBarrierFunction(Certificate):
                     XU: (unsafe_constr, self.x_vars)
                 },
                 {
-                    XD: (lie_constr, self.x_vars + self.u_vars),
+                    XD: (lie_constr, self.x_vars + self.u_vars + self.z_vars),
                     ZD: (robust_constr, self.x_vars + self.u_vars + self.z_vars)
                 },
         ):

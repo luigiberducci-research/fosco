@@ -230,7 +230,11 @@ class RobustControlBarrierFunction(Certificate):
         logging.info(f"losses={losses}")
         logging.info(f"accuracy={accuracy}")
 
-        return {}
+        return {
+            "loss": loss.item(),
+            "losses": losses,
+            "accuracy": accuracy,
+        }
 
     def get_constraints(self, verifier, B, sigma, Bdot, Bdotz) -> Generator:
         """

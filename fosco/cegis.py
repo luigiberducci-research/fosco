@@ -185,6 +185,10 @@ class Cegis:
         state = self.init_state()
 
         iter = None
+
+        tot_loss = []
+        losses = {}
+        accuracy = {}
         for iter in range(1, self.config.CEGIS_MAX_ITERS + 1):
             self.logger.debug(f"Iteration {iter}")
 
@@ -206,7 +210,7 @@ class Cegis:
                     yrange,
                     title=f"CBF - Iter {iter}",
                 )
-                #ax2.view_init(azim=0, elev=90)
+                # ax2.view_init(azim=0, elev=90)
                 plt.savefig(f"{logdir}/cbf_iter_{iter}.png")
 
                 plt.clf()
@@ -220,14 +224,48 @@ class Cegis:
                         yrange,
                         title=f"Compensator - Iter {iter}",
                     )
-                    #ax2.view_init(azim=0, elev=90)
+                    # ax2.view_init(azim=0, elev=90)
                     plt.savefig(f"{logdir}/sigma_iter_{iter}.png")
+
+                    # plot losses
+                    if len(losses) > 0:
+                        plt.clf()
+                        fig, axes = plt.subplots(1, len(losses) + 1, figsize=(5 * (len(losses) + 1), 5))
+
+                        for ax, (key, value) in zip(axes, losses.items()):
+                            ax.plot(value)
+                            ax.set_title(key)
+                            ax.set_xlabel("iteration")
+                            ax.set_ylabel("loss")
+
+                        ax = axes[-1]
+                        ax.plot(tot_loss)
+                        ax.set_title("total loss")
+                        ax.set_xlabel("iteration")
+                        ax.set_ylabel("loss")
+
+                        plt.savefig(f"{logdir}/losses_iter_{iter}.png")
 
 
             # Learner component
             self.logger.debug("Learner")
             outputs = self.learner.update(**state)
-            state.update(outputs)
+            #state.update(outputs)
+            # add losses and accuracy in state to losses
+            if "losses" in outputs:
+                for key, value in outputs["losses"].items():
+                    if key not in losses:
+                        losses[key] = []
+                    losses[key].append(value)
+
+            if "accuracy" in outputs:
+                for key, value in outputs["accuracy"].items():
+                    if key not in accuracy:
+                        accuracy[key] = []
+                    accuracy[key].append(value)
+
+            if "loss" in outputs:
+                tot_loss.append(outputs["loss"])
 
             # Translator component
             self.logger.debug("Translator")
@@ -251,6 +289,9 @@ class Cegis:
         # state = self.process_timers(state)
 
         logging.info(f"CEGIS finished after {iter} iterations")
+
+
+
 
         infos = {"iter": iter}
         self._result = CegisResult(

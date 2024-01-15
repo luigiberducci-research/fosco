@@ -217,8 +217,8 @@ class MLPZ3Translator(Translator):
         Vdot = Vdot[0, 0]
 
         # z3 simplification
-        V = z3.simplify(V)
-        Vdot = z3.simplify(Vdot)
+        #V = z3.simplify(V)
+        #Vdot = z3.simplify(Vdot)
 
         return V, Vdot
 

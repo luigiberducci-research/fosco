@@ -27,7 +27,7 @@ from systems.system import UncertainControlAffineControllableDynamicalModel
 
 CegisResult = namedtuple("CegisResult", ["found", "net", "infos"])
 
-DEBUG_PLOT = True
+DEBUG_PLOT = False
 
 
 @dataclass

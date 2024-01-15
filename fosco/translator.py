@@ -81,12 +81,14 @@ class MLPZ3Translator(Translator):
         V_symbolic, Vdot_symbolic = self.get_symbolic_formula(x_vars, V_net, xdot)
 
         # robust cbf: compensation term
+        # todo: separate this in another translator for robust cbf which inherit from original one
         if sigma_net is not None:
             sigma_symbolic = self.get_symbolic_net(x_vars, sigma_net)
         else:
             sigma_symbolic = None
 
-
+        # todo: xdotz is None -> no robust cbf
+        # todo: separate translator for robust cbfs
         if xdotz is not None:
             xdotz = np.array(xdotz).reshape(-1, 1)
             _, Vdotz_symbolic = self.get_symbolic_formula(x_vars, V_net, xdotz)
@@ -101,6 +103,7 @@ class MLPZ3Translator(Translator):
             Vdot_symbolic, z3.ArithRef
         ), f"Expected Vdot_symbolic to be z3.ArithRef, got {type(Vdot_symbolic)}"
 
+        # todo: each translator will return only the relevant symbolic expressions, no None values
         return {
             "V_symbolic": V_symbolic,
             "Vdot_symbolic": Vdot_symbolic,
@@ -118,12 +121,14 @@ class MLPZ3Translator(Translator):
         """
         input_vars = np.array(input_vars).reshape(-1, 1)
 
+        # todo: remove separate management of last layer
         z, _ = self.network_until_last_layer(net, input_vars)
 
         if self.round < 0:
             last_layer = net.layers[-1].weight.data.numpy()
         else:
             last_layer = np.round(net.layers[-1].weight.data.numpy(), self.round)
+
 
         z = last_layer @ z
         if net.layers[-1].bias is not None:
@@ -147,6 +152,7 @@ class MLPZ3Translator(Translator):
         """
         input_vars = np.array(input_vars).reshape(-1, 1)
 
+        # todo: remove separate management of last layer
         z, jacobian = self.network_until_last_layer(net, input_vars)
 
         if self.round < 0:

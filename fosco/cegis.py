@@ -69,6 +69,7 @@ class Cegis:
         np.random.seed(self.config.SEED)
 
         # logging
+        # todo implement logger to log to file and use logging for info/debug messages
         self.logger = self._initialise_logger(verbose=verbose)
 
         # intialization
@@ -77,6 +78,7 @@ class Cegis:
         self.xdot, self.xdotz = self._initialise_dynamics()
         self.datasets = self._initialise_data()
 
+        # todo pass logger to components
         self.certificate = self._initialise_certificate()
         self.learner = self._initialise_learner()
         self.verifier = self._initialise_verifier()

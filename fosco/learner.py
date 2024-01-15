@@ -118,6 +118,7 @@ class LearnerCT(LearnerNN):
         Returns:
             torch.Tensor: dV/dt
         """
+        # todo: remane arguments
         # Vdot = gradV * f(x)
         Vdot = torch.sum(torch.mul(gradV, Sdot), dim=1)
         return Vdot
@@ -149,12 +150,16 @@ class LearnerRobustCT(LearnerNN):
         )
 
         # linear compensator for additive state disturbances
+        # todo: constraint output to non-negative values
         self.xsigma = TorchMLP(
             input_size=state_size,
             output_size=1,
             hidden_sizes=hidden_sizes,
             activation=activation,
         )
+
+        # todo: same optimizer for both nets is a problem?
+        # todo: how registered params name work in torch? conflict in optimizer?
 
         self.optimizer = {
             "net": torch.optim.AdamW(

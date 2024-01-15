@@ -173,6 +173,7 @@ class Rectangle(Set):
         """
         Plots the set
         """
+        # todo: extend to multi-dim with dim selection
         if self.dimension != 2:
             raise NotImplementedError("Plotting is only implemented for 2D sets")
         anchor = (self.lower_bounds[0], self.lower_bounds[1])
@@ -274,6 +275,7 @@ class Sphere(Set):
         return torch.relu((x - c).norm(2, dim=-1) - self.radius**2)
 
     def plot(self, fig, ax, label=None):
+        # todo: extend to multi-dim with dim selection
         if self.dimension != 2:
             raise NotImplementedError("Plotting only supported for 2D sets")
         colour, label = get_plot_colour(label)

@@ -39,8 +39,8 @@ class Verifier:
         self.iter = -1
         self._last_cex = []
 
-        # params, todo: make them configurable
-        self.counterexample_n = 20
+        # todo: make these params configurable
+        self.counterexample_n = 20  # todo: move this to consolidator
         self._n_cex_to_keep = self.counterexample_n * 1
         self._solver_timeout = 30
 

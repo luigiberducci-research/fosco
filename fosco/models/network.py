@@ -38,6 +38,7 @@ class TorchMLP(nn.Module):
             n_prev = n_hid
             k = k + 1
 
+        # todo: remove last layer and integrate it to list of layer and activations
         # last layer
         layer = nn.Linear(n_prev, self.output_size)
         self.register_parameter(f"W{k}", layer.weight)

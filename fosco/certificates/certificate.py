@@ -14,8 +14,10 @@ class Certificate(ABC):
 
     @abstractmethod
     def learn(self, **kwargs):
+        # todo update this to return dictionary
         raise NotImplementedError
 
     @abstractmethod
     def get_constraints(self, **kwargs):
+        # update this to return a dictionary of tuples (spec, domain)
         raise NotImplementedError

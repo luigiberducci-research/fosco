@@ -10,24 +10,27 @@ class CBFSafetyFilter:
         self._input_ub = env.action_space.high
         assert len(self._input_lb) == len(self._input_ub), "action lower and upper bounds must have same dimension"
 
-        self.h = h_model
+        self.h = h_model    # todo: replace torch model with TorchMLP
         self.f = env.system.fx_torch
         self.g = env.system.gx_torch
 
         self.prob = self.setup_problem()
 
     def setup_problem(self) -> cp.Problem:
-        self.u_nom = cp.Parameter(2) # nominal action todo
+        # todo: infer number of actions from env spec
+        self.u_nom = cp.Parameter(2)
 
         self.Lfhx = cp.Parameter(1)
         self.Lghx = cp.Parameter(2)
         self.alpha_hx = cp.Parameter(1)
 
-        self.u = cp.Variable(2) # action todo
+        # todo: infer number of actions from env spec
+        self.u = cp.Variable(2)
         self.d = cp.Variable()
         constraints = []
 
         # input constraints
+        # todo: infer input bounds from env spec
         constraints += [self.u >= -5.0, self.u <= 5.0]  # todo
 
         # hard cbf constraint
@@ -44,7 +47,7 @@ class CBFSafetyFilter:
         tx_joint = torch.from_numpy(x_joint).float()
         dhdx = self.h.compute_net_gradnet(tx_joint)[1].detach().numpy()[0]
         hx = self.h(tx_joint).detach().numpy()[0]
-        alpha = 1.0 # todo
+        alpha = 1.0 # todo: take alpha from model
 
         self.Lfhx.value = dhdx @ self.f(x_joint)
         self.Lghx.value = dhdx @ self.g(x_joint)

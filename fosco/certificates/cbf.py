@@ -31,6 +31,7 @@ class ControlBarrierFunction(Certificate):
     """
 
     def __init__(self, vars: dict[str, list], domains: dict[str, Set]) -> None:
+        # todo rename vars to x, u
         assert all([sv in vars for sv in ["v", "u"]]), f"Missing symbolic variables, got {vars}"
         self.x_vars = vars["v"]
         self.u_vars = vars["u"]
@@ -61,6 +62,7 @@ class ControlBarrierFunction(Certificate):
         Bdot_d: torch.Tensor,
         alpha: torch.Tensor | float,
     ) -> tuple[torch.Tensor, dict]:
+        # todo make this private
         """Computes loss function for CBF and its accuracy w.r.t. the batch of data.
 
         Args:
@@ -129,6 +131,8 @@ class ControlBarrierFunction(Certificate):
         :param f_torch: callable
         """
 
+        # todo extend signature with **kwargs
+
         condition_old = False
         i1 = datasets[XD].shape[0]
         i2 = datasets[XI].shape[0]
@@ -173,6 +177,8 @@ class ControlBarrierFunction(Certificate):
             loss.backward()
             optimizer.step()
 
+        # todo return logging info like accuracy and loss
+
         return {}
 
     def get_constraints(self, verifier, B, sigma, Bdot, *args) -> Generator:
@@ -183,6 +189,7 @@ class ControlBarrierFunction(Certificate):
         :param Bdot: symbolic formula of the CBF derivative (not yet Lie derivative)
         :return: tuple of dictionaries of Barrier conditons
         """
+        # todo extend signature with **kwargs
         _True = verifier.solver_fncts()["True"]
         _And = verifier.solver_fncts()["And"]
         _Or = verifier.solver_fncts()["Or"]

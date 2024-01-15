@@ -88,6 +88,7 @@ class RobustControlBarrierFunction(Certificate):
         Returns:
             tuple[torch.Tensor, float]: loss and accuracy
         """
+        # todo make this private
         assert (
                 Bdot_d is None or B_d.shape == Bdot_d.shape
         ), f"B_d and Bdot_d must have the same shape, got {B_d.shape} and {Bdot_d.shape}"
@@ -157,6 +158,7 @@ class RobustControlBarrierFunction(Certificate):
         :param f_torch: callable
         """
 
+        # todo extend signature with **kwargs
         condition_old = False
         i1 = datasets[XD].shape[0]
         i2 = datasets[XI].shape[0]
@@ -230,6 +232,8 @@ class RobustControlBarrierFunction(Certificate):
         logging.info(f"losses={losses}")
         logging.info(f"accuracy={accuracy}")
 
+        # todo return logging info like accuracy and loss
+
         return {
             "loss": loss.item(),
             "losses": losses,
@@ -244,6 +248,8 @@ class RobustControlBarrierFunction(Certificate):
         :param Bdot: symbolic formula of the CBF derivative (not yet Lie derivative)
         :return: tuple of dictionaries of Barrier conditons
         """
+
+        # todo extend signature with **kwargs
         _True = verifier.solver_fncts()["True"]
         _And = verifier.solver_fncts()["And"]
         _Or = verifier.solver_fncts()["Or"]

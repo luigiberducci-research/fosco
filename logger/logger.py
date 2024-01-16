@@ -8,8 +8,8 @@ VideoType = ImageType | list[ImageType]
 
 
 class Logger(ABC):
-    def __init__(self, config: dict):
-        self.config = config
+    def __init__(self, config: dict = None):
+        self.config = config or {}
 
     @abstractmethod
     def log_scalar(self, tag: str, value: float, step: int):

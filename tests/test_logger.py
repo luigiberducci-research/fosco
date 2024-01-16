@@ -33,3 +33,20 @@ class TestAimLogger(unittest.TestCase):
         # check existance of image
         image = logger._run.get_image_sequence("random", context=Context({}))
         self.assertTrue(image is not None)
+
+    def test_factory(self):
+        from logger import LoggerType
+        from logger import make_logger
+        from logger.logger_aim import AimLogger
+
+        # logger from type
+        logger = make_logger(logger_type=LoggerType.AIM, config={"foo": "bar"})
+        self.assertTrue(isinstance(logger, AimLogger))
+
+        # logger from string
+        logger = make_logger(logger_type="aim", config={"foo": "bar"})
+        self.assertTrue(isinstance(logger, AimLogger))
+
+        # logger wto config
+        logger = make_logger(logger_type="aim")
+        self.assertTrue(isinstance(logger, AimLogger))

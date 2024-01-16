@@ -11,6 +11,7 @@ from fosco.common.consts import DomainNames
 from fosco.common.utils import _set_assertion
 from fosco.learner import LearnerCT
 from fosco.verifier import SYMBOL
+from logger import LOGGING_LEVELS
 
 XD = DomainNames.XD.value
 XI = DomainNames.XI.value
@@ -31,7 +32,7 @@ class RobustControlBarrierFunction(Certificate):
         domains {dict}: dictionary of (string,domain) pairs
     """
 
-    def __init__(self, vars: dict[str, list], domains: dict[str, Set]) -> None:
+    def __init__(self, vars: dict[str, list], domains: dict[str, Set], verbose: int = 0) -> None:
         assert all([sv in vars for sv in ["v", "u", "z"]]), f"Missing symbolic variables, got {vars}"
         self.x_vars = vars["v"]
         self.u_vars = vars["u"]
@@ -57,6 +58,10 @@ class RobustControlBarrierFunction(Certificate):
         self.loss_relu = torch.nn.Softplus()  # torch.relu  # torch.nn.Softplus()
         self.margin = 0.0
         self.epochs = 1000
+
+        self._logger = logging.getLogger(__name__)
+        self._logger.setLevel(LOGGING_LEVELS[verbose])
+        self._logger.debug("RCBF initialized")
 
     def compute_loss(
             self,

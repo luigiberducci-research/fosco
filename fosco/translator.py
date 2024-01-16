@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 from typing import Iterable
 
@@ -8,6 +9,7 @@ from fosco.common.activations_symbolic import activation_sym, activation_der_sym
 from fosco.common.consts import VerifierType, TimeDomain, CertificateType
 from fosco.models.network import TorchMLP
 from fosco.verifier import SYMBOL
+from logger import LOGGING_LEVELS
 from systems import ControlAffineControllableDynamicalModel
 from systems.system import UncertainControlAffineControllableDynamicalModel
 
@@ -51,8 +53,12 @@ class MLPZ3Translator(Translator):
     Symbolic translator for feed-forward neural networks to z3 expressions.
     """
 
-    def __init__(self, rounding: int = 3):
+    def __init__(self, rounding: int = 3, verbose: int = 0):
         self.round = rounding
+
+        self._logger = logging.getLogger(__name__)
+        self._logger.setLevel(LOGGING_LEVELS[verbose])
+        self._logger.debug("Translator initialized")
 
     def translate(
         self,
@@ -282,7 +288,8 @@ class RobustMLPZ3Translator(MLPZ3Translator):
 
 def make_translator(
     certificate_type: CertificateType,
-    verifier_type: VerifierType, time_domain: TimeDomain, **kwargs
+    verifier_type: VerifierType, time_domain: TimeDomain,
+    **kwargs
 ) -> Translator:
     """
     Factory function for translators.

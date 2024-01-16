@@ -1,9 +1,18 @@
+import logging
+
 import torch
+
+from logger import LOGGING_LEVELS
 
 
 class Consolidator:
     # todo: parameterize data augmentation with sampling in the neighbourhood of the cex
     # todo: parameterize neighborhood size
+    def __init__(self, verbose: int = 0):
+        self._logger = logging.getLogger(__name__)
+        self._logger.setLevel(LOGGING_LEVELS[verbose])
+        self._logger.debug("Consolidator initialized")
+
     def get(self, cex, datasets, **kwargs):
         datasets = self.add_ces_to_data(cex, datasets)
         # todo: return logging info about data augmentation
@@ -14,7 +23,6 @@ class Consolidator:
             if cex != []:
                 x = cex
                 datasets[lab] = torch.cat([datasets[lab], x], dim=0).detach()
-            print(lab, datasets[lab].shape)
         return datasets
 
 

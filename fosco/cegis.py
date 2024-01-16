@@ -22,7 +22,7 @@ from fosco.common.consts import (
 from fosco.learner import make_learner, LearnerNN
 from fosco.translator import make_translator
 from fosco.verifier import make_verifier
-from logger import LoggerType, make_logger
+from logger import LoggerType, make_logger, Logger, LOGGING_LEVELS
 from systems import ControlAffineControllableDynamicalModel
 from systems.system import UncertainControlAffineControllableDynamicalModel
 
@@ -75,7 +75,8 @@ class Cegis:
         np.random.seed(self.config.SEED)
 
         # logging
-        self.logger = self._initialise_logger(verbose=verbose)
+        self.verbose = min(max(verbose, 0), len(LOGGING_LEVELS) - 1)
+        self.logger, self.tlogger = self._initialise_logger()
 
         # intialization
         self.f = self.config.SYSTEM()
@@ -83,7 +84,6 @@ class Cegis:
         self.xdot, self.xdotz = self._initialise_dynamics()
         self.datasets = self._initialise_data()
 
-        # todo pass logger to components
         self.certificate = self._initialise_certificate()
         self.learner = self._initialise_learner()
         self.verifier = self._initialise_verifier()
@@ -94,15 +94,15 @@ class Cegis:
 
         self._assert_state()
 
-    def _initialise_logger(self, verbose: int) -> logging.Logger:
+    def _initialise_logger(self) -> Logger:
         config = self.config.dict()
         logger = make_logger(logger_type=self.config.LOGGER, config=config)
 
-        verbose = min(max(verbose, 0), 2)
-        levels = [logging.WARNING, logging.INFO, logging.DEBUG]
-        logging.basicConfig(level=levels[verbose])
+        logging.basicConfig()
+        tlogger = logging.getLogger(__name__)
+        tlogger.setLevel(LOGGING_LEVELS[self.verbose])
 
-        return logger
+        return logger, tlogger
 
     def _initialise_learner(self) -> LearnerNN:
         learner_type = make_learner(system=self.f, time_domain=self.config.TIME_DOMAIN)
@@ -148,7 +148,8 @@ class Cegis:
             for label, domain in self.config.DOMAINS.items()
         }
 
-        self.logger.debug("Domains: {}".format(domains))
+        self.tlogger.debug("\n".join(["Domains"] + [f"{k}: {v}" for k, v in domains.items()]) + "\n")
+
         return x, x_map, domains
 
     def _initialise_dynamics(self):
@@ -159,20 +160,26 @@ class Cegis:
             xdot = self.f(**self.x_map)
             xdotz = None
 
+        self.tlogger.debug(f"Nominal Dynamics: {'initialized' if xdot else 'not initialized'}")
+        self.tlogger.debug(f"Uncertain Dynamics: {'initialized' if xdotz else 'not initialized'}")
+
         return xdot, xdotz
 
     def _initialise_data(self):
         datasets = {}
         for label in self.config.DATA_GEN.keys():
             datasets[label] = self.config.DATA_GEN[label](self.config.N_DATA)
+
+        self.tlogger.debug("\n".join(["Data Collection"] + [f"{k}: {v.shape}" for k, v in datasets.items()]) + "\n")
+
         return datasets
 
     def _initialise_certificate(self):
         certificate_type = make_certificate(certificate_type=self.config.CERTIFICATE)
-        return certificate_type(vars=self.x_map, domains=self.config.DOMAINS)
+        return certificate_type(vars=self.x_map, domains=self.config.DOMAINS, verbose=self.verbose)
 
     def _initialise_consolidator(self):
-        return make_consolidator()
+        return make_consolidator(verbose=self.verbose)
 
     def _initialise_translator(self):
         return make_translator(
@@ -180,121 +187,83 @@ class Cegis:
             verifier_type=self.config.VERIFIER,
             time_domain=self.config.TIME_DOMAIN,
             rounding=self.config.ROUNDING,
+            verbose=self.verbose,
         )
 
     def solve(self) -> CegisResult:
-        logdir = f"logs/{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}"
-
         state = self.init_state()
 
         iter = None
 
-        tot_loss = []
-        losses = {}
-        accuracy = {}
         for iter in range(1, self.config.CEGIS_MAX_ITERS + 1):
-            self.logger.debug(f"Iteration {iter}")
+            self.tlogger.debug(f"Iteration {iter}")
 
             # debug print
-            if DEBUG_PLOT:
-                pathlib.Path(logdir).mkdir(parents=True, exist_ok=True)
+            domains = self.config.DOMAINS
+            xrange = domains["lie"].lower_bounds[0], domains["lie"].upper_bounds[0]
+            yrange = domains["lie"].lower_bounds[1], domains["lie"].upper_bounds[1]
 
-                plt.clf()
-                domains = self.config.DOMAINS
-                xrange = domains["lie"].lower_bounds[0], domains["lie"].upper_bounds[0]
-                yrange = domains["lie"].lower_bounds[1], domains["lie"].upper_bounds[1]
+            fig = plt.Figure()
+            func = self.learner.net
+            ax2 = benchmark_3d(
+                func,
+                domains,
+                [0.0],
+                xrange,
+                yrange,
+                title=f"CBF - Iter {iter}",
+            )
+            # top view
+            ax2.view_init(90, 0)
+            self.logger.log_image(tag="certificate", image=fig, step=iter)
+            plt.close(fig)
 
-                func = self.learner.net
+
+
+            if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
+                fig = plt.Figure()
+
+                func = lambda x: self.learner.xsigma(x)
                 ax2 = benchmark_3d(
                     func,
                     domains,
                     [0.0],
                     xrange,
                     yrange,
-                    title=f"CBF - Iter {iter}",
+                    title=f"Compensator - Iter {iter}",
                 )
-                # ax2.view_init(azim=0, elev=90)
-                plt.savefig(f"{logdir}/cbf_iter_{iter}.png")
 
-                plt.clf()
-                if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
-                    func = lambda x: self.learner.xsigma(x)
-                    ax2 = benchmark_3d(
-                        func,
-                        domains,
-                        [0.0],
-                        xrange,
-                        yrange,
-                        title=f"Compensator - Iter {iter}",
-                    )
-                    # ax2.view_init(azim=0, elev=90)
-                    plt.savefig(f"{logdir}/sigma_iter_{iter}.png")
-
-                    # plot losses
-                    if len(losses) > 0:
-                        plt.clf()
-                        fig, axes = plt.subplots(1, len(losses) + 1, figsize=(5 * (len(losses) + 1), 5))
-
-                        for ax, (key, value) in zip(axes, losses.items()):
-                            ax.plot(value)
-                            ax.set_title(key)
-                            ax.set_xlabel("iteration")
-                            ax.set_ylabel("loss")
-
-                        ax = axes[-1]
-                        ax.plot(tot_loss)
-                        ax.set_title("total loss")
-                        ax.set_xlabel("iteration")
-                        ax.set_ylabel("loss")
-
-                        plt.savefig(f"{logdir}/losses_iter_{iter}.png")
+                plt.close(fig)
+                #self.logger.log_image(tag="compensator", image=fig, step=iter)
 
 
             # Learner component
-            self.logger.debug("Learner")
+            self.tlogger.debug("Learner")
             outputs = self.learner.update(**state)
-            #state.update(outputs)
-            # add losses and accuracy in state to losses
-            if "losses" in outputs:
-                for key, value in outputs["losses"].items():
-                    if key not in losses:
-                        losses[key] = []
-                    losses[key].append(value)
-
-            if "accuracy" in outputs:
-                for key, value in outputs["accuracy"].items():
-                    if key not in accuracy:
-                        accuracy[key] = []
-                    accuracy[key].append(value)
-
-            if "loss" in outputs:
-                tot_loss.append(outputs["loss"])
+            for key, value in outputs.items():
+                self.logger.log_scalar(tag=key, value=value, step=iter)
 
             # Translator component
-            self.logger.debug("Translator")
+            self.tlogger.debug("Translator")
             outputs = self.translator.translate(**state)
             state.update(outputs)
 
             # Verifier component
-            self.logger.debug("Verifier")
+            self.tlogger.debug("Verifier")
             outputs = self.verifier.verify(**state)
             state.update(outputs)
 
             # Consolidator component
-            self.logger.debug("Consolidator")
+            self.tlogger.debug("Consolidator")
             outputs = self.consolidator.get(**state)
             state.update(outputs)
 
             if state["found"]:
-                self.logger.debug("found valid certificate")
+                self.tlogger.debug("found valid certificate")
                 break
 
         # state = self.process_timers(state)
-
-        logging.info(f"CEGIS finished after {iter} iterations")
-
-
-
+        self.tlogger.info(f"CEGIS finished after {iter} iterations")
 
         infos = {"iter": iter}
         self._result = CegisResult(

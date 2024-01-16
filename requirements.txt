@@ -1,6 +1,7 @@
 torch
 numpy
 matplotlib
+plotly
 z3-solver
 cvxpy
 gymnasium

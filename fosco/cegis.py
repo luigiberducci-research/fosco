@@ -176,6 +176,7 @@ class Cegis:
 
     def _initialise_translator(self):
         return make_translator(
+            certificate_type=self.config.CERTIFICATE,
             verifier_type=self.config.VERIFIER,
             time_domain=self.config.TIME_DOMAIN,
             rounding=self.config.ROUNDING,

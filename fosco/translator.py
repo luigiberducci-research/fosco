@@ -5,9 +5,11 @@ import numpy as np
 import z3
 
 from fosco.common.activations_symbolic import activation_sym, activation_der_sym
-from fosco.common.consts import VerifierType, TimeDomain
+from fosco.common.consts import VerifierType, TimeDomain, CertificateType
 from fosco.models.network import TorchMLP
 from fosco.verifier import SYMBOL
+from systems import ControlAffineControllableDynamicalModel
+from systems.system import UncertainControlAffineControllableDynamicalModel
 
 
 class Translator(ABC):
@@ -56,9 +58,7 @@ class MLPZ3Translator(Translator):
         self,
         x_v_map: dict[str, Iterable[SYMBOL]],
         V_net: TorchMLP,
-        sigma_net: TorchMLP,
         xdot: Iterable[SYMBOL],
-        xdotz: Iterable[SYMBOL] = None,
         **kwargs,
     ):
         """
@@ -78,23 +78,8 @@ class MLPZ3Translator(Translator):
         x_vars = x_v_map["v"]
         xdot = np.array(xdot).reshape(-1, 1)
 
-        V_symbolic, Vdot_symbolic = self.get_symbolic_formula(x_vars, V_net, xdot)
-
-        # robust cbf: compensation term
-        # todo: separate this in another translator for robust cbf which inherit from original one
-        if sigma_net is not None:
-            sigma_symbolic = self.get_symbolic_net(x_vars, sigma_net)
-        else:
-            sigma_symbolic = None
-
-        # todo: xdotz is None -> no robust cbf
-        # todo: separate translator for robust cbfs
-        if xdotz is not None:
-            xdotz = np.array(xdotz).reshape(-1, 1)
-            _, Vdotz_symbolic = self.get_symbolic_formula(x_vars, V_net, xdotz)
-        else:
-            Vdotz_symbolic = None
-
+        V_symbolic = self.get_symbolic_net(x_vars, V_net)
+        Vdot_symbolic = (self.get_symbolic_net_grad(x_vars, V_net) @ xdot)[0, 0]
 
         assert isinstance(
             V_symbolic, z3.ArithRef
@@ -103,12 +88,9 @@ class MLPZ3Translator(Translator):
             Vdot_symbolic, z3.ArithRef
         ), f"Expected Vdot_symbolic to be z3.ArithRef, got {type(Vdot_symbolic)}"
 
-        # todo: each translator will return only the relevant symbolic expressions, no None values
         return {
             "V_symbolic": V_symbolic,
             "Vdot_symbolic": Vdot_symbolic,
-            "Vdotz_symbolic": Vdotz_symbolic,
-            "sigma_symbolic": sigma_symbolic,
         }
 
     def get_symbolic_formula(self, x, net, xdot):
@@ -242,14 +224,78 @@ class MLPZ3Translator(Translator):
         return z, jacobian
 
 
+class RobustMLPZ3Translator(MLPZ3Translator):
+    """
+    Symbolic translator for robust model to z3 expressions.
+    """
+    def translate(
+        self,
+        x_v_map: dict[str, Iterable[SYMBOL]],
+        V_net: TorchMLP,
+        sigma_net: TorchMLP,
+        xdot: Iterable[SYMBOL],
+        xdotz: Iterable[SYMBOL] = None,
+        **kwargs,
+    ):
+        """
+        Translate a network forward pass and gradients into a symbolic expression
+        of the function and Lie derivative w.r.t. the system dynamics.
+
+        Args:
+            x_v_map: dict of symbolic variables
+            V_net: network model
+            xdot: symbolic expression of the nominal system dynamics
+            xdotz: symbolic expression of the uncertain system dynamics (optional)
+            **kwargs:
+
+        Returns:
+            dict of symbolic expressions
+        """
+        assert sigma_net is not None, "sigma_net must be not None"
+        assert xdotz is not None, "xdotz must be not None"
+
+        symbolic_dict = super().translate(x_v_map, V_net, xdot)
+
+        x_vars = x_v_map["v"]
+        xdotz = np.array(xdotz).reshape(-1, 1)
+
+        # robust cbf: compensation term
+        sigma_symbolic = self.get_symbolic_net(x_vars, sigma_net)
+
+        # lie derivative under uncertain dynamics
+        Vdotz_symbolic = (self.get_symbolic_net_grad(x_vars, V_net) @ xdotz)[0, 0]
+
+        assert isinstance(
+            sigma_symbolic, z3.ArithRef
+        ), f"Expected V_symbolic to be z3.ArithRef, got {type(V_symbolic)}"
+        assert isinstance(
+            Vdotz_symbolic, z3.ArithRef
+        ), f"Expected Vdot_symbolic to be z3.ArithRef, got {type(Vdot_symbolic)}"
+
+        symbolic_dict.update({
+            "Vdotz_symbolic": Vdotz_symbolic,
+            "sigma_symbolic": sigma_symbolic,
+        })
+
+        return symbolic_dict
+
+
 def make_translator(
+    certificate_type: CertificateType,
     verifier_type: VerifierType, time_domain: TimeDomain, **kwargs
 ) -> Translator:
     """
     Factory function for translators.
     """
     if verifier_type == VerifierType.Z3 and time_domain == TimeDomain.CONTINUOUS:
-        return MLPZ3Translator(**kwargs)
+        if certificate_type == CertificateType.RCBF:
+            return RobustMLPZ3Translator(**kwargs)
+        elif certificate_type == CertificateType.CBF:
+            return MLPZ3Translator(**kwargs)
+        else:
+            raise NotImplementedError(
+                f"Translator for certificate={certificate_type} and time={time_domain} not implemented"
+            )
     else:
         raise NotImplementedError(
             f"Translator for verifier={verifier_type} and time={time_domain} not implemented"

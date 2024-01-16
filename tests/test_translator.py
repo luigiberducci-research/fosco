@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 from fosco.models.network import TorchMLP
-from fosco.translator import MLPZ3Translator, make_translator
+from fosco.translator import MLPZ3Translator, make_translator, RobustMLPZ3Translator
 from fosco.verifier import VerifierZ3
 
 
@@ -340,15 +340,26 @@ class TestTranslator(unittest.TestCase):
     def test_factory(self):
         from fosco.common.consts import VerifierType
         from fosco.common.consts import TimeDomain
+        from fosco.common.consts import CertificateType
 
         translator = make_translator(
-            verifier_type=VerifierType.Z3, time_domain=TimeDomain.CONTINUOUS
+            certificate_type=CertificateType.CBF,
+            verifier_type=VerifierType.Z3,
+            time_domain=TimeDomain.CONTINUOUS
         )
         self.assertTrue(isinstance(translator, MLPZ3Translator))
+
+        translator = make_translator(
+            certificate_type=CertificateType.RCBF,
+            verifier_type=VerifierType.Z3,
+            time_domain=TimeDomain.CONTINUOUS
+        )
+        self.assertTrue(isinstance(translator, RobustMLPZ3Translator))
 
         self.assertRaises(
             NotImplementedError,
             make_translator,
+            certificate_type=CertificateType.CBF,
             verifier_type=VerifierType.Z3,
             time_domain=TimeDomain.DISCRETE,
         )

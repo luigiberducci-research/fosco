@@ -182,6 +182,9 @@ class TestTranslator(unittest.TestCase):
         ), f"Wrong symbolic formula for Vdot, got {expr_nndot}"
 
     def test_translator_two_layers_relu_out(self):
+        """
+        This test is expected to fail till the implementation of translator for mlp with non-linear out activations.
+        """
         import z3
         _If = z3.If
 
@@ -197,9 +200,6 @@ class TestTranslator(unittest.TestCase):
         translator = MLPZ3Translator(rounding=-1)
 
         expr_nn, expr_nndot = translator.get_symbolic_formula(x, nn, xdot)
-        # todo: this is the missing activation that we expect to add to torchmlp
-        #expr_nn = _If(expr_nn > 0, expr_nn, z3.RealVal(0))
-        #expr_nn = z3.simplify(expr_nn)
 
         assert isinstance(expr_nn, z3.ArithRef)
         assert isinstance(expr_nndot, z3.ArithRef)

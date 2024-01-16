@@ -111,6 +111,19 @@ class MLPZ3Translator(Translator):
             "sigma_symbolic": sigma_symbolic,
         }
 
+    def get_symbolic_formula(self, x, net, xdot):
+        """
+        Return symbolic expression of V and Vdot.
+
+        :param net: network model
+        :param x: symbolic variables
+        :param xdot: symbolic expression of the system dynamics
+        :return: tuple (V, Vdot)
+        """
+        V = self.get_symbolic_net(x, net)
+        Vdot = (self.get_symbolic_net_grad(x, net) @ xdot)[0, 0]
+        return V, Vdot
+
     def get_symbolic_net(self, input_vars: Iterable[SYMBOL], net: TorchMLP) -> SYMBOL:
         """
         Translate a MLP forward pass into a symbolic expression.
@@ -191,53 +204,7 @@ class MLPZ3Translator(Translator):
 
         return gradV
 
-    def get_symbolic_formula(self, x, net, xdot):
-        """
-        Original implementation for continuous time models, keeping for reference.
 
-        :param net:
-        :param x:
-        :param xdot:
-        :return:
-        """
-        # todo check if possible to simplify by using get_symbolic_net_grad
-        x = np.array(x).reshape(-1, 1)
-
-        z, jacobian = self.network_until_last_layer(net, x)
-
-        if self.round < 0:
-            last_layer = net.layers[-1].weight.data.numpy()
-        else:
-            last_layer = np.round(net.layers[-1].weight.data.numpy(), self.round)
-
-        zhat = last_layer @ z
-        if net.layers[-1].bias is not None:
-            zhat += net.layers[-1].bias.data.numpy()[:, None]
-
-        # last activation
-        z = activation_sym(net.acts[-1], zhat)
-
-        jacobian = last_layer @ jacobian
-        jacobian = np.diagflat(activation_der_sym(net.acts[-1], zhat)) @ jacobian
-
-        gradV = jacobian
-
-        assert z.shape == (1, 1)
-        assert gradV.shape == (
-            1,
-            net.input_size,
-        ), f"Wrong shape of gradV, expected (1, {net.input_size}), got {gradV.shape}"
-
-        Vdot = gradV @ xdot
-
-        V = z[0, 0]
-        Vdot = Vdot[0, 0]
-
-        # z3 simplification
-        V = z3.simplify(V)
-        Vdot = z3.simplify(Vdot)
-
-        return V, Vdot
 
     def network_until_last_layer(
         self, net: TorchMLP, input_vars: Iterable[SYMBOL]

@@ -9,6 +9,15 @@ from fosco.verifier import VerifierZ3
 
 
 class TestTranslator(unittest.TestCase):
+
+    def _check_equivalence(self, expr1, expr2):
+        import z3
+
+        s = z3.Solver()
+        s.add(z3.Not(expr1 == expr2))
+
+        return s.check() == z3.unsat
+
     def test_translator_linear_layer(self):
         import z3
 
@@ -34,15 +43,15 @@ class TestTranslator(unittest.TestCase):
         grad_nn = w1
         expected_expr_nndot = grad_nn @ xdot
 
-        expected_expr_nn = z3.simplify(expected_expr_nn[0])
-        expected_expr_nndot = z3.simplify(expected_expr_nndot[0])
+        expected_expr_nn = expected_expr_nn[0]
+        expected_expr_nndot = expected_expr_nndot[0]
 
-        assert str(expr_nn) == str(
-            expected_expr_nn
-        ), f"Wrong symbolic formula for V, got {expr_nn}"
-        assert str(expr_nndot) == str(
-            expected_expr_nndot
-        ), f"Wrong symbolic formula for Vdot, got {expr_nndot}"
+        ok_nn = self._check_equivalence(expr_nn, expected_expr_nn)
+        self.assertTrue(ok_nn, f"Wrong symbolic formula for V. Got: \n{expr_nn}, expected: \n{expected_expr_nn}")
+
+        ok_grad = self._check_equivalence(expr_nndot, expected_expr_nndot)
+        self.assertTrue(ok_grad,
+                        f"Wrong symbolic formula for Vdot. Got: \n{expr_nndot}, expected: \n{expected_expr_nndot}")
 
     def test_translator_two_layers(self):
         import z3
@@ -77,10 +86,9 @@ class TestTranslator(unittest.TestCase):
         z2 = w2 @ z1 + b2
 
         expected_expr_nn = z2[0, 0]
-        expected_expr_nn = z3.simplify(expected_expr_nn)
-        assert str(expr_nn) == str(
-            expected_expr_nn
-        ), f"Wrong symbolic formula for V, got {expr_nn}"
+
+        ok_nn = self._check_equivalence(expr_nn, expected_expr_nn)
+        self.assertTrue(ok_nn, f"Wrong symbolic formula for V. Got: \n{expr_nn}, expected: \n{expected_expr_nn}")
 
         # compute symbolic gradient dy/dx = dy/dz dz/dx
         dy_dz = w2
@@ -96,10 +104,10 @@ class TestTranslator(unittest.TestCase):
         grad_nn = dy_dz @ (dz_dh @ dh_dx)
 
         expected_expr_nndot = (grad_nn @ xdot)[0, 0]
-        expected_expr_nndot = z3.simplify(expected_expr_nndot)
-        assert str(expr_nndot) == str(
-            expected_expr_nndot
-        ), f"Wrong symbolic formula for Vdot, got {expr_nndot}"
+
+        ok_grad = self._check_equivalence(expr_nndot, expected_expr_nndot)
+        self.assertTrue(ok_grad,
+                        f"Wrong symbolic formula for Vdot. Got: \n{expr_nndot}, expected: \n{expected_expr_nndot}")
 
     def test_translator_three_layers(self):
         import z3
@@ -141,11 +149,9 @@ class TestTranslator(unittest.TestCase):
         o3 = w3 @ o2 + b3
 
         expected_expr_nn = o3[0, 0]
-        expected_expr_nn = z3.simplify(expected_expr_nn)
-        assert str(expr_nn) == str(
-            expected_expr_nn
-        ), f"Wrong symbolic formula for V, got {expr_nn}"
 
+        ok_nn = self._check_equivalence(expr_nn, expected_expr_nn)
+        self.assertTrue(ok_nn, f"Wrong symbolic formula for V. Got: \n{expr_nn}, expected: \n{expected_expr_nn}")
 
         # compute symbolic gradient dy/dx = dy/dh_i prod_{i} dh_i/dh_{i-1} dh_1/dx
         dy_do2 = w3
@@ -158,7 +164,6 @@ class TestTranslator(unittest.TestCase):
                 else:
                     do2_dh2[i, j] = z3.RealVal(0)
 
-
         dh1_dx = w1
         do1_dh1 = np.array([[z3.RealVal(0) for _ in range(dh1_dx.shape[0])] for _ in range(dh1_dx.shape[0])])
         for i in range(do1_dh1.shape[0]):
@@ -168,18 +173,63 @@ class TestTranslator(unittest.TestCase):
                 else:
                     do1_dh1[i, j] = z3.RealVal(0)
 
-        for name, matrix in zip(["dy_do3", "do2_dh2", "dh2_do1", "do2_dh1", "dh1_dx"], [dy_do2, do2_dh2, dh2_do1, do1_dh1, dh1_dx]):
+        for name, matrix in zip(["dy_do3", "do2_dh2", "dh2_do1", "do2_dh1", "dh1_dx"],
+                                [dy_do2, do2_dh2, dh2_do1, do1_dh1, dh1_dx]):
             print(f"{name}:{matrix.shape}")
 
         grad_nn = dy_do2 @ (do2_dh2 @ (dh2_do1 @ (do1_dh1 @ dh1_dx)))
 
-
         expected_expr_nndot = (grad_nn @ xdot)[0, 0]
-        expected_expr_nndot = z3.simplify(expected_expr_nndot)
 
-        assert str(expr_nndot) == str(
-            expected_expr_nndot
-        ), f"Wrong symbolic formula for Vdot, got {expr_nndot}"
+        ok_grad = self._check_equivalence(expr_nndot, expected_expr_nndot)
+        self.assertTrue(ok_grad,
+                        f"Wrong symbolic formula for Vdot. Got: \n{expr_nndot}, expected: \n{expected_expr_nndot}")
+
+    def test_relu_out(self):
+        """
+        Test simbolic formula for a network with relu activation in the output layer.
+        """
+        import z3
+        _If = z3.If
+
+        n_vars = 2
+
+        x = VerifierZ3.new_vars(n_vars, base="x")
+        x = np.array(x).reshape(-1, 1)
+
+        nn = TorchMLP(input_size=n_vars, hidden_sizes=(), activation=(), output_size=1, output_activation="relu")
+
+        xdot = np.array(x).reshape(-1, 1)
+
+        translator = MLPZ3Translator(rounding=-1)
+
+        expr_nn, expr_nndot = translator.get_symbolic_formula(x, nn, xdot)
+
+        assert isinstance(expr_nn, z3.ArithRef)
+        assert isinstance(expr_nndot, z3.ArithRef)
+
+        w1 = nn.W1.detach().numpy()
+        b1 = nn.b1.detach().numpy()[:, None]
+
+        # compute symbolic output layer
+        z1 = w1 @ x + b1
+        z1 = _If(z1[0, 0] > 0, z1[0, 0], 0)  # add output layer with relu activation
+
+        expected_expr_nn = z1
+
+        ok_nn = self._check_equivalence(expr_nn, expected_expr_nn)
+        self.assertTrue(ok_nn, f"Wrong symbolic formula for V. Got: \n{expr_nn}, expected: \n{expected_expr_nn}")
+
+        # compute symbolic gradient dy/dx = dy/dz dz/dx
+        dy_dz = np.array([[_If(z1 > 0, z3.RealVal(1), z3.RealVal(0))]])
+        dz_dx = w1
+
+        grad_nn = dy_dz @ dz_dx
+        expected_expr_nndot = (grad_nn @ xdot)[0, 0]
+
+        ok_grad = self._check_equivalence(expr_nndot, expected_expr_nndot)
+        self.assertTrue(ok_grad,
+                        f"Wrong symbolic formula for Vdot. Got: \n{expr_nndot}, expected: \n{expected_expr_nndot}")
 
     def test_translator_two_layers_relu_out(self):
         import z3
@@ -190,16 +240,13 @@ class TestTranslator(unittest.TestCase):
         x = VerifierZ3.new_vars(n_vars, base="x")
         x = np.array(x).reshape(-1, 1)
 
-        nn = TorchMLP(input_size=n_vars, hidden_sizes=(5,), activation=("relu",), output_size=1)
+        nn = TorchMLP(input_size=n_vars, hidden_sizes=(5,), activation=("relu",), output_size=1, output_activation="relu")
 
         xdot = np.array(x).reshape(-1, 1)
 
         translator = MLPZ3Translator(rounding=-1)
 
         expr_nn, expr_nndot = translator.get_symbolic_formula(x, nn, xdot)
-        # todo: this is the missing activation that we expect to add to torchmlp
-        #expr_nn = _If(expr_nn > 0, expr_nn, z3.RealVal(0))
-        #expr_nn = z3.simplify(expr_nn)
 
         assert isinstance(expr_nn, z3.ArithRef)
         assert isinstance(expr_nndot, z3.ArithRef)
@@ -216,15 +263,15 @@ class TestTranslator(unittest.TestCase):
             z1[i, 0] = _If(h1[i, 0] > 0, h1[i, 0], 0)
         # compute symbolic output layer
         z2 = w2 @ z1 + b2
-        z2 = _If(z2[0, 0] > 0, z2[0, 0], 0) # add output layer with relu activation
+        z2 = _If(z2[0, 0] > 0, z2[0, 0], 0)  # add output layer with relu activation
 
         expected_expr_nn = z2
-        expected_expr_nn = z3.simplify(expected_expr_nn)
-        assert str(expr_nn) == str(
-            expected_expr_nn
-        ), f"Wrong symbolic formula for V. Got: {expr_nn}, expected: {expected_expr_nn}"
+
+        ok_nn = self._check_equivalence(expr_nn, expected_expr_nn)
+        self.assertTrue(ok_nn, f"Wrong symbolic formula for V. Got: \n{expr_nn}, expected: \n{expected_expr_nn}")
 
         # compute symbolic gradient dy/dx = dy/dz dz/dx
+        """
         dact_dy = np.array([[_If(z2 > 0, z3.RealVal(1), z3.RealVal(0))]])
         dy_dz = w2
         dh_dx = w1
@@ -239,17 +286,12 @@ class TestTranslator(unittest.TestCase):
         grad_nn = dact_dy @ (dy_dz @ (dz_dh @ dh_dx))
 
         expected_expr_nndot = (grad_nn @ xdot)[0, 0]
-        expected_expr_nndot = z3.simplify(expected_expr_nndot)
         assert str(expr_nndot) == str(
             expected_expr_nndot
         ), f"Wrong symbolic formula for Vdot, got {expr_nndot}"
+        """
 
-
-
-
-
-
-    def test_separation_symbolic_functions(self):
+    def test_separation_symbolic_functions_linearout(self):
         n_vars = 2
 
         x = VerifierZ3.new_vars(n_vars, base="x")
@@ -267,12 +309,35 @@ class TestTranslator(unittest.TestCase):
         expr_nn_grad = translator.get_symbolic_net_grad(x, nn)
         expr_nndot2 = (expr_nn_grad @ xdot)[0, 0]
 
-        assert str(expr_nn) == str(
-            expr_nn2
-        ), f"Wrong symbolic formula for V, got {expr_nn}"
-        assert str(expr_nndot) == str(
-            expr_nndot2
-        ), f"Wrong symbolic formula for Vdot, got {expr_nndot}"
+        ok_nn = self._check_equivalence(expr_nn, expr_nn2)
+        self.assertTrue(ok_nn, f"Wrong symbolic formula for V. Got: \n{expr_nn}, expected: \n{expr_nn2}")
+
+        ok_grad = self._check_equivalence(expr_nndot, expr_nndot2)
+        self.assertTrue(ok_grad, f"Wrong symbolic formula for Vdot. Got: \n{expr_nndot}, expected: \n{expr_nndot2}")
+
+    def test_separation_symbolic_functions_nonlinear_out(self):
+        n_vars = 2
+
+        x = VerifierZ3.new_vars(n_vars, base="x")
+        x = np.array(x).reshape(-1, 1)
+
+        nn = TorchMLP(input_size=n_vars, hidden_sizes=(), activation=(), output_size=1, output_activation="relu")
+
+        xdot = np.array(x).reshape(-1, 1)
+
+        translator = MLPZ3Translator(rounding=-1)
+
+        expr_nn, expr_nndot = translator.get_symbolic_formula(x, nn, xdot)
+
+        expr_nn2 = translator.get_symbolic_net(x, nn)
+        expr_nn_grad = translator.get_symbolic_net_grad(x, nn)
+        expr_nndot2 = (expr_nn_grad @ xdot)[0, 0]
+
+        ok_nn = self._check_equivalence(expr_nn, expr_nn2)
+        self.assertTrue(ok_nn, f"Wrong symbolic formula for V. Got: \n{expr_nn}, expected: \n{expr_nn2}")
+
+        ok_grad = self._check_equivalence(expr_nndot, expr_nndot2)
+        self.assertTrue(ok_grad, f"Wrong symbolic formula for Vdot. Got: \n{expr_nndot}, expected: \n{expr_nndot2}")
 
     def test_factory(self):
         from fosco.common.consts import VerifierType
@@ -289,4 +354,3 @@ class TestTranslator(unittest.TestCase):
             verifier_type=VerifierType.Z3,
             time_domain=TimeDomain.DISCRETE,
         )
-

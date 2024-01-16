@@ -12,6 +12,7 @@ class TorchMLP(nn.Module):
         hidden_sizes: tuple[int, ...],
         activation: tuple[str | ActivationType, ...],
         output_size: int = 1,
+        output_activation: str | ActivationType = "linear",
     ):
         super(TorchMLP, self).__init__()
         assert len(hidden_sizes) == len(
@@ -38,20 +39,24 @@ class TorchMLP(nn.Module):
             n_prev = n_hid
             k = k + 1
 
-        # todo: remove last layer and integrate it to list of layer and activations
         # last layer
         layer = nn.Linear(n_prev, self.output_size)
         self.register_parameter(f"W{k}", layer.weight)
         self.register_parameter(f"b{k}", layer.bias)
         self.layers.append(layer)
 
+        act = ActivationType[output_activation.upper()] if isinstance(output_activation, str) else output_activation
+        self.acts.append(act)
+
+        assert len(self.layers) == len(self.acts), "layers and activations must have the same length"
+        assert self.output_size == self.layers[-1].out_features, "output size does not match last layer size"
+
     def forward(self, x):
         y = x
-        for idx, layer in enumerate(self.layers[:-1]):
+        for idx, layer in enumerate(self.layers):
             z = layer(y)
             y = activation(self.acts[idx], z)
 
-        y = self.layers[-1](y)
         return y
 
     def compute_net_gradnet(self, S: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -89,9 +94,10 @@ class TorchMLP(nn.Module):
         # save params.yaml with net configuration
         params = {
             "input_size": self.input_size,
-            "output_size": self.output_size,
             "hidden_sizes": [layer.out_features for layer in self.layers[:-1]],
-            "activation": [act.name for act in self.acts],
+            "activation": [act.name for act in self.acts[:-1]],
+            "output_size": self.layers[-1].out_features,
+            "output_activation": self.acts[-1].name,
         }
         with open(outdir / "params.yaml", "w") as f:
             yaml.dump(params, f)

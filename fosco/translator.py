@@ -135,6 +135,9 @@ class MLPZ3Translator(Translator):
             z += net.layers[-1].bias.data.numpy()[:, None]
         assert z.shape == (1, 1), f"Wrong shape of z, expected (1, 1), got {z.shape}"
 
+        # last activation
+        z = activation_sym(net.acts[-1], z)
+
         V = z[0, 0]
         V = z3.simplify(V)
 
@@ -160,10 +163,17 @@ class MLPZ3Translator(Translator):
         else:
             last_layer = np.round(net.layers[-1].weight.data.numpy(), self.round)
 
-        z = last_layer @ z
+        zhat = last_layer @ z
         if net.layers[-1].bias is not None:
-            z += net.layers[-1].bias.data.numpy()[:, None]
-        gradV = last_layer @ jacobian  # jacobian now contains the grad V
+            zhat += net.layers[-1].bias.data.numpy()[:, None]
+
+        # last activation
+        z = activation_sym(net.acts[-1], zhat)
+
+        jacobian = last_layer @ jacobian
+        jacobian = np.diagflat(activation_der_sym(net.acts[-1], zhat)) @ jacobian
+
+        gradV = jacobian
 
         assert z.shape == (1, 1)
         assert gradV.shape == (
@@ -190,7 +200,7 @@ class MLPZ3Translator(Translator):
         :param xdot:
         :return:
         """
-        # todo check if possible to simply by using get_symbolic_net_grad
+        # todo check if possible to simplify by using get_symbolic_net_grad
         x = np.array(x).reshape(-1, 1)
 
         z, jacobian = self.network_until_last_layer(net, x)
@@ -200,10 +210,17 @@ class MLPZ3Translator(Translator):
         else:
             last_layer = np.round(net.layers[-1].weight.data.numpy(), self.round)
 
-        z = last_layer @ z
+        zhat = last_layer @ z
         if net.layers[-1].bias is not None:
-            z += net.layers[-1].bias.data.numpy()[:, None]
-        gradV = last_layer @ jacobian  # jacobian now contains the grad V
+            zhat += net.layers[-1].bias.data.numpy()[:, None]
+
+        # last activation
+        z = activation_sym(net.acts[-1], zhat)
+
+        jacobian = last_layer @ jacobian
+        jacobian = np.diagflat(activation_der_sym(net.acts[-1], zhat)) @ jacobian
+
+        gradV = jacobian
 
         assert z.shape == (1, 1)
         assert gradV.shape == (

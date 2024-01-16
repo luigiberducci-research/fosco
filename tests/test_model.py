@@ -38,6 +38,18 @@ class TestModel(unittest.TestCase):
         # remove tmp_dir
         shutil.rmtree(tmp_dir)
 
+    def test_mlp_relu_out(self):
+        from fosco.models.network import TorchMLP
+
+        model = TorchMLP(input_size=2,
+                         hidden_sizes=(4, 4), activation=("relu", "relu"),
+                         output_size=1, output_activation="relu")
+
+        x_batch = torch.randn(10, 2)
+        y_batch = model(x_batch)
+
+        self.assertEqual(y_batch.shape, (10, 1), f"expected shape (10, 1), got {y_batch.shape}")
+        self.assertTrue(torch.all(y_batch >= 0.0), f"relu output must be non-negative, got {y_batch}")
 
 
 

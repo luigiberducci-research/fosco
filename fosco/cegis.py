@@ -2,7 +2,7 @@ import datetime
 import logging
 import pathlib
 from collections import namedtuple
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Any, Type
 
 import matplotlib.pyplot as plt
@@ -22,6 +22,7 @@ from fosco.common.consts import (
 from fosco.learner import make_learner, LearnerNN
 from fosco.translator import make_translator
 from fosco.verifier import make_verifier
+from logger import LoggerType, make_logger
 from systems import ControlAffineControllableDynamicalModel
 from systems.system import UncertainControlAffineControllableDynamicalModel
 
@@ -51,9 +52,14 @@ class CegisConfig:
     ACTIVATION: tuple[ActivationType, ...] = (ActivationType.SQUARE,)
     # seeding
     SEED: int = None
+    # logging
+    LOGGER: LoggerType = None
 
     def __getitem__(self, item):
         return getattr(self, item)
+
+    def dict(self):
+        return {k: str(v) for k, v in asdict(self).items()}
 
 
 
@@ -69,7 +75,6 @@ class Cegis:
         np.random.seed(self.config.SEED)
 
         # logging
-        # todo implement logger to log to file and use logging for info/debug messages
         self.logger = self._initialise_logger(verbose=verbose)
 
         # intialization
@@ -90,17 +95,12 @@ class Cegis:
         self._assert_state()
 
     def _initialise_logger(self, verbose: int) -> logging.Logger:
-        logger = logging.getLogger("CEGIS")
-        ch = logging.StreamHandler()
+        config = self.config.dict()
+        logger = make_logger(logger_type=self.config.LOGGER, config=config)
 
         verbose = min(max(verbose, 0), 2)
-        verbosity_levels = [logging.WARNING, logging.INFO, logging.DEBUG]
-
-        logger.setLevel(verbosity_levels[verbose])
-        ch.setLevel(verbosity_levels[verbose])
-
-        ch.setFormatter(CustomFormatter())
-        logger.addHandler(ch)
+        levels = [logging.WARNING, logging.INFO, logging.DEBUG]
+        logging.basicConfig(level=levels[verbose])
 
         return logger
 

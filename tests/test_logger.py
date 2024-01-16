@@ -3,6 +3,8 @@ import unittest
 import matplotlib.pyplot as plt
 import numpy as np
 
+from logger.logger_text import TextLogger
+
 
 class TestAimLogger(unittest.TestCase):
     def test_make_run(self):
@@ -50,3 +52,7 @@ class TestAimLogger(unittest.TestCase):
         # logger wto config
         logger = make_logger(logger_type="aim")
         self.assertTrue(isinstance(logger, AimLogger))
+
+        # logger wto type
+        logger = make_logger(config={"foo": "bar"})
+        self.assertTrue(isinstance(logger, TextLogger))

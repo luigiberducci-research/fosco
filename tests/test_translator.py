@@ -271,7 +271,6 @@ class TestTranslator(unittest.TestCase):
         self.assertTrue(ok_nn, f"Wrong symbolic formula for V. Got: \n{expr_nn}, expected: \n{expected_expr_nn}")
 
         # compute symbolic gradient dy/dx = dy/dz dz/dx
-        """
         dact_dy = np.array([[_If(z2 > 0, z3.RealVal(1), z3.RealVal(0))]])
         dy_dz = w2
         dh_dx = w1
@@ -286,10 +285,9 @@ class TestTranslator(unittest.TestCase):
         grad_nn = dact_dy @ (dy_dz @ (dz_dh @ dh_dx))
 
         expected_expr_nndot = (grad_nn @ xdot)[0, 0]
-        assert str(expr_nndot) == str(
-            expected_expr_nndot
-        ), f"Wrong symbolic formula for Vdot, got {expr_nndot}"
-        """
+        ok_grad = self._check_equivalence(expr_nndot, expected_expr_nndot)
+        self.assertTrue(ok_grad,
+                        f"Wrong symbolic formula for Vdot. Got: \n{expr_nndot}, expected: \n{expected_expr_nndot}")
 
     def test_separation_symbolic_functions_linearout(self):
         n_vars = 2

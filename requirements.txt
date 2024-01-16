@@ -5,3 +5,4 @@ z3-solver
 cvxpy
 gymnasium
 pyyaml
+aim

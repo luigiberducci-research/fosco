@@ -10,16 +10,16 @@ import numpy as np
 import torch
 
 from fosco.certificates import make_certificate
-from fosco.common.formatter import CustomFormatter
-from fosco.common.plotting import benchmark_3d, benchmark_lie
+from fosco.common.plotting import benchmark_3d
 from fosco.consolidator import make_consolidator
 from fosco.common.consts import (
     CertificateType,
     TimeDomain,
     ActivationType,
-    VerifierType,
+    VerifierType, DomainNames,
 )
 from fosco.learner import make_learner, LearnerNN
+from fosco.plotting.utils import plot_func_and_domains
 from fosco.translator import make_translator
 from fosco.verifier import make_verifier
 from logger import LoggerType, make_logger, Logger, LOGGING_LEVELS
@@ -198,44 +198,27 @@ class Cegis:
         for iter in range(1, self.config.CEGIS_MAX_ITERS + 1):
             self.tlogger.debug(f"Iteration {iter}")
 
-            # debug print
-            domains = self.config.DOMAINS
-            xrange = domains["lie"].lower_bounds[0], domains["lie"].upper_bounds[0]
-            yrange = domains["lie"].lower_bounds[1], domains["lie"].upper_bounds[1]
-
-            fig = plt.Figure()
-            func = self.learner.net
-            ax2 = benchmark_3d(
-                func,
-                domains,
-                [0.0],
-                xrange,
-                yrange,
-                title=f"CBF - Iter {iter}",
-            )
-            # top view
-            ax2.view_init(90, 0)
+            # logging learned functions
+            in_domain = self.config.DOMAINS[DomainNames.XD.value]
+            other_domains = {k: v for k, v in self.config.DOMAINS.items() if k in [DomainNames.XI.value, DomainNames.XU.value]}
+            fig = plot_func_and_domains(
+                    func=self.learner.net,
+                    in_domain=in_domain,
+                    levels=[0.0],
+                    domains=other_domains,
+                    dim_select=(0, 1),
+                )
             self.logger.log_image(tag="certificate", image=fig, step=iter)
-            plt.close(fig)
-
-
 
             if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
-                fig = plt.Figure()
-
-                func = lambda x: self.learner.xsigma(x)
-                ax2 = benchmark_3d(
-                    func,
-                    domains,
-                    [0.0],
-                    xrange,
-                    yrange,
-                    title=f"Compensator - Iter {iter}",
+                fig = plot_func_and_domains(
+                    func=self.learner.xsigma,
+                    in_domain=in_domain,
+                    levels=[0.0],
+                    domains=other_domains,
+                    dim_select=(0, 1),
                 )
-
-                plt.close(fig)
-                #self.logger.log_image(tag="compensator", image=fig, step=iter)
-
+                self.logger.log_image(tag="compensator", image=fig, step=iter)
 
             # Learner component
             self.tlogger.debug("Learner")
@@ -306,6 +289,7 @@ class Cegis:
         }
 
         return state
+
 
     @property
     def result(self):

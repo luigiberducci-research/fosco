@@ -2,6 +2,7 @@ torch
 numpy
 matplotlib
 plotly
+pandas	# required to plot images with plotly
 z3-solver
 cvxpy
 gymnasium

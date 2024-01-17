@@ -169,26 +169,6 @@ class Rectangle(Set):
             torch.sum(x - torch.tensor(self.upper_bounds), dim=1)
         ) + torch.relu(torch.sum(torch.tensor(self.lower_bounds) - x, dim=1))
 
-    def plot(self, fig, ax, label=None):
-        """
-        Plots the set
-        """
-        # todo: extend to multi-dim with dim selection
-        if self.dimension != 2:
-            raise NotImplementedError("Plotting is only implemented for 2D sets")
-        anchor = (self.lower_bounds[0], self.lower_bounds[1])
-        width = self.upper_bounds[0] - self.lower_bounds[0]
-        height = self.upper_bounds[1] - self.lower_bounds[1]
-        colour, label = get_plot_colour(label)
-        rect = plt.Rectangle(
-            anchor, width, height, fill=False, color=colour, label=label, linewidth=2.5
-        )
-        ax.add_artist(rect)
-
-        if ax.name == "3d":
-            art3d.pathpatch_2d_to_3d(rect, z=0, zdir="z")
-        return fig, ax
-
 
 class Sphere(Set):
     def __init__(self, centre, radius, vars: list[str] = None, dim_select=None):
@@ -273,15 +253,3 @@ class Sphere(Set):
             c = torch.tensor(c).reshape(1, -1)
         # returns 0 if it IS contained, a positive number otherwise
         return torch.relu((x - c).norm(2, dim=-1) - self.radius**2)
-
-    def plot(self, fig, ax, label=None):
-        # todo: extend to multi-dim with dim selection
-        if self.dimension != 2:
-            raise NotImplementedError("Plotting only supported for 2D sets")
-        colour, label = get_plot_colour(label)
-        r = self.radius
-        theta = np.linspace(0, 2 * np.pi, 50)
-        xc = self.centre[0] + r * np.cos(theta)
-        yc = self.centre[1] + r * np.sin(theta)
-        ax.plot(xc[:], yc[:], colour, linewidth=2, label=label)
-        return fig, ax

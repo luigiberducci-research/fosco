@@ -74,6 +74,9 @@ def benchmark_3d(
     return ax
 
 
+
+
+
 def benchmark_lie(
         model, ctrl, certificate, domains, levels, xrange, yrange, fig=None
 ):
@@ -139,6 +142,8 @@ def plot_domains(domains, ax):
         except AttributeError:
             pass
     return ax
+
+
 
 
 def certificate_surface(

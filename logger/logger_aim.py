@@ -14,7 +14,7 @@ class AimLogger(Logger):
         self._run.track(value, name=tag, step=step, context=context)
 
     def log_image(self, tag: str, image: ImageType, step: int, context: dict = None):
-        aim_image = aim.Image(image)
+        aim_image = aim.Figure(image)
         self._run.track(aim_image, name=tag, step=step, context=context)
 
     def log_video(self, tag: str, video: VideoType, step: int, context: dict = None):

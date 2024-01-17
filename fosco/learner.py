@@ -149,30 +149,21 @@ class LearnerRobustCT(LearnerNN):
             activation=activation,
         )
 
-        # linear compensator for additive state disturbances
-        # todo: constraint output to non-negative values
+        # compensator for additive state disturbances
         self.xsigma = TorchMLP(
             input_size=state_size,
-            output_size=1,
             hidden_sizes=hidden_sizes,
             activation=activation,
+            output_size=1,
+            output_activation="relu",
         )
 
         # todo: same optimizer for both nets is a problem?
-        # todo: how registered params name work in torch? conflict in optimizer?
-
-        self.optimizer = {
-            "net": torch.optim.AdamW(
-                params=self.net.parameters(),
-                lr=lr,
-                weight_decay=weight_decay,
-            ),
-            "sigma": torch.optim.AdamW(
-                params=self.xsigma.parameters(),
-                lr=lr,
-                weight_decay=weight_decay,
-            ),
-        }
+        self.optimizer = torch.optim.AdamW(
+            params=self.parameters(),
+            lr=lr,
+            weight_decay=weight_decay,
+        )
 
         self.learn_method = learn_method
 

@@ -39,6 +39,10 @@ def plot_surface(
                                           highlightcolor="limegreen", project_z=True,
                                           start=level, end=level+small_sz, size=small_sz))
 
+    # top view with y-axis pointing up
+    maxz = max(min(np.max(z), 5.0), 0.0)
+    fig.update_layout(scene_camera=dict(eye=dict(x=0, y=0, z=maxz)))
+
     return fig
 
 if __name__=="__main__":
@@ -46,6 +50,6 @@ if __name__=="__main__":
         assert len(x.shape) == 2 and x.shape[1] == 2, "x must be a batch of 2d points"
         return np.sin(x[:, 0]) + np.cos(x[:, 1])
 
-    fig = plot_surface(func, (-10, 10), (-10, 10), levels=[0], title="test")
+    fig = plot_surface(func, (-10, 10), (-10, 10), levels=[0], label="test")
 
     fig.show()

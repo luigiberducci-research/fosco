@@ -10,6 +10,7 @@ import numpy as np
 import torch
 
 from fosco.certificates import make_certificate
+from fosco.common.domains import Rectangle
 from fosco.common.plotting import benchmark_3d
 from fosco.consolidator import make_consolidator
 from fosco.common.consts import (
@@ -25,6 +26,7 @@ from fosco.verifier import make_verifier
 from logger import LoggerType, make_logger, Logger, LOGGING_LEVELS
 from systems import ControlAffineControllableDynamicalModel
 from systems.system import UncertainControlAffineControllableDynamicalModel
+from systems.utils import lie_derivative_fn
 
 CegisResult = namedtuple("CegisResult", ["found", "net", "infos"])
 
@@ -208,7 +210,57 @@ class Cegis:
                     domains=other_domains,
                     dim_select=(0, 1),
                 )
-            self.logger.log_image(tag="certificate", image=fig, step=iter)
+            self.logger.log_image(tag="barrier", image=fig, step=iter)
+
+            for dim in range(self.f.n_vars):
+                func = lambda x: self.learner.net.compute_net_gradnet(x)[1][:, dim]
+                fig = plot_func_and_domains(
+                    func=func,
+                    in_domain=in_domain,
+                    levels=[0.0],
+                    domains=other_domains,
+                    dim_select=(0, 1),
+                )
+                self.logger.log_image(tag=f"barrier_grad", image=fig, step=iter, context={"dimension": dim})
+
+            u_domain = self.config.DOMAINS[DomainNames.UD.value]
+            assert isinstance(u_domain, Rectangle), "only rectangular domains are supported for u"
+            lb, ub = np.array(u_domain.lower_bounds), np.array(u_domain.upper_bounds)
+            for u_norm in np.linspace(-1, 1, 5):
+                # denormalize u to the domain
+                u = (lb + ub) / 2.0 + u_norm * (ub - lb) / 2.0
+                ctrl = lambda x: torch.ones((x.shape[0], self.f.n_controls)) * torch.tensor(u).float()
+                if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
+                    f = lambda x, u: self.f._f_torch(x, u, z=torch.zeros((x.shape[0], self.f.n_uncertain)))
+                else:
+                    f = lambda x, u: self.f._f_torch(x, u)
+
+                # lie derivative
+                func = lambda x: lie_derivative_fn(certificate=self.learner.net, f=f, ctrl=ctrl)(x)
+                fig = plot_func_and_domains(
+                    func=func,
+                    in_domain=in_domain,
+                    levels=[0.0],
+                    domains=other_domains,
+                    dim_select=(0, 1),
+                )
+                self.logger.log_image(tag=f"lie_derivative", image=fig, step=iter, context={"u_norm": str(u)})
+
+                # cbf condition
+                alpha = lambda x: 1.0 * x
+                if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
+                    func = lambda x: lie_derivative_fn(certificate=self.learner.net, f=f, ctrl=ctrl)(x) - self.learner.xsigma(x) + alpha(self.learner.net(x))
+                else:
+                    func = lambda x: lie_derivative_fn(certificate=self.learner.net, f=f, ctrl=ctrl)(x) + alpha(self.learner.net(x))
+                fig = plot_func_and_domains(
+                    func=func,
+                    in_domain=in_domain,
+                    levels=[0.0],
+                    domains=other_domains,
+                    dim_select=(0, 1),
+                )
+                self.logger.log_image(tag=f"cbf_condition", image=fig, step=iter, context={"u_norm": str(u)})
+
 
             if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
                 fig = plot_func_and_domains(

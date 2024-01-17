@@ -62,6 +62,7 @@ def plot_func_and_domains(
         color = DOMAIN_COLORS[dname] if dname in DOMAIN_COLORS else None
         fig = plot_domain(domain, fig, color=color, dim_select=dim_select, label=dname)
 
+
     # show legend and hide colorbar
     fig.update_traces(showlegend=True)
     fig.update_traces(showscale=False)

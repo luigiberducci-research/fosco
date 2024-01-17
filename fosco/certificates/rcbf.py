@@ -188,8 +188,7 @@ class RobustControlBarrierFunction(Certificate):
         Z_dz = datasets[ZD][:, self.n_vars + self.n_controls: self.n_vars + self.n_controls + self.n_uncertain]
 
         for t in range(self.epochs):
-            optimizer["net"].zero_grad()
-            optimizer["sigma"].zero_grad()
+            optimizer.zero_grad()
 
             # net gradient
             B, gradB = learner.net.compute_net_gradnet(state_samples)
@@ -236,8 +235,7 @@ class RobustControlBarrierFunction(Certificate):
             condition_old = condition
 
             loss.backward()
-            optimizer["net"].step()
-            optimizer["sigma"].step()
+            optimizer.step()
 
         logging.info(f"Epoch {t}: loss={loss}")
         logging.info(f"mean compensation: {sigma.mean().item()}")

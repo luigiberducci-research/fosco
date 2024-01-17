@@ -17,10 +17,10 @@ from systems.system import UncertainControlAffineControllableDynamicalModel
 
 def main():
     seed = 916104
-    system_name = "noisy_single_integrator"
+    system_name = "single_integrator"
     n_hidden_neurons = 5
     activations = (ActivationType.RELU, ActivationType.LINEAR)
-    n_data_samples = 500
+    n_data_samples = 1000
     verbose = 0
 
     log_levels = [logging.INFO, logging.DEBUG]
@@ -126,41 +126,6 @@ def main():
     cegis = fosco.cegis.Cegis(config=config, verbose=verbose)
 
     result = cegis.solve()
-
-    if XD.dimension == 2:
-        plt.clf()
-
-        xrange = (XD.lower_bounds[0], XD.upper_bounds[0])
-        yrange = (XD.lower_bounds[1], XD.upper_bounds[1])
-
-        zero_ctrl = lambda x: torch.ones(x.shape[0], cegis.f.n_controls)
-
-        fig, ax = plt.subplots(1, 1, figsize=(10, 5))
-
-        if isinstance(cegis.f, UncertainControlAffineControllableDynamicalModel):
-            func = lambda x: cegis.learner.net(x) - cegis.learner.xsigma(x)
-        else:
-            func = cegis.learner.net
-
-        ax1 = benchmark_plane(model=cegis.f,
-                              ctrl=zero_ctrl,
-                              certificate=func, domains=config.DOMAINS, levels=[0.0], xrange=xrange,
-                              yrange=yrange, ax=ax)
-
-        fig = plt.figure()
-        ax2 = benchmark_3d(
-            func, config.DOMAINS, [0.0], xrange, yrange, title="CBF", fig=fig
-        )
-
-        #ax3 = benchmark_lie(model=cegis.f, ctrl=zero_ctrl, certificate=result.net, domains=config.DOMAINS,
-        #                    levels=[0.0], xrange=xrange, yrange=yrange)
-
-        #gtruth_cbf = SingleIntegratorKnownCBF()
-        #ax3 = benchmark_lie(model=cegis.f, ctrl=zero_ctrl, certificate=gtruth_cbf, domains=config.DOMAINS,
-        #                    levels=[0.0], xrange=xrange, yrange=yrange)
-
-        #plt.savefig(f"cbf_final.png", dpi=300)
-        plt.show()
 
     # save model
     result.net.save("tests/cbf_single_int")

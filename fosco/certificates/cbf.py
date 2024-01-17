@@ -32,7 +32,9 @@ class ControlBarrierFunction(Certificate):
 
     def __init__(self, vars: dict[str, list], domains: dict[str, Set]) -> None:
         # todo rename vars to x, u
-        assert all([sv in vars for sv in ["v", "u"]]), f"Missing symbolic variables, got {vars}"
+        assert all(
+            [sv in vars for sv in ["v", "u"]]
+        ), f"Missing symbolic variables, got {vars}"
         self.x_vars = vars["v"]
         self.u_vars = vars["u"]
 

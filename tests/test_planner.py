@@ -9,8 +9,8 @@ from systems import make_system
 from systems.system_env import SystemEnv
 from fosco.planner.safety_filter import CBFSafetyFilter
 
-class TestPlanner(unittest.TestCase):
 
+class TestPlanner(unittest.TestCase):
     def _test_single_integrator_cbf_planner(self):
         # make env for single integrator
         svars, uvars = ["x0", "x1"], ["u0", "u1"]
@@ -33,9 +33,10 @@ class TestPlanner(unittest.TestCase):
         while not truncated and not terminated:
             nom_action = np.ones(2)
             safe_action = cbf(action=nom_action, observation=observation)
-            observation, reward, terminated, truncated, info = env.step(action=safe_action)
+            observation, reward, terminated, truncated, info = env.step(
+                action=safe_action
+            )
             env.render()
             print(safe_action)
 
         env.close()
-

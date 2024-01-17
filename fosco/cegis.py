@@ -56,8 +56,6 @@ class CegisConfig:
         return getattr(self, item)
 
 
-
-
 class Cegis:
     def __init__(self, config: CegisConfig, verbose: int = 0):
         self.config = config
@@ -205,12 +203,7 @@ class Cegis:
 
                 func = self.learner.net
                 ax2 = benchmark_3d(
-                    func,
-                    domains,
-                    [0.0],
-                    xrange,
-                    yrange,
-                    title=f"CBF - Iter {iter}",
+                    func, domains, [0.0], xrange, yrange, title=f"CBF - Iter {iter}",
                 )
                 # ax2.view_init(azim=0, elev=90)
                 plt.savefig(f"{logdir}/cbf_iter_{iter}.png")
@@ -232,7 +225,9 @@ class Cegis:
                     # plot losses
                     if len(losses) > 0:
                         plt.clf()
-                        fig, axes = plt.subplots(1, len(losses) + 1, figsize=(5 * (len(losses) + 1), 5))
+                        fig, axes = plt.subplots(
+                            1, len(losses) + 1, figsize=(5 * (len(losses) + 1), 5)
+                        )
 
                         for ax, (key, value) in zip(axes, losses.items()):
                             ax.plot(value)
@@ -248,11 +243,10 @@ class Cegis:
 
                         plt.savefig(f"{logdir}/losses_iter_{iter}.png")
 
-
             # Learner component
             self.logger.debug("Learner")
             outputs = self.learner.update(**state)
-            #state.update(outputs)
+            # state.update(outputs)
             # add losses and accuracy in state to losses
             if "losses" in outputs:
                 for key, value in outputs["losses"].items():
@@ -292,14 +286,9 @@ class Cegis:
 
         logging.info(f"CEGIS finished after {iter} iterations")
 
-
-
-
         infos = {"iter": iter}
         self._result = CegisResult(
-            found=state["found"],
-            net=state["V_net"],
-            infos=infos
+            found=state["found"], net=state["V_net"], infos=infos
         )
 
         return self._result
@@ -309,25 +298,21 @@ class Cegis:
         xsigma = self.learner.xsigma if hasattr(self.learner, "xsigma") else None
 
         state = {
-            "found": False,     # whether a valid cbf was found
-            "iter": 0,          # current iteration
-            "system": self.f,   # system object
-
+            "found": False,  # whether a valid cbf was found
+            "iter": 0,  # current iteration
+            "system": self.f,  # system object
             "V_net": self.learner.net,  # cbf model as nn
             "sigma_net": xsigma,  # sigma model as nn
-
-            "xdot_func": self.f._f_torch,   # numerical dynamics function
+            "xdot_func": self.f._f_torch,  # numerical dynamics function
             "datasets": self.datasets,  # dictionary of datasets of training data
-
             "x_v_map": self.x_map,  # dictionary of symbolic variables
-            "V_symbolic": None,     # symbolic expression of cbf
-            "sigma_symbolic": None, # symbolic expression of compensator sigma
+            "V_symbolic": None,  # symbolic expression of cbf
+            "sigma_symbolic": None,  # symbolic expression of compensator sigma
             "Vdot_symbolic": None,  # symbolic expression of lie derivative w.r.t. nominal dynamics
-            "Vdotz_symbolic": None, # symbolic expression of lie derivative w.r.t. uncertain dynamics
-            "xdot": self.xdot,      # symbolic expression of nominal dynamics
-            "xdotz": self.xdotz,    # symbolic expression of uncertain dynamics
-
-            "cex": None,    # counterexamples
+            "Vdotz_symbolic": None,  # symbolic expression of lie derivative w.r.t. uncertain dynamics
+            "xdot": self.xdot,  # symbolic expression of nominal dynamics
+            "xdotz": self.xdotz,  # symbolic expression of uncertain dynamics
+            "cex": None,  # counterexamples
             # CegisStateKeys.found: False,
             # CegisStateKeys.verification_timed_out: False,
             # CegisStateKeys.cex: None,

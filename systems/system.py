@@ -40,7 +40,7 @@ class ControlAffineControllableDynamicalModel:
         raise NotImplementedError()
 
     def f(
-            self, v: np.ndarray | torch.Tensor, u: np.ndarray | torch.Tensor
+        self, v: np.ndarray | torch.Tensor, u: np.ndarray | torch.Tensor
     ) -> np.ndarray | torch.Tensor:
         if torch.is_tensor(v) or isinstance(v, np.ndarray):
             return self._f_torch(v, u)
@@ -57,17 +57,12 @@ class ControlAffineControllableDynamicalModel:
         return vdot.reshape(-1, self.n_vars)
 
     def __call__(
-            self, v: np.ndarray | torch.Tensor, u: np.ndarray | torch.Tensor
+        self, v: np.ndarray | torch.Tensor, u: np.ndarray | torch.Tensor
     ) -> np.ndarray | torch.Tensor:
         return self.f(v, u)
 
     def plot(
-            self,
-            xrange: tuple,
-            yrange: tuple,
-            ctrl: callable,
-            ax: plt.Axes = None,
-
+        self, xrange: tuple, yrange: tuple, ctrl: callable, ax: plt.Axes = None,
     ):
         ax = ax or plt.gca()
 
@@ -80,12 +75,7 @@ class ControlAffineControllableDynamicalModel:
         ).T.float()
         uu = ctrl(obs)
 
-        dx, dy = (
-            self.f(v=obs, u=uu)
-            .detach()
-            .numpy()
-            .T
-        )
+        dx, dy = self.f(v=obs, u=uu).detach().numpy().T
         # color = np.sqrt((np.hypot(dx, dy)))
         dx = dx.reshape(XX.shape)
         dy = dy.reshape(YY.shape)
@@ -106,7 +96,9 @@ class ControlAffineControllableDynamicalModel:
         return ax
 
 
-class UncertainControlAffineControllableDynamicalModel(ControlAffineControllableDynamicalModel):
+class UncertainControlAffineControllableDynamicalModel(
+    ControlAffineControllableDynamicalModel
+):
     """
     Implements a controllable dynamical model with control-affine dynamics dx = f(x) + g(x) u
     """
@@ -133,10 +125,11 @@ class UncertainControlAffineControllableDynamicalModel(ControlAffineControllable
         raise NotImplementedError()
 
     def f(
-            self, v: np.ndarray | torch.Tensor,
-            u: np.ndarray | torch.Tensor,
-            z: np.ndarray | torch.Tensor,
-            only_nominal: bool = False
+        self,
+        v: np.ndarray | torch.Tensor,
+        u: np.ndarray | torch.Tensor,
+        z: np.ndarray | torch.Tensor,
+        only_nominal: bool = False,
     ) -> np.ndarray | torch.Tensor:
         if torch.is_tensor(v) or isinstance(v, np.ndarray):
             return self._f_torch(v=v, u=u, z=z, only_nominal=only_nominal)
@@ -144,12 +137,23 @@ class UncertainControlAffineControllableDynamicalModel(ControlAffineControllable
             if only_nominal:
                 dvs = self.fx_smt(v) + self.gx_smt(v) @ u
             else:
-                dvs = self.fx_smt(v) + self.gx_smt(v) @ u + self.fz_smt(v, z) + self.gz_smt(v, z) @ u
+                dvs = (
+                    self.fx_smt(v)
+                    + self.gx_smt(v) @ u
+                    + self.fz_smt(v, z)
+                    + self.gz_smt(v, z) @ u
+                )
             return [z3.simplify(dv) for dv in dvs]
         else:
             raise NotImplementedError(f"Unsupported type {type(v)}")
 
-    def _f_torch(self, v: torch.Tensor, u: torch.Tensor, z: torch.Tensor, only_nominal: bool = False) -> list:
+    def _f_torch(
+        self,
+        v: torch.Tensor,
+        u: torch.Tensor,
+        z: torch.Tensor,
+        only_nominal: bool = False,
+    ) -> list:
         v = v.reshape(-1, self.n_vars, 1)
         u = u.reshape(-1, self.n_controls, 1)
         z = z.reshape(-1, self.n_uncertain, 1)
@@ -157,26 +161,31 @@ class UncertainControlAffineControllableDynamicalModel(ControlAffineControllable
         if only_nominal:
             vdot = self.fx_torch(v) + self.gx_torch(v) @ u
         else:
-            vdot = self.fx_torch(v) + self.gx_torch(v) @ u + self.fz_torch(v, z) + self.gz_torch(v, z) @ u
+            vdot = (
+                self.fx_torch(v)
+                + self.gx_torch(v) @ u
+                + self.fz_torch(v, z)
+                + self.gz_torch(v, z) @ u
+            )
 
         return vdot.reshape(-1, self.n_vars)
 
     def __call__(
-            self,
-            v: np.ndarray | torch.Tensor,
-            u: np.ndarray | torch.Tensor,
-            z: np.ndarray | torch.Tensor,
-            only_nominal: bool = False
+        self,
+        v: np.ndarray | torch.Tensor,
+        u: np.ndarray | torch.Tensor,
+        z: np.ndarray | torch.Tensor,
+        only_nominal: bool = False,
     ) -> np.ndarray | torch.Tensor:
         return self.f(v, u, z, only_nominal=only_nominal)
 
     def plot(
-            self,
-            xrange: tuple,
-            yrange: tuple,
-            ctrl: callable,
-            zmodel: callable = None,
-            ax: plt.Axes = None,
+        self,
+        xrange: tuple,
+        yrange: tuple,
+        ctrl: callable,
+        zmodel: callable = None,
+        ax: plt.Axes = None,
     ):
         ax = ax or plt.gca()
 
@@ -194,12 +203,7 @@ class UncertainControlAffineControllableDynamicalModel(ControlAffineControllable
         else:
             zz = torch.zeros(obs.shape[0], self.n_uncertain)
 
-        dx, dy = (
-            self.f(v=obs, u=uu, z=zz)
-            .detach()
-            .numpy()
-            .T
-        )
+        dx, dy = self.f(v=obs, u=uu, z=zz).detach().numpy().T
         # color = np.sqrt((np.hypot(dx, dy)))
         dx = dx.reshape(XX.shape)
         dy = dy.reshape(YY.shape)

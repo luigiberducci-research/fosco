@@ -4,9 +4,7 @@ import torch
 from matplotlib import cm
 
 
-def benchmark_plane(
-        model, ctrl, certificate, domains, levels, xrange, yrange, ax=None
-):
+def benchmark_plane(model, ctrl, certificate, domains, levels, xrange, yrange, ax=None):
     """
     Plot the dynamical model phase plane and the domains with coloured labels.
 
@@ -53,13 +51,7 @@ def certificate_countour(certificate, ax=None, levels=[0]):
 
 
 def benchmark_3d(
-        func,
-        domains,
-        levels: list[float],
-        xrange,
-        yrange,
-        title: str = "",
-        fig=None,
+    func, domains, levels: list[float], xrange, yrange, title: str = "", fig=None,
 ):
     if fig is None:
         fig = plt.gcf()
@@ -74,9 +66,7 @@ def benchmark_3d(
     return ax
 
 
-def benchmark_lie(
-        model, ctrl, certificate, domains, levels, xrange, yrange, fig=None
-):
+def benchmark_lie(model, ctrl, certificate, domains, levels, xrange, yrange, fig=None):
     """
     Plot the lie derivative of the certificate benchmark.
     If the domains are provided, they are plotted as well.
@@ -86,8 +76,14 @@ def benchmark_lie(
 
     ax = fig.add_subplot(1, 1, 1, projection="3d")
 
-    ax = certificate_lie(certificate=certificate, model=model, ctrl=ctrl,
-                         ax=ax, xrange=xrange, yrange=yrange)
+    ax = certificate_lie(
+        certificate=certificate,
+        model=model,
+        ctrl=ctrl,
+        ax=ax,
+        xrange=xrange,
+        yrange=yrange,
+    )
     ax = plot_domains(domains, ax)
     ax = add_legend(ax)
     ax.set_title(f"Lie Derivative")
@@ -110,24 +106,13 @@ def certificate_lie(certificate, model, ctrl, ax, xrange, yrange):
     obs = torch.stack([XT.ravel(), YT.ravel()]).T.float()
     uu = ctrl(obs)
 
-    dx, dy = (
-        model.f(v=obs, u=uu)
-        .detach()
-        .numpy()
-        .T
-    )
+    dx, dy = model.f(v=obs, u=uu).detach().numpy().T
     df = np.stack([dx, dy], axis=1)
     lie = (df @ Z.T).diagonal()
     lie = lie.reshape(X.shape)
     ax.plot_surface(X, Y, lie, cmap=cm.coolwarm, alpha=0.7, rstride=5, cstride=5)
     ax.contour(
-        X,
-        Y,
-        lie,
-        levels=[0],
-        colors="k",
-        linestyles="dashed",
-        linewidths=2.5,
+        X, Y, lie, levels=[0], colors="k", linestyles="dashed", linewidths=2.5,
     )
     return ax
 
@@ -142,7 +127,7 @@ def plot_domains(domains, ax):
 
 
 def certificate_surface(
-        certificate, ax=None, xrange=[-3, 3], yrange=[-3, 3], levels=[0]
+    certificate, ax=None, xrange=[-3, 3], yrange=[-3, 3], levels=[0]
 ):
     """Plot the surface of the certificate.
     Args:
@@ -163,13 +148,7 @@ def certificate_surface(
     ax.plot_surface(X, Y, Z, cmap=cm.coolwarm, alpha=0.7, rstride=5, cstride=5)
     levels.sort()
     ax.contour(
-        X,
-        Y,
-        Z,
-        levels=levels,
-        colors="k",
-        linestyles="dashed",
-        linewidths=2.5,
+        X, Y, Z, levels=levels, colors="k", linestyles="dashed", linewidths=2.5,
     )
     return ax
 

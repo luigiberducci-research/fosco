@@ -112,5 +112,3 @@ class TorchMLP(nn.Module):
         model = TorchMLP(**params)
         model.load_state_dict(torch.load(logdir / "model.pt"))
         return model
-
-

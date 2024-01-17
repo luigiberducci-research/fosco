@@ -52,7 +52,9 @@ class SingleIntegrator(ControlAffineControllableDynamicalModel):
         ), "expected list of symbolic state variables, [x0, x1, ...]"
         return np.eye(len(x))
 
-    def fz_torch(self, x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor) -> np.ndarray | torch.Tensor:
+    def fz_torch(
+        self, x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
+    ) -> np.ndarray | torch.Tensor:
         assert (
             len(x.shape) == 3
         ), "expected batched input with shape (batch_size, state_dim, 1)"
@@ -62,7 +64,9 @@ class SingleIntegrator(ControlAffineControllableDynamicalModel):
         assert (
             x.shape[0] == z.shape[0]
         ), "expected batched input with shape (batch_size, uncertain_dim, 1)"
-        assert type(x) == type(z), f"expected same type for x and z, got {type(x)} and {type(z)}"
+        assert type(x) == type(
+            z
+        ), f"expected same type for x and z, got {type(x)} and {type(z)}"
 
         fz = z  # simple additive uncertainty
 
@@ -77,7 +81,10 @@ class SingleIntegrator(ControlAffineControllableDynamicalModel):
         ), "expected list of symbolic state variables, [z0, z1, ...]"
         return z
 
-class SingleIntegratorAddBoundedUncertainty(UncertainControlAffineControllableDynamicalModel, SingleIntegrator):
+
+class SingleIntegratorAddBoundedUncertainty(
+    UncertainControlAffineControllableDynamicalModel, SingleIntegrator
+):
     """
     Single integrator system with additive uncertainty.
     X=[x, y], U=[vx, vy], Z=[z_x, z_y]
@@ -89,7 +96,9 @@ class SingleIntegratorAddBoundedUncertainty(UncertainControlAffineControllableDy
     def n_uncertain(self) -> int:
         return 2
 
-    def fz_torch(self, x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor) -> np.ndarray | torch.Tensor:
+    def fz_torch(
+        self, x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
+    ) -> np.ndarray | torch.Tensor:
         assert (
             len(x.shape) == 3
         ), "expected batched input with shape (batch_size, state_dim, 1)"
@@ -99,7 +108,9 @@ class SingleIntegratorAddBoundedUncertainty(UncertainControlAffineControllableDy
         assert (
             x.shape[0] == z.shape[0]
         ), "expected batched input with shape (batch_size, uncertain_dim, 1)"
-        assert type(x) == type(z), f"expected same type for x and z, got {type(x)} and {type(z)}"
+        assert type(x) == type(
+            z
+        ), f"expected same type for x and z, got {type(x)} and {type(z)}"
 
         fz = z  # simple additive uncertainty
 
@@ -114,11 +125,17 @@ class SingleIntegratorAddBoundedUncertainty(UncertainControlAffineControllableDy
         ), "expected list of symbolic state variables, [z0, z1, ...]"
         return z
 
-    def gz_torch(self, x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor) -> np.ndarray | torch.Tensor:
+    def gz_torch(
+        self, x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
+    ) -> np.ndarray | torch.Tensor:
         if isinstance(x, np.ndarray):
-            gx = np.zeros((self.n_vars, self.n_controls))[None].repeat(x.shape[0], axis=0)
+            gx = np.zeros((self.n_vars, self.n_controls))[None].repeat(
+                x.shape[0], axis=0
+            )
         else:
-            gx = torch.zeros((self.n_vars, self.n_controls))[None].repeat((x.shape[0], 1, 1))
+            gx = torch.zeros((self.n_vars, self.n_controls))[None].repeat(
+                (x.shape[0], 1, 1)
+            )
         return gx
 
     def gz_smt(self, x: list, z: list) -> np.ndarray | torch.Tensor:

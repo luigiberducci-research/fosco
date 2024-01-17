@@ -20,11 +20,10 @@ def main():
     n_data_samples = 1000
     verbose = 2
 
-
     n_hidden_neurons = (n_hidden_neurons,) * len(activations)
 
     system = make_system(id=system_name)
-    ZD = None   # no uncertainty by default
+    ZD = None  # no uncertainty by default
     if system_name == "single_integrator":
         XD = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
         UD = domains.Rectangle(vars=["u0", "u1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
@@ -95,8 +94,12 @@ def main():
             "init": lambda n: XI.generate_data(n),
             "unsafe": lambda n: XU.generate_data(n),
             "lie": lambda n: torch.concatenate(
-                [XD.generate_data(n),
-                torch.zeros(n, UD.dimension), ZD.generate_data(n)], dim=1
+                [
+                    XD.generate_data(n),
+                    torch.zeros(n, UD.dimension),
+                    ZD.generate_data(n),
+                ],
+                dim=1,
             ),
             "uncertainty": lambda n: torch.concatenate(
                 [XD.generate_data(n), UD.generate_data(n), ZD.generate_data(n)], dim=1
@@ -136,24 +139,30 @@ def main():
         else:
             func = cegis.learner.net
 
-        ax1 = benchmark_plane(model=cegis.f,
-                              ctrl=zero_ctrl,
-                              certificate=func, domains=config.DOMAINS, levels=[0.0], xrange=xrange,
-                              yrange=yrange, ax=ax)
+        ax1 = benchmark_plane(
+            model=cegis.f,
+            ctrl=zero_ctrl,
+            certificate=func,
+            domains=config.DOMAINS,
+            levels=[0.0],
+            xrange=xrange,
+            yrange=yrange,
+            ax=ax,
+        )
 
         fig = plt.figure()
         ax2 = benchmark_3d(
             func, config.DOMAINS, [0.0], xrange, yrange, title="CBF", fig=fig
         )
 
-        #ax3 = benchmark_lie(model=cegis.f, ctrl=zero_ctrl, certificate=result.net, domains=config.DOMAINS,
+        # ax3 = benchmark_lie(model=cegis.f, ctrl=zero_ctrl, certificate=result.net, domains=config.DOMAINS,
         #                    levels=[0.0], xrange=xrange, yrange=yrange)
 
-        #gtruth_cbf = SingleIntegratorKnownCBF()
-        #ax3 = benchmark_lie(model=cegis.f, ctrl=zero_ctrl, certificate=gtruth_cbf, domains=config.DOMAINS,
+        # gtruth_cbf = SingleIntegratorKnownCBF()
+        # ax3 = benchmark_lie(model=cegis.f, ctrl=zero_ctrl, certificate=gtruth_cbf, domains=config.DOMAINS,
         #                    levels=[0.0], xrange=xrange, yrange=yrange)
 
-        #plt.savefig(f"cbf_final.png", dpi=300)
+        # plt.savefig(f"cbf_final.png", dpi=300)
         plt.show()
 
     # save model

@@ -95,7 +95,6 @@ class MLPZ3Translator(Translator):
         else:
             Vdotz_symbolic = None
 
-
         assert isinstance(
             V_symbolic, z3.ArithRef
         ), f"Expected V_symbolic to be z3.ArithRef, got {type(V_symbolic)}"
@@ -128,7 +127,6 @@ class MLPZ3Translator(Translator):
             last_layer = net.layers[-1].weight.data.numpy()
         else:
             last_layer = np.round(net.layers[-1].weight.data.numpy(), self.round)
-
 
         z = last_layer @ z
         if net.layers[-1].bias is not None:

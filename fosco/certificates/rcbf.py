@@ -2,6 +2,7 @@ import logging
 import math
 from typing import Generator
 
+import numpy as np
 import torch
 from torch.optim import Optimizer
 
@@ -130,20 +131,26 @@ class RobustControlBarrierFunction(Certificate):
             )
         )).mean()  # penalize dB_d - sigma_d + alpha * B_d >=0 and Bdotz_d + alpha * B_d < 0
 
-        losses = {
-            "init loss": init_loss.item(),
-            "unsafe loss": unsafe_loss.item(),
-            "lie loss": lie_loss.item(),
-            "robust loss": robust_loss.item(),
-        }
         loss = init_loss + unsafe_loss + lie_loss + robust_loss
 
-        accuracy = {
-            "acc init": percent_accuracy_init,
-            "acc unsafe": percent_accuracy_unsafe,
-            "acc derivative": percent_accuracy_belt,
-            "acc robust": percent_accuracy_robust,
+        losses = {
+            "init_loss": init_loss.item(),
+            "unsafe_loss": unsafe_loss.item(),
+            "lie_loss": lie_loss.item(),
+            "robust_loss": robust_loss.item(),
+            "tot_loss": loss.item(),
         }
+
+        accuracy = {
+            "accuracy_init": percent_accuracy_init,
+            "accuracy_unsafe": percent_accuracy_unsafe,
+            "accuracy_derivative": percent_accuracy_belt,
+            "accuracy_robust": percent_accuracy_robust,
+        }
+
+        # debug
+        logging.debug("Dataset Accuracy:")
+        logging.debug("\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
 
         return loss, losses, accuracy
 
@@ -153,7 +160,7 @@ class RobustControlBarrierFunction(Certificate):
             optimizer: Optimizer,
             datasets: dict,
             f_torch: callable,
-    ) -> dict:
+    ) -> dict[str, float | np.ndarray]:
         """
         Updates the CBF model.
 
@@ -211,19 +218,19 @@ class RobustControlBarrierFunction(Certificate):
             Bdot_dz = torch.sum(torch.mul(gradB_dz, Sdot_dz), dim=1)
             Bdotz_dz = torch.sum(torch.mul(gradB_dz, Sdotz_dz), dim=1)
 
-            loss, losses, accuracy = self.compute_loss(B_i, B_u, B_d, sigma_d, Bdot_d,
+            loss, losses, accuracies = self.compute_loss(B_i, B_u, B_d, sigma_d, Bdot_d,
                                                        B_dz, sigma_dz, Bdot_dz, Bdotz_dz, alpha=1.0)
 
             if t % math.ceil(self.epochs / 10) == 0 or self.epochs - t < 10:
                 # log_loss_acc(t, loss, accuracy, learner.verbose)
                 logging.debug(f"Epoch {t}")
-                logging.debug(f"accuracy={accuracy}")
+                logging.debug(f"accuracy={accuracies}")
                 logging.debug(f"losses={losses}")
                 logging.debug("")
 
 
             # early stopping after 2 consecutive epochs with ~100% accuracy
-            condition = all(acc >= 99.9 for name, acc in accuracy.items())
+            condition = all(acc >= 99.9 for name, acc in accuracies.items())
             if condition and condition_old:
                 break
             condition_old = condition
@@ -235,14 +242,11 @@ class RobustControlBarrierFunction(Certificate):
         logging.info(f"Epoch {t}: loss={loss}")
         logging.info(f"mean compensation: {sigma.mean().item()}")
         logging.info(f"losses={losses}")
-        logging.info(f"accuracy={accuracy}")
-
-        # todo return logging info like accuracy and loss
+        logging.info(f"accuracy={accuracies}")
 
         return {
-            "loss": loss.item(),
-            "losses": losses,
-            "accuracy": accuracy,
+            "loss": losses,
+            "accuracy": accuracies,
         }
 
     def get_constraints(self, verifier, B, sigma, Bdot, Bdotz) -> Generator:

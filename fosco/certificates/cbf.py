@@ -2,6 +2,7 @@ import logging
 import math
 from typing import Generator
 
+import numpy as np
 import torch
 from torch.optim import Optimizer
 
@@ -108,17 +109,26 @@ class ControlBarrierFunction(Certificate):
 
         loss = init_loss + unsafe_loss + lie_loss
 
+        losses = {
+            "init_loss": init_loss.item(),
+            "unsafe_loss": unsafe_loss.item(),
+            "lie_loss": lie_loss.item(),
+            "tot_loss": loss.item(),
+        }
+
         accuracy = {
-            "acc init": percent_accuracy_init,
-            "acc unsafe": percent_accuracy_unsafe,
-            "acc derivative": percent_accuracy_belt,
+            "accuracy_init": percent_accuracy_init,
+            "accuracy_unsafe": percent_accuracy_unsafe,
+            "accuracy_derivative": percent_accuracy_belt,
         }
 
         # debug
         logging.debug("Dataset Accuracy:")
         logging.debug("\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
 
-        return loss, accuracy
+        return loss, losses, accuracy
+
+
 
     def learn(
         self,
@@ -126,7 +136,7 @@ class ControlBarrierFunction(Certificate):
         optimizer: Optimizer,
         datasets: dict,
         f_torch: callable,
-    ) -> dict:
+    ) -> dict[str, float | np.ndarray]:
         """
         Updates the CBF model.
 
@@ -167,14 +177,14 @@ class ControlBarrierFunction(Certificate):
             Sdot_d = f_torch(X_d, U_d)
             Bdot_d = torch.sum(torch.mul(gradB_d, Sdot_d), dim=1)
 
-            loss, accuracy = self.compute_loss(B_i, B_u, B_d, Bdot_d, alpha=1.0)
+            loss, losses, accuracies = self.compute_loss(B_i, B_u, B_d, Bdot_d, alpha=1.0)
 
             if t % math.ceil(self.epochs / 10) == 0 or self.epochs - t < 10:
                 # log_loss_acc(t, loss, accuracy, learner.verbose)
-                logging.debug(f"Epoch {t}: loss={loss}, accuracy={accuracy}")
+                logging.debug(f"Epoch {t}: loss={loss}, accuracy={accuracies}")
 
             # early stopping after 2 consecutive epochs with ~100% accuracy
-            condition = all(acc >= 99.9 for name, acc in accuracy.items())
+            condition = all(acc >= 99.9 for name, acc in accuracies.items())
             if condition and condition_old:
                 break
             condition_old = condition
@@ -182,9 +192,11 @@ class ControlBarrierFunction(Certificate):
             loss.backward()
             optimizer.step()
 
-        # todo return logging info like accuracy and loss
 
-        return {}
+        return {
+            "loss": losses,
+            "accuracy": accuracies,
+        }
 
     def get_constraints(self, verifier, B, sigma, Bdot, *args) -> Generator:
         """

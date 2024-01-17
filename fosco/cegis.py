@@ -240,8 +240,8 @@ class Cegis:
             # Learner component
             self.tlogger.debug("Learner")
             outputs = self.learner.update(**state)
-            for key, value in outputs.items():
-                self.logger.log_scalar(tag=key, value=value, step=iter)
+            for context, dict_metrics in outputs.items():
+                self.logger.log_scalar(tag=None, value=dict_metrics, step=iter, context={context: True})
 
             # Translator component
             self.tlogger.debug("Translator")

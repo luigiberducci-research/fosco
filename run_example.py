@@ -10,13 +10,14 @@ from fosco.common import domains
 from fosco.common.consts import ActivationType
 from fosco.common.consts import CertificateType, TimeDomain, VerifierType
 from fosco.common.plotting import benchmark_3d, benchmark_plane, benchmark_lie
+from logger import LoggerType
 from systems import make_system
 from systems.system import UncertainControlAffineControllableDynamicalModel
 
 
 def main():
     seed = 916104
-    system_name = "noisy_single_integrator"
+    system_name = "single_integrator"
     n_hidden_neurons = 5
     activations = (ActivationType.RELU, ActivationType.LINEAR)
     n_data_samples = 1000
@@ -120,6 +121,7 @@ def main():
         CEGIS_MAX_ITERS=500,
         N_DATA=n_data_samples,
         SEED=seed,
+        LOGGER=LoggerType.AIM,
     )
     cegis = fosco.cegis.Cegis(config=config, verbose=verbose)
 

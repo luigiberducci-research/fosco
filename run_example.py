@@ -1,6 +1,4 @@
-import logging
 import random
-import time
 
 import torch
 from matplotlib import pyplot as plt
@@ -20,10 +18,8 @@ def main():
     n_hidden_neurons = 5
     activations = (ActivationType.RELU, ActivationType.LINEAR)
     n_data_samples = 1000
-    verbose = 0
+    verbose = 2
 
-    log_levels = [logging.INFO, logging.DEBUG]
-    logging.basicConfig(level=log_levels[verbose])
 
     n_hidden_neurons = (n_hidden_neurons,) * len(activations)
 

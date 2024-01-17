@@ -9,9 +9,9 @@ def make_system(id: str) -> Type[ControlAffineControllableDynamicalModel]:
 
         return SingleIntegrator
     if id == "noisy_single_integrator":
-        from systems.single_integrator import NoisySingleIntegrator
+        from systems.single_integrator import SingleIntegratorAddBoundedUncertainty
 
-        return NoisySingleIntegrator
+        return SingleIntegratorAddBoundedUncertainty
     elif id == "double_integrator":
         from systems.double_integrator import DoubleIntegrator
 

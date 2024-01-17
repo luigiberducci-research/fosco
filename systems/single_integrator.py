@@ -77,7 +77,7 @@ class SingleIntegrator(ControlAffineControllableDynamicalModel):
         ), "expected list of symbolic state variables, [z0, z1, ...]"
         return z
 
-class NoisySingleIntegrator(UncertainControlAffineControllableDynamicalModel, SingleIntegrator):
+class SingleIntegratorAddBoundedUncertainty(UncertainControlAffineControllableDynamicalModel, SingleIntegrator):
     """
     Single integrator system with additive uncertainty.
     X=[x, y], U=[vx, vy], Z=[z_x, z_y]
@@ -129,29 +129,3 @@ class NoisySingleIntegrator(UncertainControlAffineControllableDynamicalModel, Si
             z, list
         ), "expected list of symbolic state variables, [z0, z1, ...]"
         return np.zeros((self.n_vars, self.n_controls))
-
-
-class SingleIntegratorKnownCBF(torch.nn.Module):
-
-
-    def forward(self, x):
-        assert len(x.shape) >= 2 and x.shape[1] == 2, "expected input batch (N, 2)"
-        radius = 1.0
-        y = x[:, 0] ** 2 + x[:, 1] ** 2 - radius ** 2
-        return y
-
-    def compute_net_gradnet(self, S: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        assert len(S.shape) >= 2 and S.shape[1] == 2, "expected input batch (N, 2)"
-
-        S_clone = torch.clone(S).requires_grad_()
-        nn = self(S_clone)
-
-        grad_nn = torch.autograd.grad(
-            outputs=nn,
-            inputs=S_clone,
-            grad_outputs=torch.ones_like(nn),
-            create_graph=True,
-            retain_graph=True,
-        )[0]
-
-        return nn, grad_nn

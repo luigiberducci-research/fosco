@@ -7,7 +7,7 @@ import fosco.cegis
 from fosco.common import domains
 from fosco.common.consts import ActivationType
 from fosco.common.consts import CertificateType, TimeDomain, VerifierType
-from fosco.common.plotting import benchmark_3d, benchmark_plane, benchmark_lie
+from fosco.common.plotting import benchmark_3d, benchmark_plane
 from systems import make_system
 from systems.system import UncertainControlAffineControllableDynamicalModel
 

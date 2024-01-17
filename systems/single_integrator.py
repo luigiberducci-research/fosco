@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 
-from fosco.models.network import TorchMLP
 from systems import ControlAffineControllableDynamicalModel
 from systems.system import UncertainControlAffineControllableDynamicalModel
 
@@ -64,8 +63,8 @@ class SingleIntegrator(ControlAffineControllableDynamicalModel):
         assert (
             x.shape[0] == z.shape[0]
         ), "expected batched input with shape (batch_size, uncertain_dim, 1)"
-        assert type(x) == type(
-            z
+        assert isinstance(
+            x, type(z)
         ), f"expected same type for x and z, got {type(x)} and {type(z)}"
 
         fz = z  # simple additive uncertainty
@@ -108,8 +107,8 @@ class SingleIntegratorAddBoundedUncertainty(
         assert (
             x.shape[0] == z.shape[0]
         ), "expected batched input with shape (batch_size, uncertain_dim, 1)"
-        assert type(x) == type(
-            z
+        assert isinstance(
+            x, type(z)
         ), f"expected same type for x and z, got {type(x)} and {type(z)}"
 
         fz = z  # simple additive uncertainty

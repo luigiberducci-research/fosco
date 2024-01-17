@@ -11,7 +11,7 @@ import torch
 
 from fosco.certificates import make_certificate
 from fosco.common.formatter import CustomFormatter
-from fosco.common.plotting import benchmark_3d, benchmark_lie
+from fosco.common.plotting import benchmark_3d
 from fosco.consolidator import make_consolidator
 from fosco.common.consts import (
     CertificateType,

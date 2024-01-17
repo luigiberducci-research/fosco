@@ -1,7 +1,6 @@
 import unittest
 
 import numpy as np
-import torch
 
 from fosco.common.domains import Rectangle, Sphere
 from fosco.models.network import TorchMLP

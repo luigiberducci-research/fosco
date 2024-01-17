@@ -86,7 +86,7 @@ def benchmark_lie(model, ctrl, certificate, domains, levels, xrange, yrange, fig
     )
     ax = plot_domains(domains, ax)
     ax = add_legend(ax)
-    ax.set_title(f"Lie Derivative")
+    ax.set_title("Lie Derivative")
 
     return ax
 

@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 
 import fosco.cegis
 from fosco.common import domains
-from fosco.common.consts import ActivationType
+from fosco.common.consts import ActivationType, LossReLUType
 from fosco.common.consts import CertificateType, TimeDomain, VerifierType
 from fosco.common.plotting import benchmark_3d, benchmark_plane, benchmark_lie
 from logger import LoggerType
@@ -19,8 +19,8 @@ def main():
     seed = 916104
     system_name = "noisy_single_integrator"
     n_hidden_neurons = 5
-    activations = (ActivationType.RELU, ActivationType.LINEAR)
-    n_data_samples = 100
+    activations = (ActivationType.SQUARE, ActivationType.LINEAR)
+    n_data_samples = 1000
     verbose = 1
 
     log_levels = [logging.WARNING, logging.INFO, logging.DEBUG]
@@ -40,7 +40,7 @@ def main():
     elif system_name == "noisy_single_integrator":
         XD = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
         UD = domains.Rectangle(vars=["u0", "u1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
-        ZD = domains.Rectangle(vars=["z0", "z1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
+        ZD = domains.Rectangle(vars=["z0", "z1"], lb=(-1.0, -1.0), ub=(1.0, 1.0))
         XI = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(-4.0, -4.0))
         XU = domains.Sphere(
             vars=["x0", "x1"], centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1]
@@ -122,7 +122,10 @@ def main():
         N_DATA=n_data_samples,
         SEED=seed,
         LOGGER=LoggerType.AIM,
+        N_EPOCHS=1000,
+        LOSS_MARGINS={"init": 0.0, "unsafe": 0.0, "lie": 0.0, "robust": 0.0},
         LOSS_WEIGHTS={"init": 1.0, "unsafe": 1.0, "lie": 1.0, "robust": 1.0},
+        LOSS_RELU=LossReLUType.RELU,
     )
     cegis = fosco.cegis.Cegis(config=config, verbose=verbose)
 

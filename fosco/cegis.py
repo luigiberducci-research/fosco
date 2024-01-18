@@ -48,7 +48,8 @@ class Cegis:
 
     def _initialise_logger(self) -> Logger:
         config = self.config.dict()
-        logger = make_logger(logger_type=self.config.LOGGER, config=config)
+        exp_name = f"{self.config.SYSTEM}_{self.config.CERTIFICATE}"
+        logger = make_logger(logger_type=self.config.LOGGER, config=config, experiment=exp_name)
 
         logging.basicConfig()
         tlogger = logging.getLogger(__name__)
@@ -148,7 +149,6 @@ class Cegis:
         iter = None
 
         for iter in range(1, self.config.CEGIS_MAX_ITERS + 1):
-            self.tlogger.info(f"Iteration {iter}")
 
             # logging learned functions
             in_domain = self.config.DOMAINS[DomainNames.XD.value]
@@ -212,7 +212,7 @@ class Cegis:
                     domains=other_domains,
                     dim_select=(0, 1),
                 )
-                self.logger.log_image(tag=f"cbf_condition", image=fig, step=iter, context={"u_norm": str(u)})
+                self.logger.log_image(tag=f"cbf_condition", image=fig, step=iter, context={"u": str(u)})
 
             if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
                 fig = plot_func_and_domains(
@@ -223,6 +223,12 @@ class Cegis:
                     dim_select=(0, 1),
                 )
                 self.logger.log_image(tag="compensator", image=fig, step=iter)
+
+            if state["found"]:
+                self.tlogger.debug("found valid certificate")
+                break
+
+            self.tlogger.info(f"Iteration {iter}")
 
             # Learner component
             self.tlogger.debug("Learner")
@@ -244,10 +250,6 @@ class Cegis:
             self.tlogger.debug("Consolidator")
             outputs = self.consolidator.get(**state)
             state.update(outputs)
-
-            if state["found"]:
-                self.tlogger.debug("found valid certificate")
-                break
 
         # state = self.process_timers(state)
         self.tlogger.info(f"CEGIS finished after {iter} iterations")

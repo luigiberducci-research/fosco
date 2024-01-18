@@ -150,6 +150,9 @@ class Cegis:
 
         for iter in range(1, self.config.CEGIS_MAX_ITERS + 1):
 
+            # todo logging distribution of data for each training set (init, unsafe, lie, robust)
+            # for each of them, scatter the counter-examples with different color than the rest of the data
+
             # logging learned functions
             in_domain = self.config.DOMAINS[DomainNames.XD.value]
             other_domains = {k: v for k, v in self.config.DOMAINS.items() if

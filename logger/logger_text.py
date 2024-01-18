@@ -3,7 +3,7 @@ from logger.logger import ImageType
 import logging
 
 class TextLogger(Logger):
-    def __init__(self, config: dict = None):
+    def __init__(self, config: dict = None, **kwargs):
         super().__init__(config)
 
         self._logger = logging.getLogger(__name__)

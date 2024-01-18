@@ -148,7 +148,7 @@ class Cegis:
         iter = None
 
         for iter in range(1, self.config.CEGIS_MAX_ITERS + 1):
-            self.tlogger.debug(f"Iteration {iter}")
+            self.tlogger.info(f"Iteration {iter}")
 
             # logging learned functions
             in_domain = self.config.DOMAINS[DomainNames.XD.value]

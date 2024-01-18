@@ -52,7 +52,7 @@ class ControlBarrierFunction(Certificate):
         self.n_controls = len(self.u_vars)
 
         # loss parameters
-        self.loss_relu = config.LOSS_RELU.value
+        self.loss_relu = config.LOSS_RELU
         self.epochs = config.N_EPOCHS
 
         # process loss margins
@@ -113,14 +113,11 @@ class ControlBarrierFunction(Certificate):
 
         accuracy_i = (B_i >= margin_init).count_nonzero().item()
         accuracy_u = (B_u < -margin_unsafe).count_nonzero().item()
-        if Bdot_d is None:
-            accuracy_d = 0
-            percent_accuracy_belt = 0
-        else:
-            accuracy_d = (Bdot_d + alpha * B_d >= margin_lie).count_nonzero().item()
-            percent_accuracy_belt = 100 * accuracy_d / Bdot_d.shape[0]
+        accuracy_d = (Bdot_d + alpha * B_d >= margin_lie).count_nonzero().item()
+
         percent_accuracy_init = 100 * accuracy_i / B_i.shape[0]
         percent_accuracy_unsafe = 100 * accuracy_u / B_u.shape[0]
+        percent_accuracy_lie = 100 * accuracy_d / Bdot_d.shape[0]
 
         # penalize B_i < 0
         init_loss = weight_init * (self.loss_relu(margin_init - B_i)).mean()
@@ -143,7 +140,7 @@ class ControlBarrierFunction(Certificate):
         accuracy = {
             "accuracy_init": percent_accuracy_init,
             "accuracy_unsafe": percent_accuracy_unsafe,
-            "accuracy_derivative": percent_accuracy_belt,
+            "accuracy_derivative": percent_accuracy_lie,
         }
 
         # debug
@@ -243,11 +240,24 @@ class ControlBarrierFunction(Certificate):
 
         alpha = lambda x: 1.0 * x
 
-        # find cex requires ForAll quantifier on entire input domain
-        # spec := exists u Bdot + alpha * Bx >= 0 if x \in domain
-        # counterexample: x s.t. forall u Bdot + alpha * Bx < 0
+
+
+        # Bx >= 0 if x \in initial
+        # counterexample: B < 0 and x \in initial
+        initial_constr = _And(B < 0, self.initial_domain)
+        inital_constr = _And(initial_constr, self.x_domain)
+
+        # Bx < 0 if x \in unsafe
+        # counterexample: B >= 0 and x \in unsafe
+        unsafe_constr = _And(B >= 0, self.unsafe_domain)
+        unsafe_constr = _And(unsafe_constr, self.x_domain)
+
+        # feasibility condition
+        # exists u Bdot + alpha * Bx >= 0 if x \in domain
+        # counterexample: x \in domain s.t. forall u Bdot + alpha * Bx < 0
         #
-        # smart way: verify Lie condition only on vertices of convex input space
+        # note: smart trick for tractable verification using vertices of input convex-hull
+        # counterexample: x \in domain and AND_v (u=v and Bdot + alpha * Bx < 0)
         u_vertices = self.u_set.get_vertices()
         lie_constr = self.x_domain
         for u_vert in u_vertices:
@@ -255,19 +265,6 @@ class ControlBarrierFunction(Certificate):
             for u_var, u_val in zip(self.u_vars, u_vert):
                 vertex_constr = _Substitute(vertex_constr, (u_var, _RealVal(u_val)))
             lie_constr = _And(lie_constr, vertex_constr)
-
-        # Bx >= 0 if x \in initial
-        # counterexample: B < 0 and x \in initial
-        initial_constr = _And(B < 0, self.initial_domain)
-
-        # Bx < 0 if x \in unsafe
-        # counterexample: B >= 0 and x \in unsafe
-        unsafe_constr = _And(B >= 0, self.unsafe_domain)
-
-        # add domain constraints
-        lie_constr = _And(lie_constr, self.x_domain)
-        inital_constr = _And(initial_constr, self.x_domain)
-        unsafe_constr = _And(unsafe_constr, self.x_domain)
 
         logging.debug(f"lie_constr: {lie_constr}")
         logging.debug(f"inital_constr: {inital_constr}")

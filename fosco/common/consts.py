@@ -62,6 +62,14 @@ class ActivationType(Enum):
 class VerifierType(Enum):
     Z3 = auto()
 
-class LossReLuType(Enum):
-    RELU = torch.relu
-    SOFTPLUS = torch.nn.Softplus()
+class LossReLUType(Enum):
+    RELU = auto()
+    SOFTPLUS = auto()
+
+    def __call__(self, x):
+        if self == LossReLUType.RELU:
+            return torch.relu(x)
+        elif self == LossReLUType.SOFTPLUS:
+            return torch.nn.functional.softplus(x)
+        else:
+            raise NotImplementedError(f"LossReLUType {self} not implemented")

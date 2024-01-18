@@ -56,7 +56,7 @@ class RobustControlBarrierFunction(Certificate):
         self.n_uncertain = len(self.z_vars)
 
         # loss parameters
-        self.loss_relu = config.LOSS_RELU.value
+        self.loss_relu = config.LOSS_RELU
         self.epochs = config.N_EPOCHS
 
         # process loss margins
@@ -139,13 +139,13 @@ class RobustControlBarrierFunction(Certificate):
         accuracy_d = (Bdot_d - sigma_d + alpha * B_d >= margin_lie).count_nonzero().item()
 
         accuracy_z = torch.logical_or(
-            Bdot_dz - sigma_dz + alpha * B_dz < margin_robust,
+            Bdot_dz - sigma_dz + alpha * B_dz < - margin_robust,
             Bdotz_dz + alpha * B_dz >= margin_robust
         ).count_nonzero().item()
 
         percent_accuracy_init = 100 * accuracy_i / B_i.shape[0]
         percent_accuracy_unsafe = 100 * accuracy_u / B_u.shape[0]
-        percent_accuracy_belt = 100 * accuracy_d / Bdot_d.shape[0]
+        percent_accuracy_lie = 100 * accuracy_d / Bdot_d.shape[0]
         percent_accuracy_robust = 100 * accuracy_z / Bdot_dz.shape[0]
 
         # penalize B_i < 0
@@ -153,12 +153,14 @@ class RobustControlBarrierFunction(Certificate):
         # penalize B_u > 0
         unsafe_loss = weight_unsafe * (self.loss_relu(B_u + margin_unsafe)).mean()
         # penalize dB_d - sigma_d + alpha * B_d < 0
-        lie_loss = weight_lie * (self.loss_relu(margin_lie - (Bdot_d - sigma_d + alpha * B_d))).mean()
+        lie_loss = weight_lie * (
+            self.loss_relu(margin_lie - (Bdot_d - sigma_d + alpha * B_d))
+        ).mean()
         # penalize dB_d - sigma_d + alpha * B_d >=0 and Bdotz_d + alpha * B_d < 0
         robust_loss = weight_robust * (self.loss_relu(
             torch.min(
-                (Bdot_dz - sigma_dz + alpha * B_dz) - margin_lie,
-                margin_lie - (Bdotz_dz + alpha * B_dz)
+                (Bdot_dz - sigma_dz + alpha * B_dz) - margin_robust,
+                margin_robust - (Bdotz_dz + alpha * B_dz)
             )
         )).mean()
 
@@ -176,7 +178,7 @@ class RobustControlBarrierFunction(Certificate):
         accuracy = {
             "accuracy_init": percent_accuracy_init,
             "accuracy_unsafe": percent_accuracy_unsafe,
-            "accuracy_derivative": percent_accuracy_belt,
+            "accuracy_derivative": percent_accuracy_lie,
             "accuracy_robust": percent_accuracy_robust,
         }
 

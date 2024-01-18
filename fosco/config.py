@@ -2,7 +2,7 @@ from collections import namedtuple
 from dataclasses import dataclass, asdict
 from typing import Type, Any
 
-from fosco.common.consts import TimeDomain, CertificateType, VerifierType, ActivationType, LossReLuType
+from fosco.common.consts import TimeDomain, CertificateType, VerifierType, ActivationType, LossReLUType
 from logger import LoggerType
 from systems import ControlAffineControllableDynamicalModel
 
@@ -31,7 +31,7 @@ class CegisConfig:
     # loss
     LOSS_MARGINS: dict[str, float] | float = 0.0
     LOSS_WEIGHTS: dict[str, float] | float = 1.0
-    LOSS_RELU: LossReLuType = LossReLuType.RELU
+    LOSS_RELU: LossReLUType = LossReLUType.RELU
     N_EPOCHS: int = 100
     # seeding
     SEED: int = None

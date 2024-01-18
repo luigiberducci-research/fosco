@@ -25,8 +25,12 @@ class TestEnv(unittest.TestCase):
         system = make_system(id="double_integrator")()
         domains = {
             "input": Rectangle(vars=uvars, lb=(-5.0, -5.0), ub=(5.0, 5.0)),
-            "init": Rectangle(vars=svars, lb=(-5.0, -5.0, -5.0, -5.0), ub=(-4.0, -4.0, 5.0, 5.0)),
-            "unsafe": Rectangle(vars=svars, lb=(-1.0, -1.0, -5.0, -5.0), ub=(1.0, 1.0, 5.0, 5.0)),
+            "init": Rectangle(
+                vars=svars, lb=(-5.0, -5.0, -5.0, -5.0), ub=(-4.0, -4.0, 5.0, 5.0)
+            ),
+            "unsafe": Rectangle(
+                vars=svars, lb=(-1.0, -1.0, -5.0, -5.0), ub=(1.0, 1.0, 5.0, 5.0)
+            ),
         }
 
         env = SystemEnv(system=system, domains=domains)

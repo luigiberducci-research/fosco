@@ -35,7 +35,9 @@ class ControlBarrierFunction(Certificate):
 
     def __init__(self, vars: dict[str, list], domains: dict[str, Set], config: CegisConfig, verbose: int = 0) -> None:
         # todo rename vars to x, u
-        assert all([sv in vars for sv in ["v", "u"]]), f"Missing symbolic variables, got {vars}"
+        assert all(
+            [sv in vars for sv in ["v", "u"]]
+        ), f"Missing symbolic variables, got {vars}"
         self.x_vars = vars["v"]
         self.u_vars = vars["u"]
 
@@ -233,8 +235,6 @@ class ControlBarrierFunction(Certificate):
         _And = verifier.solver_fncts()["And"]
         _Or = verifier.solver_fncts()["Or"]
         _Not = verifier.solver_fncts()["Not"]
-        _Exists = verifier.solver_fncts()["Exists"]
-        _ForAll = verifier.solver_fncts()["ForAll"]
         _Substitute = verifier.solver_fncts()["Substitute"]
         _RealVal = verifier.solver_fncts()["RealVal"]
 

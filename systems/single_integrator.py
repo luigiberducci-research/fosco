@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 
-from fosco.models.network import TorchMLP
 from systems import ControlAffineControllableDynamicalModel
 from systems.system import UncertainControlAffineControllableDynamicalModel
 
@@ -52,7 +51,9 @@ class SingleIntegrator(ControlAffineControllableDynamicalModel):
         ), "expected list of symbolic state variables, [x0, x1, ...]"
         return np.eye(len(x))
 
-    def fz_torch(self, x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor) -> np.ndarray | torch.Tensor:
+    def fz_torch(
+        self, x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
+    ) -> np.ndarray | torch.Tensor:
         assert (
             len(x.shape) == 3
         ), "expected batched input with shape (batch_size, state_dim, 1)"
@@ -62,7 +63,9 @@ class SingleIntegrator(ControlAffineControllableDynamicalModel):
         assert (
             x.shape[0] == z.shape[0]
         ), "expected batched input with shape (batch_size, uncertain_dim, 1)"
-        assert type(x) == type(z), f"expected same type for x and z, got {type(x)} and {type(z)}"
+        assert isinstance(
+            x, type(z)
+        ), f"expected same type for x and z, got {type(x)} and {type(z)}"
 
         fz = z  # simple additive uncertainty
 
@@ -77,7 +80,10 @@ class SingleIntegrator(ControlAffineControllableDynamicalModel):
         ), "expected list of symbolic state variables, [z0, z1, ...]"
         return z
 
-class NoisySingleIntegrator(UncertainControlAffineControllableDynamicalModel, SingleIntegrator):
+
+class SingleIntegratorAddBoundedUncertainty(
+    UncertainControlAffineControllableDynamicalModel, SingleIntegrator
+):
     """
     Single integrator system with additive uncertainty.
     X=[x, y], U=[vx, vy], Z=[z_x, z_y]
@@ -89,7 +95,9 @@ class NoisySingleIntegrator(UncertainControlAffineControllableDynamicalModel, Si
     def n_uncertain(self) -> int:
         return 2
 
-    def fz_torch(self, x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor) -> np.ndarray | torch.Tensor:
+    def fz_torch(
+        self, x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
+    ) -> np.ndarray | torch.Tensor:
         assert (
             len(x.shape) == 3
         ), "expected batched input with shape (batch_size, state_dim, 1)"
@@ -99,7 +107,9 @@ class NoisySingleIntegrator(UncertainControlAffineControllableDynamicalModel, Si
         assert (
             x.shape[0] == z.shape[0]
         ), "expected batched input with shape (batch_size, uncertain_dim, 1)"
-        assert type(x) == type(z), f"expected same type for x and z, got {type(x)} and {type(z)}"
+        assert isinstance(
+            x, type(z)
+        ), f"expected same type for x and z, got {type(x)} and {type(z)}"
 
         fz = z  # simple additive uncertainty
 
@@ -114,11 +124,17 @@ class NoisySingleIntegrator(UncertainControlAffineControllableDynamicalModel, Si
         ), "expected list of symbolic state variables, [z0, z1, ...]"
         return z
 
-    def gz_torch(self, x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor) -> np.ndarray | torch.Tensor:
+    def gz_torch(
+        self, x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
+    ) -> np.ndarray | torch.Tensor:
         if isinstance(x, np.ndarray):
-            gx = np.zeros((self.n_vars, self.n_controls))[None].repeat(x.shape[0], axis=0)
+            gx = np.zeros((self.n_vars, self.n_controls))[None].repeat(
+                x.shape[0], axis=0
+            )
         else:
-            gx = torch.zeros((self.n_vars, self.n_controls))[None].repeat((x.shape[0], 1, 1))
+            gx = torch.zeros((self.n_vars, self.n_controls))[None].repeat(
+                (x.shape[0], 1, 1)
+            )
         return gx
 
     def gz_smt(self, x: list, z: list) -> np.ndarray | torch.Tensor:
@@ -129,29 +145,3 @@ class NoisySingleIntegrator(UncertainControlAffineControllableDynamicalModel, Si
             z, list
         ), "expected list of symbolic state variables, [z0, z1, ...]"
         return np.zeros((self.n_vars, self.n_controls))
-
-
-class SingleIntegratorKnownCBF(torch.nn.Module):
-
-
-    def forward(self, x):
-        assert len(x.shape) >= 2 and x.shape[1] == 2, "expected input batch (N, 2)"
-        radius = 1.0
-        y = x[:, 0] ** 2 + x[:, 1] ** 2 - radius ** 2
-        return y
-
-    def compute_net_gradnet(self, S: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        assert len(S.shape) >= 2 and S.shape[1] == 2, "expected input batch (N, 2)"
-
-        S_clone = torch.clone(S).requires_grad_()
-        nn = self(S_clone)
-
-        grad_nn = torch.autograd.grad(
-            outputs=nn,
-            inputs=S_clone,
-            grad_outputs=torch.ones_like(nn),
-            create_graph=True,
-            retain_graph=True,
-        )[0]
-
-        return nn, grad_nn

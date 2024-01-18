@@ -23,8 +23,12 @@ class TestVerifier(unittest.TestCase):
 
         C = vars[0] + 1.0
         dC = vars[0] + 6.0
-        results = verifier.verify(V_symbolic=C, Vdot_symbolic=dC, sigma_symbolic=None, Vdotz_symbolic=None)
-        results2 = verifier2.verify(V_symbolic=C, Vdot_symbolic=dC, sigma_symbolic=None, Vdotz_symbolic=None)
+        results = verifier.verify(
+            V_symbolic=C, Vdot_symbolic=dC, sigma_symbolic=None, Vdotz_symbolic=None
+        )
+        results2 = verifier2.verify(
+            V_symbolic=C, Vdot_symbolic=dC, sigma_symbolic=None, Vdotz_symbolic=None
+        )
 
         self.assertTrue(
             len(results["cex"]["sat"]) > 0,

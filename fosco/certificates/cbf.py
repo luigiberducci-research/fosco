@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from torch.optim import Optimizer
 
+from fosco.config import CegisConfig
 from fosco.certificates.certificate import Certificate
 from fosco.common.domains import Set, Rectangle
 from fosco.common.consts import DomainNames
@@ -32,7 +33,7 @@ class ControlBarrierFunction(Certificate):
         domains {dict}: dictionary of (string,domain) pairs
     """
 
-    def __init__(self, vars: dict[str, list], domains: dict[str, Set], verbose: int = 0) -> None:
+    def __init__(self, vars: dict[str, list], domains: dict[str, Set], config: CegisConfig, verbose: int = 0) -> None:
         # todo rename vars to x, u
         assert all([sv in vars for sv in ["v", "u"]]), f"Missing symbolic variables, got {vars}"
         self.x_vars = vars["v"]
@@ -51,10 +52,25 @@ class ControlBarrierFunction(Certificate):
         self.n_controls = len(self.u_vars)
 
         # loss parameters
-        # todo: bring it outside
-        self.loss_relu = torch.nn.Softplus()  # torch.relu  # torch.nn.Softplus()
-        self.margin = 0.0
-        self.epochs = 1000
+        self.loss_relu = config.LOSS_RELU.value
+        self.epochs = config.N_EPOCHS
+
+        # process loss margins
+        loss_keys = ["init", "unsafe", "lie"]
+        if isinstance(config.LOSS_MARGINS, float):
+            loss_margins = {k: config.LOSS_MARGINS for k in loss_keys}
+        else:
+            assert all([k in config.LOSS_MARGINS for k in loss_keys]), f"Missing loss margin, got {config.LOSS_MARGINS}"
+            loss_margins = config.LOSS_MARGINS
+        self.loss_margins = loss_margins
+
+        # process loss weights
+        if isinstance(config.LOSS_WEIGHTS, float):
+            loss_weights = {k: config.LOSS_WEIGHTS for k in loss_keys}
+        else:
+            assert all([k in config.LOSS_WEIGHTS for k in loss_keys]), f"Missing loss weight, got {config.LOSS_WEIGHTS}"
+            loss_weights = config.LOSS_WEIGHTS
+        self.loss_weights = loss_weights
 
         self._logger = logging.getLogger(__name__)
         self._logger.setLevel(LOGGING_LEVELS[verbose])
@@ -67,7 +83,7 @@ class ControlBarrierFunction(Certificate):
         B_d: torch.Tensor,
         Bdot_d: torch.Tensor,
         alpha: torch.Tensor | float,
-    ) -> tuple[torch.Tensor, dict]:
+    ) -> tuple[torch.Tensor, dict, dict]:
         # todo make this private
         """Computes loss function for CBF and its accuracy w.r.t. the batch of data.
 
@@ -84,30 +100,38 @@ class ControlBarrierFunction(Certificate):
         assert (
             Bdot_d is None or B_d.shape == Bdot_d.shape
         ), f"B_d and Bdot_d must have the same shape, got {B_d.shape} and {Bdot_d.shape}"
-        margin = self.margin
+        assert isinstance(self.loss_margins, dict), f"Expected loss margins as dict, got {type(self.loss_margins)}"
+        assert isinstance(self.loss_weights, dict), f"Expected loss weights as dict, got {type(self.loss_weights)}"
 
-        accuracy_i = (B_i >= margin).count_nonzero().item()
-        accuracy_u = (B_u < -margin).count_nonzero().item()
+        margin_init = self.loss_margins["init"]
+        margin_unsafe = self.loss_margins["unsafe"]
+        margin_lie = self.loss_margins["lie"]
+
+        weight_init = self.loss_weights["init"]
+        weight_unsafe = self.loss_weights["unsafe"]
+        weight_lie = self.loss_weights["lie"]
+
+        accuracy_i = (B_i >= margin_init).count_nonzero().item()
+        accuracy_u = (B_u < -margin_unsafe).count_nonzero().item()
         if Bdot_d is None:
             accuracy_d = 0
             percent_accuracy_belt = 0
         else:
-            accuracy_d = (Bdot_d + alpha * B_d >= margin).count_nonzero().item()
+            accuracy_d = (Bdot_d + alpha * B_d >= margin_lie).count_nonzero().item()
             percent_accuracy_belt = 100 * accuracy_d / Bdot_d.shape[0]
         percent_accuracy_init = 100 * accuracy_i / B_i.shape[0]
         percent_accuracy_unsafe = 100 * accuracy_u / B_u.shape[0]
 
-        relu = self.loss_relu
-        init_loss = (relu(margin - B_i)).mean()  # penalize B_i < 0
-        unsafe_loss = (relu(B_u + margin)).mean()  # penalize B_u > 0
-        if Bdot_d is None:
-            lie_loss = 0.0
-        else:
-            lie_loss = (
-                relu(margin - (Bdot_d + alpha * B_d))
-            ).mean()  # penalize dB_d + alpha * B_d < 0
+        # penalize B_i < 0
+        init_loss = (self.loss_relu(margin_init - B_i)).mean()
+        # penalize B_u > 0
+        unsafe_loss = (self.loss_relu(B_u + margin_unsafe)).mean()
+        # penalize dB_d + alpha * B_d < 0
+        lie_loss = (
+            self.loss_relu(margin_lie - (Bdot_d + alpha * B_d))
+        ).mean()
 
-        loss = init_loss + unsafe_loss + lie_loss
+        loss = weight_init * init_loss + weight_unsafe * unsafe_loss + weight_lie * lie_loss
 
         losses = {
             "init_loss": init_loss.item(),
@@ -158,6 +182,7 @@ class ControlBarrierFunction(Certificate):
         )
         U_d = datasets[XD][:, self.n_vars : self.n_vars + self.n_controls]
 
+        losses, accuracies = {}, {}
         for t in range(self.epochs):
             optimizer.zero_grad()
 

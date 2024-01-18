@@ -33,7 +33,7 @@ class TestAimLogger(unittest.TestCase):
             self.assertTrue(metric is not None)
 
         # check existance of image
-        image = logger._run.get_image_sequence("random", context=Context({}))
+        image = logger._run.get_figure_sequence("random", context=Context({}))
         self.assertTrue(image is not None)
 
     def test_factory(self):

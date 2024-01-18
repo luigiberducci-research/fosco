@@ -13,13 +13,13 @@ class Logger(ABC):
         self.config = config or {}
 
     @abstractmethod
-    def log_scalar(self, tag: str, value: float, step: int):
+    def log_scalar(self, tag: str, value: float, step: int, **kwargs):
         raise NotImplementedError
 
     @abstractmethod
-    def log_image(self, tag: str, image: ImageType, step: int):
+    def log_image(self, tag: str, image: ImageType, step: int, **kwargs):
         raise NotImplementedError
 
     @abstractmethod
-    def log_video(self, tag: str, video: VideoType, step: int):
+    def log_video(self, tag: str, video: VideoType, step: int, **kwargs):
         raise NotImplementedError

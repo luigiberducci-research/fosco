@@ -1,69 +1,19 @@
-import datetime
 import logging
-import pathlib
-from collections import namedtuple
-from dataclasses import dataclass, asdict
-from typing import Any, Type
-
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
 from fosco.certificates import make_certificate
 from fosco.common.domains import Rectangle
-from fosco.common.plotting import benchmark_3d
+from fosco.config import CegisConfig, CegisResult
 from fosco.consolidator import make_consolidator
-from fosco.common.consts import (
-    CertificateType,
-    TimeDomain,
-    ActivationType,
-    VerifierType, DomainNames,
-)
+from fosco.common.consts import DomainNames
 from fosco.learner import make_learner, LearnerNN
 from fosco.plotting.utils import plot_func_and_domains
 from fosco.translator import make_translator
 from fosco.verifier import make_verifier
-from logger import LoggerType, make_logger, Logger, LOGGING_LEVELS
-from systems import ControlAffineControllableDynamicalModel
+from logger import make_logger, Logger, LOGGING_LEVELS
 from systems.system import UncertainControlAffineControllableDynamicalModel
 from systems.utils import lie_derivative_fn
-
-CegisResult = namedtuple("CegisResult", ["found", "net", "infos"])
-
-DEBUG_PLOT = False
-
-
-@dataclass
-class CegisConfig:
-    # system
-    SYSTEM: Type[ControlAffineControllableDynamicalModel] = None
-    DOMAINS: dict[str, Any] = None
-    TIME_DOMAIN: TimeDomain = TimeDomain.CONTINUOUS
-    # fosco
-    CERTIFICATE: CertificateType = CertificateType.CBF
-    VERIFIER: VerifierType = VerifierType.Z3
-    CEGIS_MAX_ITERS: int = 10
-    ROUNDING: int = 3
-    # training
-    DATA_GEN: dict[str, callable] = None
-    N_DATA: int = 500
-    LEARNING_RATE: float = 1e-3
-    WEIGHT_DECAY: float = 1e-4
-    # net architecture
-    N_HIDDEN_NEURONS: tuple[int, ...] = (10,)
-    ACTIVATION: tuple[ActivationType, ...] = (ActivationType.SQUARE,)
-    # seeding
-    SEED: int = None
-    # logging
-    LOGGER: LoggerType = None
-
-    def __getitem__(self, item):
-        return getattr(self, item)
-
-    def dict(self):
-        return {k: str(v) for k, v in asdict(self).items()}
-
-
 
 
 class Cegis:
@@ -178,7 +128,7 @@ class Cegis:
 
     def _initialise_certificate(self):
         certificate_type = make_certificate(certificate_type=self.config.CERTIFICATE)
-        return certificate_type(vars=self.x_map, domains=self.config.DOMAINS, verbose=self.verbose)
+        return certificate_type(vars=self.x_map, domains=self.config.DOMAINS, verbose=self.verbose, config=self.config)
 
     def _initialise_consolidator(self):
         return make_consolidator(verbose=self.verbose)
@@ -202,14 +152,15 @@ class Cegis:
 
             # logging learned functions
             in_domain = self.config.DOMAINS[DomainNames.XD.value]
-            other_domains = {k: v for k, v in self.config.DOMAINS.items() if k in [DomainNames.XI.value, DomainNames.XU.value]}
+            other_domains = {k: v for k, v in self.config.DOMAINS.items() if
+                             k in [DomainNames.XI.value, DomainNames.XU.value]}
             fig = plot_func_and_domains(
-                    func=self.learner.net,
-                    in_domain=in_domain,
-                    levels=[0.0],
-                    domains=other_domains,
-                    dim_select=(0, 1),
-                )
+                func=self.learner.net,
+                in_domain=in_domain,
+                levels=[0.0],
+                domains=other_domains,
+                dim_select=(0, 1),
+            )
             self.logger.log_image(tag="barrier", image=fig, step=iter)
 
             for dim in range(self.f.n_vars):
@@ -249,9 +200,11 @@ class Cegis:
                 # cbf condition
                 alpha = lambda x: 1.0 * x
                 if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
-                    func = lambda x: lie_derivative_fn(certificate=self.learner.net, f=f, ctrl=ctrl)(x) - self.learner.xsigma(x) + alpha(self.learner.net(x))
+                    func = lambda x: lie_derivative_fn(certificate=self.learner.net, f=f, ctrl=ctrl)(
+                        x) - self.learner.xsigma(x) + alpha(self.learner.net(x))
                 else:
-                    func = lambda x: lie_derivative_fn(certificate=self.learner.net, f=f, ctrl=ctrl)(x) + alpha(self.learner.net(x))
+                    func = lambda x: lie_derivative_fn(certificate=self.learner.net, f=f, ctrl=ctrl)(x) + alpha(
+                        self.learner.net(x))
                 fig = plot_func_and_domains(
                     func=func,
                     in_domain=in_domain,
@@ -260,7 +213,6 @@ class Cegis:
                     dim_select=(0, 1),
                 )
                 self.logger.log_image(tag=f"cbf_condition", image=fig, step=iter, context={"u_norm": str(u)})
-
 
             if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
                 fig = plot_func_and_domains(
@@ -314,25 +266,25 @@ class Cegis:
         xsigma = self.learner.xsigma if hasattr(self.learner, "xsigma") else None
 
         state = {
-            "found": False,     # whether a valid cbf was found
-            "iter": 0,          # current iteration
-            "system": self.f,   # system object
+            "found": False,  # whether a valid cbf was found
+            "iter": 0,  # current iteration
+            "system": self.f,  # system object
 
             "V_net": self.learner.net,  # cbf model as nn
             "sigma_net": xsigma,  # sigma model as nn
 
-            "xdot_func": self.f._f_torch,   # numerical dynamics function
+            "xdot_func": self.f._f_torch,  # numerical dynamics function
             "datasets": self.datasets,  # dictionary of datasets of training data
 
             "x_v_map": self.x_map,  # dictionary of symbolic variables
-            "V_symbolic": None,     # symbolic expression of cbf
-            "sigma_symbolic": None, # symbolic expression of compensator sigma
+            "V_symbolic": None,  # symbolic expression of cbf
+            "sigma_symbolic": None,  # symbolic expression of compensator sigma
             "Vdot_symbolic": None,  # symbolic expression of lie derivative w.r.t. nominal dynamics
-            "Vdotz_symbolic": None, # symbolic expression of lie derivative w.r.t. uncertain dynamics
-            "xdot": self.xdot,      # symbolic expression of nominal dynamics
-            "xdotz": self.xdotz,    # symbolic expression of uncertain dynamics
+            "Vdotz_symbolic": None,  # symbolic expression of lie derivative w.r.t. uncertain dynamics
+            "xdot": self.xdot,  # symbolic expression of nominal dynamics
+            "xdotz": self.xdotz,  # symbolic expression of uncertain dynamics
 
-            "cex": None,    # counterexamples
+            "cex": None,  # counterexamples
             # CegisStateKeys.found: False,
             # CegisStateKeys.verification_timed_out: False,
             # CegisStateKeys.cex: None,
@@ -342,7 +294,6 @@ class Cegis:
 
         return state
 
-
     @property
     def result(self):
         return self._result
@@ -351,6 +302,6 @@ class Cegis:
         assert self.config.LEARNING_RATE > 0
         assert self.config.CEGIS_MAX_ITERS > 0
         assert (
-            self.x is self.verifier.xs
+                self.x is self.verifier.xs
         ), "expected same variables in fosco and verifier"
         self.certificate._assert_state(self.domains, self.datasets)

@@ -1,9 +1,9 @@
-import logging
 import unittest
 
 import torch
 
-from fosco.cegis import CegisConfig, Cegis
+from fosco.cegis import Cegis
+from fosco.config import CegisConfig
 from fosco.common.domains import Rectangle, Sphere
 from fosco.common.consts import (
     TimeDomain,
@@ -16,7 +16,7 @@ from systems.single_integrator import SingleIntegrator
 
 
 class TestCEGIS(unittest.TestCase):
-    def _get_single_integrator_config(self):
+    def _get_single_integrator_config(self) -> CegisConfig:
         XD = Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
         UD = Rectangle(vars=["u0", "u1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
         XI = Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(-4.0, -4.0))
@@ -62,7 +62,7 @@ class TestCEGIS(unittest.TestCase):
 
     def test_loop(self):
         config = self._get_single_integrator_config()
-        config.LEARNING_RATE = 1e-30  # make learning rate small so that we don't learn anything in 10 iters
+        config.N_EPOCHS = 0  # make sure we don't train to check correctness of the cegis loop
 
         c = Cegis(config=config, verbose=2)
         results = c.solve()

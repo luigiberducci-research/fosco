@@ -17,13 +17,13 @@ from systems.system import UncertainControlAffineControllableDynamicalModel
 
 def main():
     seed = 916104
-    system_name = "single_integrator"
+    system_name = "noisy_single_integrator"
     n_hidden_neurons = 5
     activations = (ActivationType.RELU, ActivationType.LINEAR)
-    n_data_samples = 1000
-    verbose = 0
+    n_data_samples = 100
+    verbose = 1
 
-    log_levels = [logging.INFO, logging.DEBUG]
+    log_levels = [logging.WARNING, logging.INFO, logging.DEBUG]
     logging.basicConfig(level=log_levels[verbose])
 
     n_hidden_neurons = (n_hidden_neurons,) * len(activations)

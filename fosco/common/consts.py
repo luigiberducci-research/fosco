@@ -1,5 +1,7 @@
 from enum import Enum, auto
 
+import torch
+
 
 class DomainNames(Enum):
     XD = "lie"
@@ -59,3 +61,7 @@ class ActivationType(Enum):
 
 class VerifierType(Enum):
     Z3 = auto()
+
+class LossReLuType(Enum):
+    RELU = torch.relu
+    SOFTPLUS = torch.nn.Softplus()

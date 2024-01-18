@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from torch.optim import Optimizer
 
+from fosco.config import CegisConfig
 from fosco.certificates import Certificate
 from fosco.common.domains import Set, Rectangle
 from fosco.common.consts import DomainNames
@@ -33,7 +34,7 @@ class RobustControlBarrierFunction(Certificate):
         domains {dict}: dictionary of (string,domain) pairs
     """
 
-    def __init__(self, vars: dict[str, list], domains: dict[str, Set], verbose: int = 0) -> None:
+    def __init__(self, vars: dict[str, list], domains: dict[str, Set], config: CegisConfig, verbose: int = 0) -> None:
         assert all([sv in vars for sv in ["v", "u", "z"]]), f"Missing symbolic variables, got {vars}"
         self.x_vars = vars["v"]
         self.u_vars = vars["u"]
@@ -55,10 +56,26 @@ class RobustControlBarrierFunction(Certificate):
         self.n_uncertain = len(self.z_vars)
 
         # loss parameters
-        # todo: bring it outside
-        self.loss_relu = torch.nn.Softplus()  # torch.relu  # torch.nn.Softplus()
-        self.margin = 0.0
-        self.epochs = 1000
+        self.loss_relu = config.LOSS_RELU.value
+        self.epochs = config.N_EPOCHS
+
+        # process loss margins
+        loss_keys = ["init", "unsafe", "lie", "robust"]
+        if isinstance(config.LOSS_MARGINS, float):
+            loss_margins = {k: config.LOSS_MARGINS for k in loss_keys}
+        else:
+            assert all([k in config.LOSS_MARGINS for k in loss_keys]), f"Missing loss margin, got {config.LOSS_MARGINS}"
+            loss_margins = config.LOSS_MARGINS
+        self.loss_margins = loss_margins
+
+        # process loss weights
+        if isinstance(config.LOSS_WEIGHTS, float):
+            loss_weights = {k: config.LOSS_WEIGHTS for k in loss_keys}
+        else:
+            assert all([k in config.LOSS_WEIGHTS for k in loss_keys]), f"Missing loss weight, got {config.LOSS_WEIGHTS}"
+            loss_weights = config.LOSS_WEIGHTS
+        self.loss_weights = loss_weights
+
 
         self._logger = logging.getLogger(__name__)
         self._logger.setLevel(LOGGING_LEVELS[verbose])
@@ -104,15 +121,26 @@ class RobustControlBarrierFunction(Certificate):
         assert (
                 Bdotz_dz is None or B_dz.shape == Bdotz_dz.shape
         ), f"B_d and Bdotz_dz must have the same shape, got {B_d.shape} and {Bdotz_dz.shape}"
-        margin = self.margin
+        assert isinstance(self.loss_margins, dict), f"Expected loss margins as dict, got {type(self.loss_margins)}"
+        assert isinstance(self.loss_weights, dict), f"Expected loss weights as dict, got {type(self.loss_weights)}"
 
-        accuracy_i = (B_i >= margin).count_nonzero().item()
-        accuracy_u = (B_u < -margin).count_nonzero().item()
-        accuracy_d = (Bdot_d + alpha * B_d >= margin).count_nonzero().item()
+        margin_init = self.loss_margins["init"]
+        margin_unsafe = self.loss_margins["unsafe"]
+        margin_lie = self.loss_margins["lie"]
+        margin_robust = self.loss_margins["robust"]
+
+        weight_init = self.loss_weights["init"]
+        weight_unsafe = self.loss_weights["unsafe"]
+        weight_lie = self.loss_weights["lie"]
+        weight_robust = self.loss_weights["robust"]
+
+        accuracy_i = (B_i >= margin_init).count_nonzero().item()
+        accuracy_u = (B_u < -margin_unsafe).count_nonzero().item()
+        accuracy_d = (Bdot_d - sigma_d + alpha * B_d >= margin_lie).count_nonzero().item()
 
         accuracy_z = torch.logical_or(
-            Bdot_dz - sigma_dz + alpha * B_dz < margin,
-            Bdotz_dz + alpha * B_dz >= margin
+            Bdot_dz - sigma_dz + alpha * B_dz < margin_robust,
+            Bdotz_dz + alpha * B_dz >= margin_robust
         ).count_nonzero().item()
 
         percent_accuracy_init = 100 * accuracy_i / B_i.shape[0]
@@ -120,18 +148,23 @@ class RobustControlBarrierFunction(Certificate):
         percent_accuracy_belt = 100 * accuracy_d / Bdot_d.shape[0]
         percent_accuracy_robust = 100 * accuracy_z / Bdot_dz.shape[0]
 
-        relu = self.loss_relu
-        init_loss = (relu(margin - B_i)).mean()  # penalize B_i < 0
-        unsafe_loss = (relu(B_u + margin)).mean()  # penalize B_u > 0
-        lie_loss = (relu(margin - (Bdot_d - sigma_d + alpha * B_d))).mean()  # penalize dB_d - sigma_d + alpha * B_d < 0
-        robust_loss = (relu(
+        # penalize B_i < 0
+        init_loss = (self.loss_relu(margin_init - B_i)).mean()
+        # penalize B_u > 0
+        unsafe_loss = (self.loss_relu(B_u + margin_unsafe)).mean()
+        # penalize dB_d - sigma_d + alpha * B_d < 0
+        lie_loss = (self.loss_relu(margin_lie - (Bdot_d - sigma_d + alpha * B_d))).mean()
+        # penalize dB_d - sigma_d + alpha * B_d >=0 and Bdotz_d + alpha * B_d < 0
+        robust_loss = (self.loss_relu(
             torch.min(
-                (Bdot_dz - sigma_dz + alpha * B_dz) - margin,
-                margin - (Bdotz_dz + alpha * B_dz)
+                (Bdot_dz - sigma_dz + alpha * B_dz) - margin_lie,
+                margin_lie - (Bdotz_dz + alpha * B_dz)
             )
-        )).mean()  # penalize dB_d - sigma_d + alpha * B_d >=0 and Bdotz_d + alpha * B_d < 0
+        )).mean()
 
-        loss = init_loss + unsafe_loss + lie_loss + robust_loss
+
+        loss = (weight_init * init_loss + weight_unsafe * unsafe_loss +
+                weight_lie * lie_loss + weight_robust * robust_loss)
 
         losses = {
             "init_loss": init_loss.item(),
@@ -160,7 +193,7 @@ class RobustControlBarrierFunction(Certificate):
             optimizer: Optimizer,
             datasets: dict,
             f_torch: callable,
-    ) -> dict[str, float | np.ndarray]:
+    ) -> dict[str, float | np.ndarray | dict]:
         """
         Updates the CBF model.
 
@@ -187,6 +220,7 @@ class RobustControlBarrierFunction(Certificate):
         U_dz = datasets[ZD][:, self.n_vars: self.n_vars + self.n_controls]
         Z_dz = datasets[ZD][:, self.n_vars + self.n_controls: self.n_vars + self.n_controls + self.n_uncertain]
 
+        losses, accuracies = {}, {}
         for t in range(self.epochs):
             optimizer.zero_grad()
 

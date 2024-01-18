@@ -1,5 +1,6 @@
 from abc import abstractmethod, ABC
 
+from fosco.config import CegisConfig
 from fosco.common.domains import Set
 
 
@@ -9,7 +10,7 @@ class Certificate(ABC):
     """
 
     @abstractmethod
-    def __init__(self, vars: dict[str, list], domains: dict[str, Set], verbose: int = 0) -> None:
+    def __init__(self, vars: dict[str, list], domains: dict[str, Set], config: CegisConfig, verbose: int = 0) -> None:
         raise NotImplementedError
 
     @abstractmethod

@@ -122,6 +122,7 @@ def main():
         N_DATA=n_data_samples,
         SEED=seed,
         LOGGER=LoggerType.AIM,
+        LOSS_WEIGHTS={"init": 1.0, "unsafe": 1.0, "lie": 1.0, "robust": 1.0},
     )
     cegis = fosco.cegis.Cegis(config=config, verbose=verbose)
 

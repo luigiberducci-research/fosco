@@ -123,15 +123,15 @@ class ControlBarrierFunction(Certificate):
         percent_accuracy_unsafe = 100 * accuracy_u / B_u.shape[0]
 
         # penalize B_i < 0
-        init_loss = (self.loss_relu(margin_init - B_i)).mean()
+        init_loss = weight_init * (self.loss_relu(margin_init - B_i)).mean()
         # penalize B_u > 0
-        unsafe_loss = (self.loss_relu(B_u + margin_unsafe)).mean()
+        unsafe_loss = weight_unsafe * (self.loss_relu(B_u + margin_unsafe)).mean()
         # penalize dB_d + alpha * B_d < 0
-        lie_loss = (
+        lie_loss = weight_lie * (
             self.loss_relu(margin_lie - (Bdot_d + alpha * B_d))
         ).mean()
 
-        loss = weight_init * init_loss + weight_unsafe * unsafe_loss + weight_lie * lie_loss
+        loss = init_loss + unsafe_loss + lie_loss
 
         losses = {
             "init_loss": init_loss.item(),

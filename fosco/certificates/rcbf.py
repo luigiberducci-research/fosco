@@ -149,13 +149,13 @@ class RobustControlBarrierFunction(Certificate):
         percent_accuracy_robust = 100 * accuracy_z / Bdot_dz.shape[0]
 
         # penalize B_i < 0
-        init_loss = (self.loss_relu(margin_init - B_i)).mean()
+        init_loss = weight_init * (self.loss_relu(margin_init - B_i)).mean()
         # penalize B_u > 0
-        unsafe_loss = (self.loss_relu(B_u + margin_unsafe)).mean()
+        unsafe_loss = weight_unsafe * (self.loss_relu(B_u + margin_unsafe)).mean()
         # penalize dB_d - sigma_d + alpha * B_d < 0
-        lie_loss = (self.loss_relu(margin_lie - (Bdot_d - sigma_d + alpha * B_d))).mean()
+        lie_loss = weight_lie * (self.loss_relu(margin_lie - (Bdot_d - sigma_d + alpha * B_d))).mean()
         # penalize dB_d - sigma_d + alpha * B_d >=0 and Bdotz_d + alpha * B_d < 0
-        robust_loss = (self.loss_relu(
+        robust_loss = weight_robust * (self.loss_relu(
             torch.min(
                 (Bdot_dz - sigma_dz + alpha * B_dz) - margin_lie,
                 margin_lie - (Bdotz_dz + alpha * B_dz)
@@ -163,8 +163,7 @@ class RobustControlBarrierFunction(Certificate):
         )).mean()
 
 
-        loss = (weight_init * init_loss + weight_unsafe * unsafe_loss +
-                weight_lie * lie_loss + weight_robust * robust_loss)
+        loss = init_loss + unsafe_loss + lie_loss + robust_loss
 
         losses = {
             "init_loss": init_loss.item(),
@@ -253,6 +252,9 @@ class RobustControlBarrierFunction(Certificate):
 
             loss, losses, accuracies = self.compute_loss(B_i, B_u, B_d, sigma_d, Bdot_d,
                                                        B_dz, sigma_dz, Bdot_dz, Bdotz_dz, alpha=1.0)
+
+            # regularization net gradient
+            loss += 0.1 * torch.sum(torch.square(gradB))
 
             if t % math.ceil(self.epochs / 10) == 0 or self.epochs - t < 10:
                 # log_loss_acc(t, loss, accuracy, learner.verbose)

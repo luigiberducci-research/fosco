@@ -72,7 +72,7 @@ class TestCEGIS(unittest.TestCase):
 
     def test_single_integrator_example(self):
         """
-        Test the single integrator example. We expect to find a certificate in 1 iteration.
+        Test the single integrator example. We expect to find a certificate in a couple of iterations.
         """
         import fosco
         from systems import make_system
@@ -115,13 +115,17 @@ class TestCEGIS(unittest.TestCase):
             VERIFIER=VerifierType.Z3,
             ACTIVATION=activations,
             N_HIDDEN_NEURONS=n_hidden_neurons,
-            CEGIS_MAX_ITERS=500,
+            LOSS_RELU=fosco.common.consts.LossReLUType.SOFTPLUS,
+            N_EPOCHS=1000,
+            CEGIS_MAX_ITERS=5,
             N_DATA=n_data_samples,
             SEED=seed,
         )
         cegis = fosco.cegis.Cegis(config=config, verbose=verbose)
 
         result = cegis.solve()
+
+        print("result: ", result)
 
         self.assertTrue(result.found, f"Did not find a certificate in {config.CEGIS_MAX_ITERS} iterations")
 

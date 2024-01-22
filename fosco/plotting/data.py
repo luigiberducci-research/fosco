@@ -59,7 +59,7 @@ def scatter_datasets(datasets: dict[str, np.ndarray | torch.Tensor],
     colors = ["red", "blue", "green", "orange", "purple", "pink", "yellow"]
     for i, (name, data) in enumerate(datasets.items()):
         color = colors[i % len(colors)]
-        fig = scatter_data(data=data, fig=fig, color=color, dim_select=None, name=name)
+        fig = scatter_data(data=data, fig=fig, color=color, dim_select=None, name=name, point_size=1)
 
     if counter_examples is not None:
         for i, (name, data) in enumerate(counter_examples.items()):
@@ -67,7 +67,7 @@ def scatter_datasets(datasets: dict[str, np.ndarray | torch.Tensor],
                 continue
             color = colors[i % len(colors)]
             name = f"{name} - counterexamples"
-            fig = scatter_data(data=data, fig=fig, color=color, dim_select=None, name=name)
+            fig = scatter_data(data=data, fig=fig, color=color, dim_select=None, name=name, point_size=1)
 
     return fig
 

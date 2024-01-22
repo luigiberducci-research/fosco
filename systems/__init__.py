@@ -2,7 +2,7 @@ from typing import Type
 
 from fosco.common import domains
 from fosco.common.domains import Set
-from .system import ControlAffineControllableDynamicalModel
+from .system import ControlAffineControllableDynamicalModel, UncertainControlAffineControllableDynamicalModel
 
 
 def make_system(system_id: str) -> Type[ControlAffineControllableDynamicalModel]:
@@ -10,16 +10,23 @@ def make_system(system_id: str) -> Type[ControlAffineControllableDynamicalModel]
         from systems.single_integrator import SingleIntegrator
 
         return SingleIntegrator
-    if system_id == "noisy_single_integrator":
-        from systems.single_integrator import SingleIntegratorAddBoundedUncertainty
-
-        return SingleIntegratorAddBoundedUncertainty
     elif system_id == "double_integrator":
         from systems.double_integrator import DoubleIntegrator
 
         return DoubleIntegrator
     else:
         raise NotImplementedError(f"System {system_id} not implemented")
+
+def add_uncertainty(uncertainty_type: str | None, system_fn: callable) -> callable:
+    from systems.uncertainty_wrappers import AdditiveBoundedUncertainty
+
+    if uncertainty_type is None:
+        return system_fn
+    if uncertainty_type == "additive_bounded":
+        return lambda: AdditiveBoundedUncertainty(system_fn())
+    else:
+        raise NotImplementedError(f"Uncertainty {uncertainty_type} not implemented")
+
 
 
 def make_domains(system_id: str) -> dict[str, Set]:

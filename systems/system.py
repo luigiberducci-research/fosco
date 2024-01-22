@@ -61,39 +61,7 @@ class ControlAffineControllableDynamicalModel:
     ) -> np.ndarray | torch.Tensor:
         return self.f(v, u)
 
-    def plot(
-        self, xrange: tuple, yrange: tuple, ctrl: callable, ax: plt.Axes = None,
-    ):
-        ax = ax or plt.gca()
 
-        xx = np.linspace(xrange[0], xrange[1], 50)
-        yy = np.linspace(yrange[0], yrange[1], 50)
-
-        XX, YY = np.meshgrid(xx, yy)
-        obs = torch.stack(
-            [torch.tensor(XX).ravel(), torch.tensor(YY).ravel()]
-        ).T.float()
-        uu = ctrl(obs)
-
-        dx, dy = self.f(v=obs, u=uu).detach().numpy().T
-        # color = np.sqrt((np.hypot(dx, dy)))
-        dx = dx.reshape(XX.shape)
-        dy = dy.reshape(YY.shape)
-        # color = color.reshape(XX.shape)
-        ax.set_ylim(xrange)
-        ax.set_xlim(yrange)
-        plt.streamplot(
-            XX,
-            YY,
-            dx,
-            dy,
-            linewidth=0.8,
-            density=1.5,
-            arrowstyle="fancy",
-            arrowsize=1.5,
-            color="tab:gray",
-        )
-        return ax
 
 
 class UncertainControlAffineControllableDynamicalModel(
@@ -102,6 +70,18 @@ class UncertainControlAffineControllableDynamicalModel(
     """
     Implements a controllable dynamical model with control-affine dynamics dx = f(x) + g(x) u
     """
+
+    def __init__(self, base_system: ControlAffineControllableDynamicalModel):
+        self._base_system = base_system
+        super().__init__()
+
+    @property
+    def n_vars(self) -> int:
+        return self._base_system.n_vars
+
+    @property
+    def n_controls(self) -> int:
+        return self._base_system.n_controls
 
     @property
     @abstractmethod
@@ -124,6 +104,7 @@ class UncertainControlAffineControllableDynamicalModel(
     def gz_smt(self, x, z) -> np.ndarray | torch.Tensor:
         raise NotImplementedError()
 
+    # todo: overrides f but with a different signature, how to handle this?
     def f(
         self,
         v: np.ndarray | torch.Tensor,
@@ -135,11 +116,11 @@ class UncertainControlAffineControllableDynamicalModel(
             return self._f_torch(v=v, u=u, z=z, only_nominal=only_nominal)
         elif contains_object(v, z3.ArithRef):
             if only_nominal:
-                dvs = self.fx_smt(v) + self.gx_smt(v) @ u
+                dvs = self._base_system.fx_smt(v) + self._base_system.gx_smt(v) @ u
             else:
                 dvs = (
-                    self.fx_smt(v)
-                    + self.gx_smt(v) @ u
+                    self._base_system.fx_smt(v)
+                    + self._base_system.gx_smt(v) @ u
                     + self.fz_smt(v, z)
                     + self.gz_smt(v, z) @ u
                 )
@@ -158,12 +139,14 @@ class UncertainControlAffineControllableDynamicalModel(
         u = u.reshape(-1, self.n_controls, 1)
         z = z.reshape(-1, self.n_uncertain, 1)
 
+        fx_torch = self._base_system.fx_torch
+        gx_torch = self._base_system.gx_torch
         if only_nominal:
-            vdot = self.fx_torch(v) + self.gx_torch(v) @ u
+            vdot = fx_torch(v) + gx_torch(v) @ u
         else:
             vdot = (
-                self.fx_torch(v)
-                + self.gx_torch(v) @ u
+                fx_torch(v)
+                + gx_torch(v) @ u
                 + self.fz_torch(v, z)
                 + self.gz_torch(v, z) @ u
             )
@@ -179,46 +162,4 @@ class UncertainControlAffineControllableDynamicalModel(
     ) -> np.ndarray | torch.Tensor:
         return self.f(v, u, z, only_nominal=only_nominal)
 
-    def plot(
-        self,
-        xrange: tuple,
-        yrange: tuple,
-        ctrl: callable,
-        zmodel: callable = None,
-        ax: plt.Axes = None,
-    ):
-        ax = ax or plt.gca()
 
-        xx = np.linspace(xrange[0], xrange[1], 50)
-        yy = np.linspace(yrange[0], yrange[1], 50)
-
-        XX, YY = np.meshgrid(xx, yy)
-        obs = torch.stack(
-            [torch.tensor(XX).ravel(), torch.tensor(YY).ravel()]
-        ).T.float()
-        uu = ctrl(obs)
-
-        if zmodel is not None:
-            zz = zmodel(obs)
-        else:
-            zz = torch.zeros(obs.shape[0], self.n_uncertain)
-
-        dx, dy = self.f(v=obs, u=uu, z=zz).detach().numpy().T
-        # color = np.sqrt((np.hypot(dx, dy)))
-        dx = dx.reshape(XX.shape)
-        dy = dy.reshape(YY.shape)
-        # color = color.reshape(XX.shape)
-        ax.set_ylim(xrange)
-        ax.set_xlim(yrange)
-        plt.streamplot(
-            XX,
-            YY,
-            dx,
-            dy,
-            linewidth=0.8,
-            density=1.5,
-            arrowstyle="fancy",
-            arrowsize=1.5,
-            color="tab:gray",
-        )
-        return ax

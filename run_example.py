@@ -6,12 +6,13 @@ import fosco.cegis
 from fosco.common.consts import ActivationType, LossReLUType
 from fosco.common.consts import CertificateType, TimeDomain, VerifierType
 from logger import LoggerType
-from systems import make_system, make_domains
+from systems import make_system, make_domains, add_uncertainty
 
 
 def main(args):
     seed = args.seed
-    system_name = args.system
+    system_type = args.system
+    uncertainty_type = args.uncertainty
     certificate_type = CertificateType[args.certificate.upper()]
     activations = tuple([ActivationType[a.upper()] for a in args.activations])
     n_hidden_neurons = args.n_hidden_neurons
@@ -22,9 +23,11 @@ def main(args):
 
     assert len(n_hidden_neurons) == len(activations), "Number of hidden layers must match number of activations"
 
-    system = make_system(system_id=system_name)
-    sets = make_domains(system_id=system_name)
-    if not certificate_type == CertificateType.RCBF:
+    base_system = make_system(system_id=system_type)
+    system = add_uncertainty(uncertainty_type=uncertainty_type, system_fn=base_system)
+    sets = make_domains(system_id=system_type)
+
+    if certificate_type == CertificateType.CBF:
         sets = {k: s for k, s in sets.items() if k in ["lie", "input", "init", "unsafe"]}
 
     # data generator
@@ -75,6 +78,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--system", type=str, default="single_integrator")
+    parser.add_argument("--uncertainty", type=str, default=None)
     parser.add_argument("--certificate", type=str, default="cbf")
     parser.add_argument("--activations", type=str, nargs="+", default=["relu", "linear"])
     parser.add_argument("--n_hidden_neurons", type=int, nargs="+", default=[5, 5])

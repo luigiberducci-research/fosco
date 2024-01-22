@@ -3,6 +3,8 @@ import unittest
 import numpy as np
 import z3
 
+from systems.uncertainty_wrappers import AdditiveBoundedUncertainty
+
 
 class TestControlAffineDynamicalSystem(unittest.TestCase):
     def test_single_integrator(self):
@@ -44,7 +46,7 @@ class TestControlAffineDynamicalSystem(unittest.TestCase):
 
 class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
     def test_noisy_single_integrator(self):
-        from systems.single_integrator import SingleIntegratorAddBoundedUncertainty
+        from systems.single_integrator import SingleIntegrator
 
         x = np.zeros((10, 2))
         u = np.ones((10, 2))
@@ -53,7 +55,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         T = 10.0
         dt = 0.1
 
-        f = SingleIntegratorAddBoundedUncertainty()
+        f = AdditiveBoundedUncertainty(base_system=SingleIntegrator())
 
         t = dt
         while t < T:
@@ -64,7 +66,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         self.assertTrue(np.allclose(x, 11.0 * np.ones_like(x)), f"got {x}")
 
     def test_noisy_single_integrator_z3(self):
-        from systems.single_integrator import SingleIntegratorAddBoundedUncertainty
+        from systems.single_integrator import SingleIntegrator
 
         state_vars = ["x", "y"]
         input_vars = ["vx", "vy"]
@@ -74,7 +76,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         u = [z3.Real(var) for var in input_vars]
         z = [z3.Real(var) for var in uncertain_vars]
 
-        f = SingleIntegratorAddBoundedUncertainty()
+        f = AdditiveBoundedUncertainty(base_system=SingleIntegrator())
 
         xdot = f.f(x, u, z)
 
@@ -92,10 +94,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         Check that simulating the uncertain system with only_nominal=True
         is actually equivalent to simulating the nominal system.
         """
-        from systems.single_integrator import (
-            SingleIntegrator,
-            SingleIntegratorAddBoundedUncertainty,
-        )
+        from systems.single_integrator import SingleIntegrator
 
         x = np.zeros((10, 2))
         u = np.ones((10, 2))
@@ -105,7 +104,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         dt = 0.1
 
         f = SingleIntegrator()
-        fz = SingleIntegratorAddBoundedUncertainty()
+        fz = AdditiveBoundedUncertainty(base_system=SingleIntegrator())
 
         t = dt
         while t < T:
@@ -125,10 +124,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         Check that the symbolic expression for the uncertain dynamics with only_nominal=True
         actually matches the symbolic expression for the nominal dynamics.
         """
-        from systems.single_integrator import (
-            SingleIntegrator,
-            SingleIntegratorAddBoundedUncertainty,
-        )
+        from systems.single_integrator import SingleIntegrator
 
         state_vars = ["x", "y"]
         input_vars = ["vx", "vy"]
@@ -139,7 +135,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         z = [z3.Real(var) for var in uncertain_vars]
 
         f = SingleIntegrator()
-        fz = SingleIntegratorAddBoundedUncertainty()
+        fz = AdditiveBoundedUncertainty(base_system=SingleIntegrator())
 
         xdot = f.f(x, u)
         xdotz = fz.f(x, u, z, only_nominal=True)

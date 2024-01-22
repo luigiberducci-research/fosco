@@ -25,16 +25,24 @@ def plot_func_and_domains(
     levels = levels or []
 
     assert len(dim_select) == 2, "dim_select must be a tuple of 2 int"
-    assert type(dim_select[0]) == type(dim_select[1]) == int, "dim_select must be a tuple of 2 int"
-    assert isinstance(in_domain, Rectangle), f"in_domain must be a Rectangle, got {type(in_domain)}"
-    assert isinstance(levels, list) and all([isinstance(l, float) for l in levels]), "levels must be a list of floats"
+    assert (
+        type(dim_select[0]) == type(dim_select[1]) == int
+    ), "dim_select must be a tuple of 2 int"
+    assert isinstance(
+        in_domain, Rectangle
+    ), f"in_domain must be a Rectangle, got {type(in_domain)}"
+    assert isinstance(levels, list) and all(
+        [isinstance(l, float) for l in levels]
+    ), "levels must be a list of floats"
 
     def proj_func(x):
         """
         Extend 2d input to the full input space to evaluate n-dim function.
         The dimensions not in dim_select are set to the mean of the domain.
         """
-        assert len(x.shape) == 2 and x.shape[1] == len(dim_select) == 2, "x must be a batch of 2d points"
+        assert (
+            len(x.shape) == 2 and x.shape[1] == len(dim_select) == 2
+        ), "x must be a batch of 2d points"
 
         lb, ub = np.array(in_domain.lower_bounds), np.array(in_domain.upper_bounds)
         x_mean = lb + (lb + ub) / 2.0
@@ -44,8 +52,14 @@ def plot_func_and_domains(
         x_ext = torch.from_numpy(x_ext).float()
         return func(x_ext).detach().numpy()
 
-    xrange = (in_domain.lower_bounds[dim_select[0]], in_domain.upper_bounds[dim_select[0]])
-    yrange = (in_domain.lower_bounds[dim_select[1]], in_domain.upper_bounds[dim_select[1]])
+    xrange = (
+        in_domain.lower_bounds[dim_select[0]],
+        in_domain.upper_bounds[dim_select[0]],
+    )
+    yrange = (
+        in_domain.lower_bounds[dim_select[1]],
+        in_domain.upper_bounds[dim_select[1]],
+    )
 
     fig = Figure()
 
@@ -62,10 +76,8 @@ def plot_func_and_domains(
         color = DOMAIN_COLORS[dname] if dname in DOMAIN_COLORS else None
         fig = plot_domain(domain, fig, color=color, dim_select=dim_select, label=dname)
 
-
     # show legend and hide colorbar
     fig.update_traces(showlegend=True)
     fig.update_traces(showscale=False)
-
 
     return fig

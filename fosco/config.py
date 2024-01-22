@@ -2,7 +2,13 @@ from collections import namedtuple
 from dataclasses import dataclass, asdict
 from typing import Type, Any
 
-from fosco.common.consts import TimeDomain, CertificateType, VerifierType, ActivationType, LossReLUType
+from fosco.common.consts import (
+    TimeDomain,
+    CertificateType,
+    VerifierType,
+    ActivationType,
+    LossReLUType,
+)
 from logger import LoggerType
 from systems import ControlAffineControllableDynamicalModel
 

@@ -10,7 +10,13 @@ class Certificate(ABC):
     """
 
     @abstractmethod
-    def __init__(self, vars: dict[str, list], domains: dict[str, Set], config: CegisConfig, verbose: int = 0) -> None:
+    def __init__(
+        self,
+        vars: dict[str, list],
+        domains: dict[str, Set],
+        config: CegisConfig,
+        verbose: int = 0,
+    ) -> None:
         raise NotImplementedError
 
     @abstractmethod

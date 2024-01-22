@@ -34,8 +34,16 @@ class RobustControlBarrierFunction(Certificate):
         domains {dict}: dictionary of (string,domain) pairs
     """
 
-    def __init__(self, vars: dict[str, list], domains: dict[str, Set], config: CegisConfig, verbose: int = 0) -> None:
-        assert all([sv in vars for sv in ["v", "u", "z"]]), f"Missing symbolic variables, got {vars}"
+    def __init__(
+        self,
+        vars: dict[str, list],
+        domains: dict[str, Set],
+        config: CegisConfig,
+        verbose: int = 0,
+    ) -> None:
+        assert all(
+            [sv in vars for sv in ["v", "u", "z"]]
+        ), f"Missing symbolic variables, got {vars}"
         self.x_vars = vars["v"]
         self.u_vars = vars["u"]
         self.z_vars = vars["z"]
@@ -64,7 +72,9 @@ class RobustControlBarrierFunction(Certificate):
         if isinstance(config.LOSS_MARGINS, float):
             loss_margins = {k: config.LOSS_MARGINS for k in loss_keys}
         else:
-            assert all([k in config.LOSS_MARGINS for k in loss_keys]), f"Missing loss margin, got {config.LOSS_MARGINS}"
+            assert all(
+                [k in config.LOSS_MARGINS for k in loss_keys]
+            ), f"Missing loss margin, got {config.LOSS_MARGINS}"
             loss_margins = config.LOSS_MARGINS
         self.loss_margins = loss_margins
 
@@ -72,27 +82,28 @@ class RobustControlBarrierFunction(Certificate):
         if isinstance(config.LOSS_WEIGHTS, float):
             loss_weights = {k: config.LOSS_WEIGHTS for k in loss_keys}
         else:
-            assert all([k in config.LOSS_WEIGHTS for k in loss_keys]), f"Missing loss weight, got {config.LOSS_WEIGHTS}"
+            assert all(
+                [k in config.LOSS_WEIGHTS for k in loss_keys]
+            ), f"Missing loss weight, got {config.LOSS_WEIGHTS}"
             loss_weights = config.LOSS_WEIGHTS
         self.loss_weights = loss_weights
-
 
         self._logger = logging.getLogger(__name__)
         self._logger.setLevel(LOGGING_LEVELS[verbose])
         self._logger.debug("RCBF initialized")
 
     def compute_loss(
-            self,
-            B_i: torch.Tensor,
-            B_u: torch.Tensor,
-            B_d: torch.Tensor,
-            sigma_d: torch.Tensor,
-            Bdot_d: torch.Tensor,
-            B_dz: torch.Tensor,
-            sigma_dz: torch.Tensor,
-            Bdot_dz: torch.Tensor,
-            Bdotz_dz: torch.Tensor,
-            alpha: torch.Tensor | float,
+        self,
+        B_i: torch.Tensor,
+        B_u: torch.Tensor,
+        B_d: torch.Tensor,
+        sigma_d: torch.Tensor,
+        Bdot_d: torch.Tensor,
+        B_dz: torch.Tensor,
+        sigma_dz: torch.Tensor,
+        Bdot_dz: torch.Tensor,
+        Bdotz_dz: torch.Tensor,
+        alpha: torch.Tensor | float,
     ) -> tuple[torch.Tensor, dict, dict]:
         """Computes loss function for CBF and its accuracy w.r.t. the batch of data.
 
@@ -113,16 +124,20 @@ class RobustControlBarrierFunction(Certificate):
         """
         # todo make this private
         assert (
-                Bdot_d is None or B_d.shape == Bdot_d.shape
+            Bdot_d is None or B_d.shape == Bdot_d.shape
         ), f"B_d and Bdot_d must have the same shape, got {B_d.shape} and {Bdot_d.shape}"
         assert (
-                Bdot_dz is None or B_dz.shape == Bdot_dz.shape
+            Bdot_dz is None or B_dz.shape == Bdot_dz.shape
         ), f"B_d and Bdot_dz must have the same shape, got {B_d.shape} and {Bdot_dz.shape}"
         assert (
-                Bdotz_dz is None or B_dz.shape == Bdotz_dz.shape
+            Bdotz_dz is None or B_dz.shape == Bdotz_dz.shape
         ), f"B_d and Bdotz_dz must have the same shape, got {B_d.shape} and {Bdotz_dz.shape}"
-        assert isinstance(self.loss_margins, dict), f"Expected loss margins as dict, got {type(self.loss_margins)}"
-        assert isinstance(self.loss_weights, dict), f"Expected loss weights as dict, got {type(self.loss_weights)}"
+        assert isinstance(
+            self.loss_margins, dict
+        ), f"Expected loss margins as dict, got {type(self.loss_margins)}"
+        assert isinstance(
+            self.loss_weights, dict
+        ), f"Expected loss weights as dict, got {type(self.loss_weights)}"
 
         margin_init = self.loss_margins["init"]
         margin_unsafe = self.loss_margins["unsafe"]
@@ -136,12 +151,18 @@ class RobustControlBarrierFunction(Certificate):
 
         accuracy_i = (B_i >= margin_init).count_nonzero().item()
         accuracy_u = (B_u < -margin_unsafe).count_nonzero().item()
-        accuracy_d = (Bdot_d - sigma_d + alpha * B_d >= margin_lie).count_nonzero().item()
+        accuracy_d = (
+            (Bdot_d - sigma_d + alpha * B_d >= margin_lie).count_nonzero().item()
+        )
 
-        accuracy_z = torch.logical_or(
-            Bdot_dz - sigma_dz + alpha * B_dz < - margin_robust,
-            Bdotz_dz + alpha * B_dz >= margin_robust
-        ).count_nonzero().item()
+        accuracy_z = (
+            torch.logical_or(
+                Bdot_dz - sigma_dz + alpha * B_dz < -margin_robust,
+                Bdotz_dz + alpha * B_dz >= margin_robust,
+            )
+            .count_nonzero()
+            .item()
+        )
 
         percent_accuracy_init = 100 * accuracy_i / B_i.shape[0]
         percent_accuracy_unsafe = 100 * accuracy_u / B_u.shape[0]
@@ -153,17 +174,22 @@ class RobustControlBarrierFunction(Certificate):
         # penalize B_u > 0
         unsafe_loss = weight_unsafe * (self.loss_relu(B_u + margin_unsafe)).mean()
         # penalize dB_d - sigma_d + alpha * B_d < 0
-        lie_loss = weight_lie * (
-            self.loss_relu(margin_lie - (Bdot_d - sigma_d + alpha * B_d))
-        ).mean()
+        lie_loss = (
+            weight_lie
+            * (self.loss_relu(margin_lie - (Bdot_d - sigma_d + alpha * B_d))).mean()
+        )
         # penalize dB_d - sigma_d + alpha * B_d >=0 and Bdotz_d + alpha * B_d < 0
-        robust_loss = weight_robust * (self.loss_relu(
-            torch.min(
-                (Bdot_dz - sigma_dz + alpha * B_dz) - margin_robust,
-                margin_robust - (Bdotz_dz + alpha * B_dz)
-            )
-        )).mean()
-
+        robust_loss = (
+            weight_robust
+            * (
+                self.loss_relu(
+                    torch.min(
+                        (Bdot_dz - sigma_dz + alpha * B_dz) - margin_robust,
+                        margin_robust - (Bdotz_dz + alpha * B_dz),
+                    )
+                )
+            ).mean()
+        )
 
         loss = init_loss + unsafe_loss + lie_loss + robust_loss
 
@@ -189,11 +215,11 @@ class RobustControlBarrierFunction(Certificate):
         return loss, losses, accuracy
 
     def learn(
-            self,
-            learner: LearnerCT,
-            optimizer: Optimizer,
-            datasets: dict,
-            f_torch: callable,
+        self,
+        learner: LearnerCT,
+        optimizer: Optimizer,
+        datasets: dict,
+        f_torch: callable,
     ) -> dict[str, float | np.ndarray | dict]:
         """
         Updates the CBF model.
@@ -214,12 +240,24 @@ class RobustControlBarrierFunction(Certificate):
         state_samples = torch.cat(
             [datasets[label][:, : self.n_vars] for label in label_order]
         )
-        U_d = datasets[XD][:, self.n_vars: self.n_vars + self.n_controls]
-        Z_d = datasets[XD][:, self.n_vars + self.n_controls: self.n_vars + self.n_controls + self.n_uncertain]
+        U_d = datasets[XD][:, self.n_vars : self.n_vars + self.n_controls]
+        Z_d = datasets[XD][
+            :,
+            self.n_vars
+            + self.n_controls : self.n_vars
+            + self.n_controls
+            + self.n_uncertain,
+        ]
 
         X_dz = datasets[ZD][:, : self.n_vars]
-        U_dz = datasets[ZD][:, self.n_vars: self.n_vars + self.n_controls]
-        Z_dz = datasets[ZD][:, self.n_vars + self.n_controls: self.n_vars + self.n_controls + self.n_uncertain]
+        U_dz = datasets[ZD][:, self.n_vars : self.n_vars + self.n_controls]
+        Z_dz = datasets[ZD][
+            :,
+            self.n_vars
+            + self.n_controls : self.n_vars
+            + self.n_controls
+            + self.n_uncertain,
+        ]
 
         losses, accuracies = {}, {}
         for t in range(self.epochs):
@@ -230,12 +268,12 @@ class RobustControlBarrierFunction(Certificate):
             sigma = learner.xsigma(state_samples)
 
             B_d = B[:i1, 0]
-            B_i = B[i1: i1 + i2, 0]
-            B_u = B[i1 + i2: i1 + i2 + i3, 0]
+            B_i = B[i1 : i1 + i2, 0]
+            B_u = B[i1 + i2 : i1 + i2 + i3, 0]
 
             # compute lie derivative on lie dataset
             assert (
-                    B_d.shape[0] == U_d.shape[0]
+                B_d.shape[0] == U_d.shape[0]
             ), f"expected pairs of state,input data. Got {B_d.shape[0]} and {U_d.shape[0]}"
             X_d = state_samples[:i1]
             gradB_d = gradB[:i1]
@@ -244,16 +282,26 @@ class RobustControlBarrierFunction(Certificate):
             Bdot_d = torch.sum(torch.mul(gradB_d, Sdot_d), dim=1)
 
             # compute lie derivative on uncertainty dataset
-            B_dz = B[i1 + i2 + i3:, 0]
-            gradB_dz = gradB[i1 + i2 + i3:]
-            sigma_dz = sigma[i1 + i2 + i3:, 0]
+            B_dz = B[i1 + i2 + i3 :, 0]
+            gradB_dz = gradB[i1 + i2 + i3 :]
+            sigma_dz = sigma[i1 + i2 + i3 :, 0]
             Sdot_dz = f_torch(X_dz, U_dz, Z_dz, only_nominal=True)
             Sdotz_dz = f_torch(X_dz, U_dz, Z_dz)
             Bdot_dz = torch.sum(torch.mul(gradB_dz, Sdot_dz), dim=1)
             Bdotz_dz = torch.sum(torch.mul(gradB_dz, Sdotz_dz), dim=1)
 
-            loss, losses, accuracies = self.compute_loss(B_i, B_u, B_d, sigma_d, Bdot_d,
-                                                       B_dz, sigma_dz, Bdot_dz, Bdotz_dz, alpha=1.0)
+            loss, losses, accuracies = self.compute_loss(
+                B_i,
+                B_u,
+                B_d,
+                sigma_d,
+                Bdot_d,
+                B_dz,
+                sigma_dz,
+                Bdot_dz,
+                Bdotz_dz,
+                alpha=1.0,
+            )
 
             # regularization net gradient
             loss += 0.1 * torch.sum(torch.square(gradB))
@@ -264,7 +312,6 @@ class RobustControlBarrierFunction(Certificate):
                 logging.debug(f"accuracy={accuracies}")
                 logging.debug(f"losses={losses}")
                 logging.debug("")
-
 
             # early stopping after 2 consecutive epochs with ~100% accuracy
             condition = all(acc >= 99.9 for name, acc in accuracies.items())
@@ -352,14 +399,11 @@ class RobustControlBarrierFunction(Certificate):
         logging.debug(f"robust_constr: {robust_constr}")
 
         for cs in (
-                {
-                    XI: (inital_constr, self.x_vars),
-                    XU: (unsafe_constr, self.x_vars)
-                },
-                {
-                    XD: (lie_constr, self.x_vars + self.u_vars + self.z_vars),
-                    ZD: (robust_constr, self.x_vars + self.u_vars + self.z_vars)
-                },
+            {XI: (inital_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
+            {
+                XD: (lie_constr, self.x_vars + self.u_vars + self.z_vars),
+                ZD: (robust_constr, self.x_vars + self.u_vars + self.z_vars),
+            },
         ):
             yield cs
 
@@ -374,5 +418,7 @@ class RobustControlBarrierFunction(Certificate):
             "Symbolic Domains",
         )
         _set_assertion(
-            {dn.XD.value, dn.XI.value, dn.XU.value, dn.ZD.value}, data_labels, "Data Sets"
+            {dn.XD.value, dn.XI.value, dn.XU.value, dn.ZD.value},
+            data_labels,
+            "Data Sets",
         )

@@ -82,9 +82,14 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
             x = x + dt * f(x, u, z)
             t += dt
 
-        self.assertTrue(np.allclose(x[:, :2], 10.9 * np.ones_like(x[:, :2])), f"got positions {x[:, :2]}")
-        self.assertTrue(np.allclose(x[:, 2:], 2.0 * np.ones_like(x[:, 2:])), f"got velocities {x[:, 2:]}")
-
+        self.assertTrue(
+            np.allclose(x[:, :2], 10.9 * np.ones_like(x[:, :2])),
+            f"got positions {x[:, :2]}",
+        )
+        self.assertTrue(
+            np.allclose(x[:, 2:], 2.0 * np.ones_like(x[:, 2:])),
+            f"got velocities {x[:, 2:]}",
+        )
 
     def test_noisy_single_integrator_z3(self):
         from systems.single_integrator import SingleIntegrator

@@ -20,15 +20,21 @@ def main(args):
     n_epochs = args.n_epochs
     verbose = args.verbose
 
-    assert len(n_hidden_neurons) == len(activations), "Number of hidden layers must match number of activations"
-    assert uncertainty_type is None or certificate_type == CertificateType.RCBF, "Uncertainty only supported for RCBF certificates"
+    assert len(n_hidden_neurons) == len(
+        activations
+    ), "Number of hidden layers must match number of activations"
+    assert (
+        uncertainty_type is None or certificate_type == CertificateType.RCBF
+    ), "Uncertainty only supported for RCBF certificates"
 
     base_system = make_system(system_id=system_type)
     system = add_uncertainty(uncertainty_type=uncertainty_type, system_fn=base_system)
     sets = make_domains(system_id=system_type)
 
     if certificate_type == CertificateType.CBF:
-        sets = {k: s for k, s in sets.items() if k in ["lie", "input", "init", "unsafe"]}
+        sets = {
+            k: s for k, s in sets.items() if k in ["lie", "input", "init", "unsafe"]
+        }
 
     # data generator
     data_gen = {
@@ -38,19 +44,25 @@ def main(args):
 
     if certificate_type == CertificateType.CBF:
         data_gen["lie"] = lambda n: torch.concatenate(
-                [sets["lie"].generate_data(n), sets["input"].generate_data(n)], dim=1
-            )
+            [sets["lie"].generate_data(n), sets["input"].generate_data(n)], dim=1
+        )
     else:
         data_gen["lie"] = lambda n: torch.concatenate(
-                [sets["lie"].generate_data(n),
+            [
+                sets["lie"].generate_data(n),
                 torch.zeros(n, sets["input"].dimension),
-                 sets["uncertainty"].generate_data(n)], dim=1
-            )
+                sets["uncertainty"].generate_data(n),
+            ],
+            dim=1,
+        )
         data_gen["uncertainty"] = lambda n: torch.concatenate(
-                [sets["lie"].generate_data(n),
-                 sets["input"].generate_data(n),
-                 sets["uncertainty"].generate_data(n)], dim=1
-            )
+            [
+                sets["lie"].generate_data(n),
+                sets["input"].generate_data(n),
+                sets["uncertainty"].generate_data(n),
+            ],
+            dim=1,
+        )
 
     config = fosco.cegis.CegisConfig(
         SYSTEM=system,
@@ -83,7 +95,9 @@ if __name__ == "__main__":
     parser.add_argument("--system", type=str, default="single_integrator")
     parser.add_argument("--uncertainty", type=str, default=None)
     parser.add_argument("--certificate", type=str, default="cbf")
-    parser.add_argument("--activations", type=str, nargs="+", default=["relu", "linear"])
+    parser.add_argument(
+        "--activations", type=str, nargs="+", default=["relu", "linear"]
+    )
     parser.add_argument("--n-hidden-neurons", type=int, nargs="+", default=[5, 5])
     parser.add_argument("--n-data-samples", type=int, default=1000)
     parser.add_argument("--max-iters", type=int, default=100)

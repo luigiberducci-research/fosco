@@ -17,7 +17,9 @@ class Consolidator:
         datasets = self.add_ces_to_data(cex, datasets)
         # todo: return logging info about data augmentation
 
-        self._logger.info(f"Dataset sizes: {', '.join([f'{k}: {v.shape[0]}' for k, v in datasets.items()])}")
+        self._logger.info(
+            f"Dataset sizes: {', '.join([f'{k}: {v.shape[0]}' for k, v in datasets.items()])}"
+        )
 
         return {"datasets": datasets}
 

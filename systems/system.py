@@ -62,8 +62,6 @@ class ControlAffineControllableDynamicalModel:
         return self.f(v, u)
 
 
-
-
 class UncertainControlAffineControllableDynamicalModel(
     ControlAffineControllableDynamicalModel
 ):
@@ -161,5 +159,3 @@ class UncertainControlAffineControllableDynamicalModel(
         only_nominal: bool = False,
     ) -> np.ndarray | torch.Tensor:
         return self.f(v, u, z, only_nominal=only_nominal)
-
-

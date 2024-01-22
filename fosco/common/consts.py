@@ -62,6 +62,7 @@ class ActivationType(Enum):
 class VerifierType(Enum):
     Z3 = auto()
 
+
 class LossReLUType(Enum):
     RELU = auto()
     SOFTPLUS = auto()

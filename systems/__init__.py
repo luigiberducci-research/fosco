@@ -2,7 +2,10 @@ from typing import Type
 
 from fosco.common import domains
 from fosco.common.domains import Set
-from .system import ControlAffineControllableDynamicalModel, UncertainControlAffineControllableDynamicalModel
+from .system import (
+    ControlAffineControllableDynamicalModel,
+    UncertainControlAffineControllableDynamicalModel,
+)
 
 
 def make_system(system_id: str) -> Type[ControlAffineControllableDynamicalModel]:
@@ -17,6 +20,7 @@ def make_system(system_id: str) -> Type[ControlAffineControllableDynamicalModel]
     else:
         raise NotImplementedError(f"System {system_id} not implemented")
 
+
 def add_uncertainty(uncertainty_type: str | None, system_fn: callable) -> callable:
     from systems.uncertainty_wrappers import AdditiveBoundedUncertainty
 
@@ -26,7 +30,6 @@ def add_uncertainty(uncertainty_type: str | None, system_fn: callable) -> callab
         return lambda: AdditiveBoundedUncertainty(system_fn())
     else:
         raise NotImplementedError(f"Uncertainty {uncertainty_type} not implemented")
-
 
 
 def make_domains(system_id: str) -> dict[str, Set]:
@@ -54,7 +57,9 @@ def make_domains(system_id: str) -> dict[str, Set]:
         UD = domains.Rectangle(
             vars=uvars, lb=(-5.0,) * len(uvars), ub=(5.0,) * len(uvars)
         )
-        ZD = domains.Rectangle(vars=zvars, lb=(-1.0,) * len(zvars), ub=(1.0,) * len(zvars))
+        ZD = domains.Rectangle(
+            vars=zvars, lb=(-1.0,) * len(zvars), ub=(1.0,) * len(zvars)
+        )
         XI = domains.Rectangle(
             vars=xvars, lb=(-5.0,) * len(xvars), ub=(-4.0, -4.0, 5.0, 5.0)
         )

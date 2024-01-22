@@ -50,7 +50,9 @@ class Cegis:
     def _initialise_logger(self) -> Logger:
         config = self.config.dict()
         exp_name = f"{self.config.SYSTEM}_{self.config.CERTIFICATE}"
-        logger = make_logger(logger_type=self.config.LOGGER, config=config, experiment=exp_name)
+        logger = make_logger(
+            logger_type=self.config.LOGGER, config=config, experiment=exp_name
+        )
 
         logging.basicConfig()
         tlogger = logging.getLogger(__name__)
@@ -102,7 +104,9 @@ class Cegis:
             for label, domain in self.config.DOMAINS.items()
         }
 
-        self.tlogger.debug("\n".join(["Domains"] + [f"{k}: {v}" for k, v in domains.items()]) + "\n")
+        self.tlogger.debug(
+            "\n".join(["Domains"] + [f"{k}: {v}" for k, v in domains.items()]) + "\n"
+        )
 
         return x, x_map, domains
 
@@ -114,8 +118,12 @@ class Cegis:
             xdot = self.f(**self.x_map)
             xdotz = None
 
-        self.tlogger.debug(f"Nominal Dynamics: {'initialized' if xdot else 'not initialized'}")
-        self.tlogger.debug(f"Uncertain Dynamics: {'initialized' if xdotz else 'not initialized'}")
+        self.tlogger.debug(
+            f"Nominal Dynamics: {'initialized' if xdot else 'not initialized'}"
+        )
+        self.tlogger.debug(
+            f"Uncertain Dynamics: {'initialized' if xdotz else 'not initialized'}"
+        )
 
         return xdot, xdotz
 
@@ -124,13 +132,23 @@ class Cegis:
         for label in self.config.DATA_GEN.keys():
             datasets[label] = self.config.DATA_GEN[label](self.config.N_DATA)
 
-        self.tlogger.debug("\n".join(["Data Collection"] + [f"{k}: {v.shape}" for k, v in datasets.items()]) + "\n")
+        self.tlogger.debug(
+            "\n".join(
+                ["Data Collection"] + [f"{k}: {v.shape}" for k, v in datasets.items()]
+            )
+            + "\n"
+        )
 
         return datasets
 
     def _initialise_certificate(self):
         certificate_type = make_certificate(certificate_type=self.config.CERTIFICATE)
-        return certificate_type(vars=self.x_map, domains=self.config.DOMAINS, verbose=self.verbose, config=self.config)
+        return certificate_type(
+            vars=self.x_map,
+            domains=self.config.DOMAINS,
+            verbose=self.verbose,
+            config=self.config,
+        )
 
     def _initialise_consolidator(self):
         return make_consolidator(verbose=self.verbose)
@@ -153,13 +171,18 @@ class Cegis:
 
             # logging data distribution
             # for each of them, scatter the counter-examples with different color than the rest of the data
-            fig = scatter_datasets(datasets=self.datasets, counter_examples=state["cex"])
+            fig = scatter_datasets(
+                datasets=self.datasets, counter_examples=state["cex"]
+            )
             self.logger.log_image(tag="datasets", image=fig, step=iter)
 
             # logging learned functions
             in_domain = self.config.DOMAINS[DomainNames.XD.value]
-            other_domains = {k: v for k, v in self.config.DOMAINS.items() if
-                             k in [DomainNames.XI.value, DomainNames.XU.value]}
+            other_domains = {
+                k: v
+                for k, v in self.config.DOMAINS.items()
+                if k in [DomainNames.XI.value, DomainNames.XU.value]
+            }
             fig = plot_func_and_domains(
                 func=self.learner.net,
                 in_domain=in_domain,
@@ -178,22 +201,36 @@ class Cegis:
                     domains=other_domains,
                     dim_select=(0, 1),
                 )
-                self.logger.log_image(tag=f"barrier_grad", image=fig, step=iter, context={"dimension": dim})
+                self.logger.log_image(
+                    tag=f"barrier_grad",
+                    image=fig,
+                    step=iter,
+                    context={"dimension": dim},
+                )
 
             u_domain = self.config.DOMAINS[DomainNames.UD.value]
-            assert isinstance(u_domain, Rectangle), "only rectangular domains are supported for u"
+            assert isinstance(
+                u_domain, Rectangle
+            ), "only rectangular domains are supported for u"
             lb, ub = np.array(u_domain.lower_bounds), np.array(u_domain.upper_bounds)
             for u_norm in np.linspace(-1, 1, 5):
                 # denormalize u to the domain
                 u = (lb + ub) / 2.0 + u_norm * (ub - lb) / 2.0
-                ctrl = lambda x: torch.ones((x.shape[0], self.f.n_controls)) * torch.tensor(u).float()
+                ctrl = (
+                    lambda x: torch.ones((x.shape[0], self.f.n_controls))
+                    * torch.tensor(u).float()
+                )
                 if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
-                    f = lambda x, u: self.f._f_torch(x, u, z=torch.zeros((x.shape[0], self.f.n_uncertain)))
+                    f = lambda x, u: self.f._f_torch(
+                        x, u, z=torch.zeros((x.shape[0], self.f.n_uncertain))
+                    )
                 else:
                     f = lambda x, u: self.f._f_torch(x, u)
 
                 # lie derivative
-                func = lambda x: lie_derivative_fn(certificate=self.learner.net, f=f, ctrl=ctrl)(x)
+                func = lambda x: lie_derivative_fn(
+                    certificate=self.learner.net, f=f, ctrl=ctrl
+                )(x)
                 fig = plot_func_and_domains(
                     func=func,
                     in_domain=in_domain,
@@ -201,16 +238,24 @@ class Cegis:
                     domains=other_domains,
                     dim_select=(0, 1),
                 )
-                self.logger.log_image(tag=f"lie_derivative", image=fig, step=iter, context={"u": str(u)})
+                self.logger.log_image(
+                    tag=f"lie_derivative", image=fig, step=iter, context={"u": str(u)}
+                )
 
                 # cbf condition
                 alpha = lambda x: 1.0 * x
                 if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
-                    func = lambda x: lie_derivative_fn(certificate=self.learner.net, f=f, ctrl=ctrl)(
-                        x) - self.learner.xsigma(x) + alpha(self.learner.net(x))
+                    func = (
+                        lambda x: lie_derivative_fn(
+                            certificate=self.learner.net, f=f, ctrl=ctrl
+                        )(x)
+                        - self.learner.xsigma(x)
+                        + alpha(self.learner.net(x))
+                    )
                 else:
-                    func = lambda x: lie_derivative_fn(certificate=self.learner.net, f=f, ctrl=ctrl)(x) + alpha(
-                        self.learner.net(x))
+                    func = lambda x: lie_derivative_fn(
+                        certificate=self.learner.net, f=f, ctrl=ctrl
+                    )(x) + alpha(self.learner.net(x))
                 fig = plot_func_and_domains(
                     func=func,
                     in_domain=in_domain,
@@ -218,7 +263,9 @@ class Cegis:
                     domains=other_domains,
                     dim_select=(0, 1),
                 )
-                self.logger.log_image(tag=f"cbf_condition", image=fig, step=iter, context={"u": str(u)})
+                self.logger.log_image(
+                    tag=f"cbf_condition", image=fig, step=iter, context={"u": str(u)}
+                )
 
             if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
                 fig = plot_func_and_domains(
@@ -239,14 +286,20 @@ class Cegis:
             # Log training distribution
             context = "dataset"
             for name, dataset in self.datasets.items():
-                self.logger.log_scalar(tag=f"{name}_data", value=len(dataset), step=iter, context={context: name})
-
+                self.logger.log_scalar(
+                    tag=f"{name}_data",
+                    value=len(dataset),
+                    step=iter,
+                    context={context: name},
+                )
 
             # Learner component
             self.tlogger.debug("Learner")
             outputs = self.learner.update(**state)
             for context, dict_metrics in outputs.items():
-                self.logger.log_scalar(tag=None, value=dict_metrics, step=iter, context={context: True})
+                self.logger.log_scalar(
+                    tag=None, value=dict_metrics, step=iter, context={context: True}
+                )
 
             # Translator component
             self.tlogger.debug("Translator")
@@ -268,9 +321,7 @@ class Cegis:
 
         infos = {"iter": iter}
         self._result = CegisResult(
-            found=state["found"],
-            net=state["V_net"],
-            infos=infos
+            found=state["found"], net=state["V_net"], infos=infos
         )
 
         return self._result
@@ -283,13 +334,10 @@ class Cegis:
             "found": False,  # whether a valid cbf was found
             "iter": 0,  # current iteration
             "system": self.f,  # system object
-
             "V_net": self.learner.net,  # cbf model as nn
             "sigma_net": xsigma,  # sigma model as nn
-
             "xdot_func": self.f._f_torch,  # numerical dynamics function
             "datasets": self.datasets,  # dictionary of datasets of training data
-
             "x_v_map": self.x_map,  # dictionary of symbolic variables
             "V_symbolic": None,  # symbolic expression of cbf
             "sigma_symbolic": None,  # symbolic expression of compensator sigma
@@ -297,7 +345,6 @@ class Cegis:
             "Vdotz_symbolic": None,  # symbolic expression of lie derivative w.r.t. uncertain dynamics
             "xdot": self.xdot,  # symbolic expression of nominal dynamics
             "xdotz": self.xdotz,  # symbolic expression of uncertain dynamics
-
             "cex": None,  # counterexamples
             # CegisStateKeys.found: False,
             # CegisStateKeys.verification_timed_out: False,
@@ -316,6 +363,6 @@ class Cegis:
         assert self.config.LEARNING_RATE > 0
         assert self.config.CEGIS_MAX_ITERS > 0
         assert (
-                self.x is self.verifier.xs
+            self.x is self.verifier.xs
         ), "expected same variables in fosco and verifier"
         self.certificate._assert_state(self.domains, self.datasets)

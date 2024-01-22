@@ -208,7 +208,9 @@ class Verifier:
         shape = (1, max(point.shape[0], point.shape[1]))
         point = point.reshape(shape)
         for i in range(self.counterexample_n):
-            random_point = point + 5 * 1e-3 * torch.randn(shape)    # todo: parameterize this stddev
+            random_point = point + 5 * 1e-3 * torch.randn(
+                shape
+            )  # todo: parameterize this stddev
             # if self.inner < torch.norm(random_point) < self.outer:
             C.append(random_point)
         C.append(point)

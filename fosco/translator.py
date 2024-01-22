@@ -130,7 +130,6 @@ class MLPZ3Translator(Translator):
         else:
             last_layer = np.round(net.layers[-1].weight.data.numpy(), self.round)
 
-
         z = last_layer @ z
         if net.layers[-1].bias is not None:
             z += net.layers[-1].bias.data.numpy()[:, None]
@@ -192,8 +191,6 @@ class MLPZ3Translator(Translator):
 
         return gradV
 
-
-
     def network_until_last_layer(
         self, net: TorchMLP, input_vars: Iterable[SYMBOL]
     ) -> tuple[np.ndarray, np.ndarray]:
@@ -234,6 +231,7 @@ class RobustMLPZ3Translator(MLPZ3Translator):
     """
     Symbolic translator for robust model to z3 expressions.
     """
+
     def translate(
         self,
         x_v_map: dict[str, Iterable[SYMBOL]],
@@ -278,18 +276,18 @@ class RobustMLPZ3Translator(MLPZ3Translator):
             Vdotz_symbolic, z3.ArithRef
         ), f"Expected Vdot_symbolic to be z3.ArithRef, got {type(Vdot_symbolic)}"
 
-        symbolic_dict.update({
-            "Vdotz_symbolic": Vdotz_symbolic,
-            "sigma_symbolic": sigma_symbolic,
-        })
+        symbolic_dict.update(
+            {"Vdotz_symbolic": Vdotz_symbolic, "sigma_symbolic": sigma_symbolic,}
+        )
 
         return symbolic_dict
 
 
 def make_translator(
     certificate_type: CertificateType,
-    verifier_type: VerifierType, time_domain: TimeDomain,
-    **kwargs
+    verifier_type: VerifierType,
+    time_domain: TimeDomain,
+    **kwargs,
 ) -> Translator:
     """
     Factory function for translators.

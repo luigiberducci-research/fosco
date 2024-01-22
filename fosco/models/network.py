@@ -45,11 +45,19 @@ class TorchMLP(nn.Module):
         self.register_parameter(f"b{k}", layer.bias)
         self.layers.append(layer)
 
-        act = ActivationType[output_activation.upper()] if isinstance(output_activation, str) else output_activation
+        act = (
+            ActivationType[output_activation.upper()]
+            if isinstance(output_activation, str)
+            else output_activation
+        )
         self.acts.append(act)
 
-        assert len(self.layers) == len(self.acts), "layers and activations must have the same length"
-        assert self.output_size == self.layers[-1].out_features, "output size does not match last layer size"
+        assert len(self.layers) == len(
+            self.acts
+        ), "layers and activations must have the same length"
+        assert (
+            self.output_size == self.layers[-1].out_features
+        ), "output size does not match last layer size"
 
     def forward(self, x):
         y = x

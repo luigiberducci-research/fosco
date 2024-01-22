@@ -61,7 +61,9 @@ class TestCEGIS(unittest.TestCase):
 
     def test_loop(self):
         config = self._get_single_integrator_config()
-        config.N_EPOCHS = 0  # make sure we don't train to check correctness of the cegis loop
+        config.N_EPOCHS = (
+            0  # make sure we don't train to check correctness of the cegis loop
+        )
 
         c = Cegis(config=config, verbose=2)
         results = c.solve()
@@ -94,7 +96,9 @@ class TestCEGIS(unittest.TestCase):
         XD = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
         UD = domains.Rectangle(vars=["u0", "u1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
         XI = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(-4.0, -4.0))
-        XU = domains.Sphere(vars=["x0", "x1"], centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1])
+        XU = domains.Sphere(
+            vars=["x0", "x1"], centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1]
+        )
 
         sets = {
             "lie": XD,
@@ -103,7 +107,9 @@ class TestCEGIS(unittest.TestCase):
             "unsafe": XU,
         }
         data_gen = {
-            "lie": lambda n: torch.concatenate([XD.generate_data(n), UD.generate_data(n)], dim=1),
+            "lie": lambda n: torch.concatenate(
+                [XD.generate_data(n), UD.generate_data(n)], dim=1
+            ),
             "init": lambda n: XI.generate_data(n),
             "unsafe": lambda n: XU.generate_data(n),
         }
@@ -129,7 +135,10 @@ class TestCEGIS(unittest.TestCase):
 
         print("result: ", result)
 
-        self.assertTrue(result.found, f"Did not find a certificate in {config.CEGIS_MAX_ITERS} iterations")
+        self.assertTrue(
+            result.found,
+            f"Did not find a certificate in {config.CEGIS_MAX_ITERS} iterations",
+        )
 
     def test_reproducibility(self):
         """
@@ -164,7 +173,3 @@ class TestCEGIS(unittest.TestCase):
                     all(torch.allclose(a, b) for a, b in zip(params, new_params)),
                     f"Parameters are not the same in run {run_id}",
                 )
-
-
-
-

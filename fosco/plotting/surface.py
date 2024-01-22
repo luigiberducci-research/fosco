@@ -8,15 +8,15 @@ from fosco.common.domains import Set
 
 
 def plot_surface(
-        func: Callable[[np.ndarray], np.ndarray],
-        xrange: tuple[float, float],
-        yrange: tuple[float, float],
-        levels: list[float] = [],
-        label: str = "",
-        bins: int = 100,
-        level_color: str = "white",
-        opacity: float = 1.0,
-        fig : go.Figure = None,
+    func: Callable[[np.ndarray], np.ndarray],
+    xrange: tuple[float, float],
+    yrange: tuple[float, float],
+    levels: list[float] = [],
+    label: str = "",
+    bins: int = 100,
+    level_color: str = "white",
+    opacity: float = 1.0,
+    fig: go.Figure = None,
 ):
     """
     Plot the surface of the function over 2d space.
@@ -35,9 +35,17 @@ def plot_surface(
 
     for level in levels:
         small_sz = 0.01
-        fig.update_traces(contours_z=dict(show=True, color=level_color,
-                                          highlightcolor="limegreen", project_z=True,
-                                          start=level, end=level+small_sz, size=small_sz))
+        fig.update_traces(
+            contours_z=dict(
+                show=True,
+                color=level_color,
+                highlightcolor="limegreen",
+                project_z=True,
+                start=level,
+                end=level + small_sz,
+                size=small_sz,
+            )
+        )
 
     # top view with y-axis pointing up
     maxz = max(min(np.max(z), 5.0), 0.0)
@@ -45,7 +53,9 @@ def plot_surface(
 
     return fig
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
+
     def func(x):
         assert len(x.shape) == 2 and x.shape[1] == 2, "x must be a batch of 2d points"
         return np.sin(x[:, 0]) + np.cos(x[:, 1])

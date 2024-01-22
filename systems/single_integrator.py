@@ -78,6 +78,3 @@ class SingleIntegrator(ControlAffineControllableDynamicalModel):
             z, list
         ), "expected list of symbolic state variables, [z0, z1, ...]"
         return z
-
-
-

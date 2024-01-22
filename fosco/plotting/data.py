@@ -5,13 +5,13 @@ from plotly.graph_objs import graph_objs
 
 
 def scatter_data(
-        data: torch.Tensor | np.ndarray,
-        fig: go.Figure,
-        dim_select: tuple[int, int]=None,
-        color: str = "blue",
-        opacity: float = 1.0,
-        point_size: int = 1,
-        name: str = None,
+    data: torch.Tensor | np.ndarray,
+    fig: go.Figure,
+    dim_select: tuple[int, int] = None,
+    color: str = "blue",
+    opacity: float = 1.0,
+    point_size: int = 1,
+    name: str = None,
 ):
     """
     Plot the data points as a scatter plot.
@@ -46,20 +46,30 @@ def scatter_data(
     )
     """
 
-
     for trace in [trace1]:
         fig.add_trace(trace)
 
     return fig
 
-def scatter_datasets(datasets: dict[str, np.ndarray | torch.Tensor],
-                     counter_examples: dict[str, np.ndarray | torch.Tensor]) -> go.Figure:
+
+def scatter_datasets(
+    datasets: dict[str, np.ndarray | torch.Tensor],
+    counter_examples: dict[str, np.ndarray | torch.Tensor],
+) -> go.Figure:
     fig = go.Figure()
 
     colors = ["red", "blue", "green", "purple"]
     for i, (name, data) in enumerate(datasets.items()):
         color = colors[i % len(colors)]
-        fig = scatter_data(data=data, fig=fig, color=color, dim_select=None, name=name, point_size=3, opacity=0.5)
+        fig = scatter_data(
+            data=data,
+            fig=fig,
+            color=color,
+            dim_select=None,
+            name=name,
+            point_size=3,
+            opacity=0.5,
+        )
 
     if counter_examples is not None:
         for i, (name, data) in enumerate(counter_examples.items()):
@@ -67,12 +77,20 @@ def scatter_datasets(datasets: dict[str, np.ndarray | torch.Tensor],
                 continue
             color = colors[i % len(colors)]
             name = f"{name} - counterexamples"
-            fig = scatter_data(data=data, fig=fig, color=color, dim_select=None, name=name, point_size=5, opacity=1.0)
+            fig = scatter_data(
+                data=data,
+                fig=fig,
+                color=color,
+                dim_select=None,
+                name=name,
+                point_size=5,
+                opacity=1.0,
+            )
 
     return fig
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     data1 = torch.randn((100, 3))
     data2 = torch.randn((100, 3)) + 5
 

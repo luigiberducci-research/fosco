@@ -33,7 +33,13 @@ class ControlBarrierFunction(Certificate):
         domains {dict}: dictionary of (string,domain) pairs
     """
 
-    def __init__(self, vars: dict[str, list], domains: dict[str, Set], config: CegisConfig, verbose: int = 0) -> None:
+    def __init__(
+        self,
+        vars: dict[str, list],
+        domains: dict[str, Set],
+        config: CegisConfig,
+        verbose: int = 0,
+    ) -> None:
         # todo rename vars to x, u
         assert all(
             [sv in vars for sv in ["v", "u"]]
@@ -62,7 +68,9 @@ class ControlBarrierFunction(Certificate):
         if isinstance(config.LOSS_MARGINS, float):
             loss_margins = {k: config.LOSS_MARGINS for k in loss_keys}
         else:
-            assert all([k in config.LOSS_MARGINS for k in loss_keys]), f"Missing loss margin, got {config.LOSS_MARGINS}"
+            assert all(
+                [k in config.LOSS_MARGINS for k in loss_keys]
+            ), f"Missing loss margin, got {config.LOSS_MARGINS}"
             loss_margins = config.LOSS_MARGINS
         self.loss_margins = loss_margins
 
@@ -70,7 +78,9 @@ class ControlBarrierFunction(Certificate):
         if isinstance(config.LOSS_WEIGHTS, float):
             loss_weights = {k: config.LOSS_WEIGHTS for k in loss_keys}
         else:
-            assert all([k in config.LOSS_WEIGHTS for k in loss_keys]), f"Missing loss weight, got {config.LOSS_WEIGHTS}"
+            assert all(
+                [k in config.LOSS_WEIGHTS for k in loss_keys]
+            ), f"Missing loss weight, got {config.LOSS_WEIGHTS}"
             loss_weights = config.LOSS_WEIGHTS
         self.loss_weights = loss_weights
 
@@ -102,8 +112,12 @@ class ControlBarrierFunction(Certificate):
         assert (
             Bdot_d is None or B_d.shape == Bdot_d.shape
         ), f"B_d and Bdot_d must have the same shape, got {B_d.shape} and {Bdot_d.shape}"
-        assert isinstance(self.loss_margins, dict), f"Expected loss margins as dict, got {type(self.loss_margins)}"
-        assert isinstance(self.loss_weights, dict), f"Expected loss weights as dict, got {type(self.loss_weights)}"
+        assert isinstance(
+            self.loss_margins, dict
+        ), f"Expected loss margins as dict, got {type(self.loss_margins)}"
+        assert isinstance(
+            self.loss_weights, dict
+        ), f"Expected loss weights as dict, got {type(self.loss_weights)}"
 
         margin_init = self.loss_margins["init"]
         margin_unsafe = self.loss_margins["unsafe"]
@@ -126,9 +140,9 @@ class ControlBarrierFunction(Certificate):
         # penalize B_u > 0
         unsafe_loss = weight_unsafe * (self.loss_relu(B_u + margin_unsafe)).mean()
         # penalize dB_d + alpha * B_d < 0
-        lie_loss = weight_lie * (
-            self.loss_relu(margin_lie - (Bdot_d + alpha * B_d))
-        ).mean()
+        lie_loss = (
+            weight_lie * (self.loss_relu(margin_lie - (Bdot_d + alpha * B_d))).mean()
+        )
 
         loss = init_loss + unsafe_loss + lie_loss
 
@@ -150,8 +164,6 @@ class ControlBarrierFunction(Certificate):
         logging.debug("\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
 
         return loss, losses, accuracy
-
-
 
     def learn(
         self,
@@ -201,7 +213,9 @@ class ControlBarrierFunction(Certificate):
             Sdot_d = f_torch(X_d, U_d)
             Bdot_d = torch.sum(torch.mul(gradB_d, Sdot_d), dim=1)
 
-            loss, losses, accuracies = self.compute_loss(B_i, B_u, B_d, Bdot_d, alpha=1.0)
+            loss, losses, accuracies = self.compute_loss(
+                B_i, B_u, B_d, Bdot_d, alpha=1.0
+            )
 
             if t % math.ceil(self.epochs / 10) == 0 or self.epochs - t < 10:
                 # log_loss_acc(t, loss, accuracy, learner.verbose)
@@ -215,7 +229,6 @@ class ControlBarrierFunction(Certificate):
 
             loss.backward()
             optimizer.step()
-
 
         return {
             "loss": losses,
@@ -239,8 +252,6 @@ class ControlBarrierFunction(Certificate):
         _RealVal = verifier.solver_fncts()["RealVal"]
 
         alpha = lambda x: 1.0 * x
-
-
 
         # Bx >= 0 if x \in initial
         # counterexample: B < 0 and x \in initial

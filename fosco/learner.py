@@ -17,11 +17,7 @@ class LearnerNN(nn.Module):
     def update(self, **kwargs) -> dict:
         raise NotImplementedError
 
-    def learn(
-            self,
-            datasets: torch.Tensor,
-            xdot_func: Callable,
-    ) -> dict:
+    def learn(self, datasets: torch.Tensor, xdot_func: Callable,) -> dict:
         return self.learn_method(self, self.optimizer, datasets, xdot_func)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -39,7 +35,7 @@ class LearnerNN(nn.Module):
             param.requires_grad = False
 
     def compute_V_gradV(
-            self, nn: torch.Tensor, grad_nn: torch.Tensor, S: torch.Tensor
+        self, nn: torch.Tensor, grad_nn: torch.Tensor, S: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         # todo deprecated?
         """Computes the value of the function and its gradient.
@@ -63,8 +59,8 @@ class LearnerNN(nn.Module):
         # gradV = torch.stack([nn, nn]).T * derivative_e + grad_nn * torch.stack([E, E]).T
         if self.factor is not None:
             gradV = (
-                    nn.expand_as(grad_nn.T).T * derivative_F.expand_as(grad_nn)
-                    + grad_nn * F.expand_as(grad_nn.T).T
+                nn.expand_as(grad_nn.T).T * derivative_F.expand_as(grad_nn)
+                + grad_nn * F.expand_as(grad_nn.T).T
             )
         else:
             gradV = grad_nn
@@ -79,13 +75,13 @@ class LearnerCT(LearnerNN):
     """
 
     def __init__(
-            self,
-            state_size,
-            learn_method,
-            hidden_sizes: tuple[int, ...],
-            activation: tuple[ActivationType, ...],
-            lr: float,
-            weight_decay: float,
+        self,
+        state_size,
+        learn_method,
+        hidden_sizes: tuple[int, ...],
+        activation: tuple[ActivationType, ...],
+        lr: float,
+        weight_decay: float,
     ):
         super(LearnerCT, self).__init__()
 
@@ -97,9 +93,7 @@ class LearnerCT(LearnerNN):
         )
 
         self.optimizer = torch.optim.AdamW(
-            params=self.parameters(),
-            lr=lr,
-            weight_decay=weight_decay,
+            params=self.parameters(), lr=lr, weight_decay=weight_decay,
         )
 
         self.learn_method = learn_method
@@ -132,13 +126,13 @@ class LearnerRobustCT(LearnerNN):
     """
 
     def __init__(
-            self,
-            state_size,
-            learn_method,
-            hidden_sizes: tuple[int, ...],
-            activation: tuple[ActivationType, ...],
-            lr: float,
-            weight_decay: float,
+        self,
+        state_size,
+        learn_method,
+        hidden_sizes: tuple[int, ...],
+        activation: tuple[ActivationType, ...],
+        lr: float,
+        weight_decay: float,
     ):
         super(LearnerRobustCT, self).__init__()
 
@@ -160,9 +154,7 @@ class LearnerRobustCT(LearnerNN):
 
         # todo: same optimizer for both nets is a problem?
         self.optimizer = torch.optim.AdamW(
-            params=self.parameters(),
-            lr=lr,
-            weight_decay=weight_decay,
+            params=self.parameters(), lr=lr, weight_decay=weight_decay,
         )
 
         self.learn_method = learn_method
@@ -186,10 +178,17 @@ class LearnerRobustCT(LearnerNN):
         return Vdot
 
 
-def make_learner(system: ControlAffineControllableDynamicalModel, time_domain: TimeDomain) -> Type[LearnerNN]:
-    if isinstance(system, UncertainControlAffineControllableDynamicalModel) and time_domain == TimeDomain.CONTINUOUS:
+def make_learner(
+    system: ControlAffineControllableDynamicalModel, time_domain: TimeDomain
+) -> Type[LearnerNN]:
+    if (
+        isinstance(system, UncertainControlAffineControllableDynamicalModel)
+        and time_domain == TimeDomain.CONTINUOUS
+    ):
         return LearnerRobustCT
     elif time_domain == TimeDomain.CONTINUOUS:
         return LearnerCT
     else:
-        raise NotImplementedError(f"Unsupported learner for system {type(system)} and time domain {time_domain}")
+        raise NotImplementedError(
+            f"Unsupported learner for system {type(system)} and time domain {time_domain}"
+        )

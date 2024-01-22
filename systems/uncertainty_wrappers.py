@@ -15,6 +15,7 @@ class AdditiveBoundedUncertainty(UncertainControlAffineControllableDynamicalMode
 
     f(x) = f_base(x) + I Z + 0 Z u = f_base(x) + z
     """
+
     @property
     def n_uncertain(self) -> int:
         return self.n_vars
@@ -61,8 +62,7 @@ class AdditiveBoundedUncertainty(UncertainControlAffineControllableDynamicalMode
             x, type(z)
         ), f"expected same type for x and z, got {type(x)} and {type(z)}"
 
-    def _assert_symbolic_input(self,
-                               x: list, z: list) -> None:
+    def _assert_symbolic_input(self, x: list, z: list) -> None:
         assert isinstance(
             x, list
         ), "expected list of symbolic state variables, [x0, x1, ...]"

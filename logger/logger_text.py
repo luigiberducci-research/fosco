@@ -2,6 +2,7 @@ from logger import Logger
 from logger.logger import ImageType
 import logging
 
+
 class TextLogger(Logger):
     def __init__(self, config: dict = None, **kwargs):
         super().__init__(config)

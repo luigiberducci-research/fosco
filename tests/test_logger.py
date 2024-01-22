@@ -28,6 +28,7 @@ class TestAimLogger(unittest.TestCase):
             logger.log_image(tag="random", image=fig, step=t)
 
         from aim.storage.context import Context
+
         for metric_name in ["sin", "cos"]:
             metric = logger._run.get_metric(metric_name, context=Context({}))
             self.assertTrue(metric is not None)

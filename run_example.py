@@ -1,5 +1,3 @@
-import random
-
 import torch
 
 import fosco.cegis
@@ -17,11 +15,13 @@ def main(args):
     activations = tuple([ActivationType[a.upper()] for a in args.activations])
     n_hidden_neurons = args.n_hidden_neurons
     n_data_samples = args.n_data_samples
+    loss_act_type = LossReLUType[args.loss_act.upper()]
     max_iters = args.max_iters
     n_epochs = args.n_epochs
     verbose = args.verbose
 
     assert len(n_hidden_neurons) == len(activations), "Number of hidden layers must match number of activations"
+    assert uncertainty_type is None or certificate_type == CertificateType.RCBF, "Uncertainty only supported for RCBF certificates"
 
     base_system = make_system(system_id=system_type)
     system = add_uncertainty(uncertainty_type=uncertainty_type, system_fn=base_system)
@@ -43,10 +43,13 @@ def main(args):
     else:
         data_gen["lie"] = lambda n: torch.concatenate(
                 [sets["lie"].generate_data(n),
-                torch.zeros(n, sets["input"].dimension), sets["uncertainty"].generate_data(n)], dim=1
+                torch.zeros(n, sets["input"].dimension),
+                 sets["uncertainty"].generate_data(n)], dim=1
             )
         data_gen["uncertainty"] = lambda n: torch.concatenate(
-                [sets["lie"].generate_data(n), sets["input"].generate_data(n), sets["uncertainty"].generate_data(n)], dim=1
+                [sets["lie"].generate_data(n),
+                 sets["input"].generate_data(n),
+                 sets["uncertainty"].generate_data(n)], dim=1
             )
 
     config = fosco.cegis.CegisConfig(
@@ -65,7 +68,7 @@ def main(args):
         N_EPOCHS=n_epochs,
         LOSS_MARGINS={"init": 0.0, "unsafe": 0.0, "lie": 0.0, "robust": 0.0},
         LOSS_WEIGHTS={"init": 1.0, "unsafe": 1.0, "lie": 1.0, "robust": 1.0},
-        LOSS_RELU=LossReLUType.SOFTPLUS,
+        LOSS_RELU=loss_act_type,
     )
     cegis = fosco.cegis.Cegis(config=config, verbose=verbose)
 
@@ -81,10 +84,11 @@ if __name__ == "__main__":
     parser.add_argument("--uncertainty", type=str, default=None)
     parser.add_argument("--certificate", type=str, default="cbf")
     parser.add_argument("--activations", type=str, nargs="+", default=["relu", "linear"])
-    parser.add_argument("--n_hidden_neurons", type=int, nargs="+", default=[5, 5])
-    parser.add_argument("--n_data_samples", type=int, default=1000)
-    parser.add_argument("--max_iters", type=int, default=100)
-    parser.add_argument("--n_epochs", type=int, default=1000)
+    parser.add_argument("--n-hidden-neurons", type=int, nargs="+", default=[5, 5])
+    parser.add_argument("--n-data-samples", type=int, default=1000)
+    parser.add_argument("--max-iters", type=int, default=100)
+    parser.add_argument("--n-epochs", type=int, default=1000)
+    parser.add_argument("--loss-act", type=str, default="relu")
     parser.add_argument("--verbose", type=int, default=0)
     args = parser.parse_args()
 

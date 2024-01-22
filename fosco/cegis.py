@@ -201,7 +201,7 @@ class Cegis:
                     domains=other_domains,
                     dim_select=(0, 1),
                 )
-                self.logger.log_image(tag=f"lie_derivative", image=fig, step=iter, context={"u_norm": str(u)})
+                self.logger.log_image(tag=f"lie_derivative", image=fig, step=iter, context={"u": str(u)})
 
                 # cbf condition
                 alpha = lambda x: 1.0 * x
@@ -235,6 +235,12 @@ class Cegis:
                 break
 
             self.tlogger.info(f"Iteration {iter}")
+
+            # Log training distribution
+            context = "dataset"
+            for name, dataset in self.datasets.items():
+                self.logger.log_scalar(tag=f"{name}_data", value=len(dataset), step=iter, context={context: name})
+
 
             # Learner component
             self.tlogger.debug("Learner")

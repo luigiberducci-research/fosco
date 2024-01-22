@@ -87,7 +87,7 @@ class TestCEGIS(unittest.TestCase):
         certificate_type = CertificateType.CBF
         verbose = 0
 
-        system = make_system(id=system_name)
+        system = make_system(system_id=system_name)
 
         XD = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
         UD = domains.Rectangle(vars=["u0", "u1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))

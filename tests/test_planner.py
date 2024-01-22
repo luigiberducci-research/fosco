@@ -13,7 +13,7 @@ class TestPlanner(unittest.TestCase):
     def _test_single_integrator_cbf_planner(self):
         # make env for single integrator
         svars, uvars = ["x0", "x1"], ["u0", "u1"]
-        system = make_system(id="single_integrator")()
+        system = make_system(system_id="single_integrator")()
         domains = {
             "input": Rectangle(vars=uvars, lb=(-5.0, -5.0), ub=(5.0, 5.0)),
             "init": Rectangle(vars=svars, lb=(-5.0, -5.0), ub=(-4.0, -4.0)),

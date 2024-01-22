@@ -8,6 +8,7 @@ from fosco.config import CegisConfig, CegisResult
 from fosco.consolidator import make_consolidator
 from fosco.common.consts import DomainNames
 from fosco.learner import make_learner, LearnerNN
+from fosco.plotting.data import scatter_datasets
 from fosco.plotting.utils import plot_func_and_domains
 from fosco.translator import make_translator
 from fosco.verifier import make_verifier
@@ -150,8 +151,10 @@ class Cegis:
 
         for iter in range(1, self.config.CEGIS_MAX_ITERS + 1):
 
-            # todo logging distribution of data for each training set (init, unsafe, lie, robust)
+            # logging data distribution
             # for each of them, scatter the counter-examples with different color than the rest of the data
+            fig = scatter_datasets(datasets=self.datasets, counter_examples=state["cex"])
+            self.logger.log_image(tag="datasets", image=fig, step=iter)
 
             # logging learned functions
             in_domain = self.config.DOMAINS[DomainNames.XD.value]

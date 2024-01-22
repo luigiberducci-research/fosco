@@ -65,6 +65,27 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         # 11.0 because we have a small additive noise of 0.1
         self.assertTrue(np.allclose(x, 11.0 * np.ones_like(x)), f"got {x}")
 
+    def test_noisy_double_integrator(self):
+        from systems.double_integrator import DoubleIntegrator
+
+        x = np.zeros((10, 4))
+        u = np.ones((10, 2)) * 0.1
+        z = np.ones((10, 4)) * 0.1
+
+        T = 10.0
+        dt = 0.1
+
+        f = AdditiveBoundedUncertainty(base_system=DoubleIntegrator())
+
+        t = dt
+        while t < T:
+            x = x + dt * f(x, u, z)
+            t += dt
+
+        self.assertTrue(np.allclose(x[:, :2], 10.9 * np.ones_like(x[:, :2])), f"got positions {x[:, :2]}")
+        self.assertTrue(np.allclose(x[:, 2:], 2.0 * np.ones_like(x[:, 2:])), f"got velocities {x[:, 2:]}")
+
+
     def test_noisy_single_integrator_z3(self):
         from systems.single_integrator import SingleIntegrator
 

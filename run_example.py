@@ -9,26 +9,23 @@ from logger import LoggerType
 from systems import make_system, make_domains
 
 
-def main():
-    seed = 916104
-    system_name = "single_integrator"
-    certificate_type = CertificateType.CBF
-    activations = (ActivationType.RELU, ActivationType.LINEAR)
-    n_hidden_neurons = (5,) * len(activations)
-    n_data_samples = 1000
-    max_iters = 100
-    n_epochs = 1000
-    verbose = 2
+def main(args):
+    seed = args.seed
+    system_name = args.system
+    certificate_type = CertificateType[args.certificate.upper()]
+    activations = tuple([ActivationType[a.upper()] for a in args.activations])
+    n_hidden_neurons = args.n_hidden_neurons
+    n_data_samples = args.n_data_samples
+    max_iters = args.max_iters
+    n_epochs = args.n_epochs
+    verbose = args.verbose
+
+    assert len(n_hidden_neurons) == len(activations), "Number of hidden layers must match number of activations"
 
     system = make_system(system_id=system_name)
     sets = make_domains(system_id=system_name)
     if not certificate_type == CertificateType.RCBF:
         sets = {k: s for k, s in sets.items() if k in ["lie", "input", "init", "unsafe"]}
-
-    # todo seeding in cegis, test reproducibility
-    if seed is None:
-        seed = random.randint(0, 1000000)
-    print("Seed:", seed)
 
     # data generator
     data_gen = {
@@ -65,7 +62,7 @@ def main():
         N_EPOCHS=n_epochs,
         LOSS_MARGINS={"init": 0.0, "unsafe": 0.0, "lie": 0.0, "robust": 0.0},
         LOSS_WEIGHTS={"init": 1.0, "unsafe": 1.0, "lie": 1.0, "robust": 1.0},
-        LOSS_RELU=LossReLUType.RELU,
+        LOSS_RELU=LossReLUType.SOFTPLUS,
     )
     cegis = fosco.cegis.Cegis(config=config, verbose=verbose)
 
@@ -73,4 +70,18 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--system", type=str, default="single_integrator")
+    parser.add_argument("--certificate", type=str, default="cbf")
+    parser.add_argument("--activations", type=str, nargs="+", default=["relu", "linear"])
+    parser.add_argument("--n_hidden_neurons", type=int, nargs="+", default=[5, 5])
+    parser.add_argument("--n_data_samples", type=int, default=1000)
+    parser.add_argument("--max_iters", type=int, default=100)
+    parser.add_argument("--n_epochs", type=int, default=1000)
+    parser.add_argument("--verbose", type=int, default=0)
+    args = parser.parse_args()
+
+    main(args)

@@ -1,7 +1,9 @@
 import unittest
 
+import numpy as np
 import torch
 
+import fosco
 from fosco.cegis import Cegis
 from fosco.config import CegisConfig
 from fosco.common.domains import Rectangle, Sphere
@@ -124,4 +126,41 @@ class TestCEGIS(unittest.TestCase):
         result = cegis.solve()
 
         self.assertTrue(result.found, f"Did not find a certificate in {config.CEGIS_MAX_ITERS} iterations")
+
+    def test_reproducibility(self):
+        """
+        Test seeding in cegis to ensure reproducibility.
+        """
+        for _ in range(1):
+            seed = np.random.randint(0, 1000000)
+            print("Random Seed:", seed)
+
+            # first iter
+            config = self._get_single_integrator_config()
+            config.SEED = seed
+            config.CEGIS_MAX_ITERS = 1
+            cegis = fosco.cegis.Cegis(config=config, verbose=0)
+            results = cegis.solve()
+            model = results.net
+            params = list(model.parameters())
+
+            for run_id in range(3):
+                print(f"Running {run_id}")
+                config = self._get_single_integrator_config()
+                config.SEED = seed
+                config.CEGIS_MAX_ITERS = 1
+
+                cegis = fosco.cegis.Cegis(config=config, verbose=0)
+                results = cegis.solve()
+                model = results.net
+                new_params = list(model.parameters())
+
+                # check that the parameters are the same
+                self.assertTrue(
+                    all(torch.allclose(a, b) for a, b in zip(params, new_params)),
+                    f"Parameters are not the same in run {run_id}",
+                )
+
+
+
 

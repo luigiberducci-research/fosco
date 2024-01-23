@@ -74,7 +74,7 @@ class TestCEGIS(unittest.TestCase):
             f"Did not run for {config.CEGIS_MAX_ITERS} iterations, iter={infos['iter']}",
         )
 
-    def test_single_integrator_example(self):
+    def test_single_integrator_cbf_example(self):
         """
         Test the single integrator example. We expect to find a certificate in a couple of iterations.
         """
@@ -126,6 +126,79 @@ class TestCEGIS(unittest.TestCase):
             LOSS_RELU=fosco.common.consts.LossReLUType.SOFTPLUS,
             N_EPOCHS=1000,
             CEGIS_MAX_ITERS=5,
+            N_DATA=n_data_samples,
+            SEED=seed,
+        )
+        cegis = fosco.cegis.Cegis(config=config, verbose=verbose)
+
+        result = cegis.solve()
+
+        print("result: ", result)
+
+        self.assertTrue(
+            result.found,
+            f"Did not find a certificate in {config.CEGIS_MAX_ITERS} iterations",
+        )
+
+    def test_single_integrator_rcbf_example(self):
+        """
+        Test the single integrator example. We expect to find a certificate in a couple of iterations.
+        """
+        import fosco
+        from systems import make_system
+        from systems import add_uncertainty
+        from fosco.common import domains
+
+        seed = 916104
+        system_name = "single_integrator"
+        n_hidden_neurons = 5
+        activations = (ActivationType.RELU, ActivationType.LINEAR)
+        n_data_samples = 1000
+        n_hidden_neurons = (n_hidden_neurons,) * len(activations)
+        certificate_type = CertificateType.RCBF
+        verbose = 0
+
+        system = make_system(system_id=system_name)
+        system = add_uncertainty(uncertainty_type="additive_bounded", system_fn=system)
+
+        XD = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
+        UD = domains.Rectangle(vars=["u0", "u1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
+        XI = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(-4.0, -4.0))
+        XU = domains.Sphere(
+            vars=["x0", "x1"], centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1]
+        )
+        ZD = domains.Rectangle(vars=["z0", "z1"], lb=(0.0, 0.0), ub=(0.0, 0.0))
+
+        sets = {
+            "lie": XD,
+            "input": UD,
+            "uncertainty": ZD,
+            "init": XI,
+            "unsafe": XU,
+        }
+        data_gen = {
+            "init": lambda n: XI.generate_data(n),
+            "unsafe": lambda n: XU.generate_data(n),
+            "lie": lambda n: torch.concatenate(
+                [XD.generate_data(n), UD.generate_data(n)], dim=1
+            ),
+            "uncertainty": lambda n: torch.concatenate(
+                [XD.generate_data(n), UD.generate_data(n), ZD.generate_data(n)], dim=1
+            ),
+        }
+
+        config = fosco.cegis.CegisConfig(
+            SYSTEM=system,
+            DOMAINS=sets,
+            DATA_GEN=data_gen,
+            CERTIFICATE=certificate_type,
+            TIME_DOMAIN=TimeDomain.CONTINUOUS,
+            VERIFIER=VerifierType.Z3,
+            ACTIVATION=activations,
+            N_HIDDEN_NEURONS=n_hidden_neurons,
+            LOSS_RELU=fosco.common.consts.LossReLUType.SOFTPLUS,
+            N_EPOCHS=1000,
+            CEGIS_MAX_ITERS=20,
             N_DATA=n_data_samples,
             SEED=seed,
         )

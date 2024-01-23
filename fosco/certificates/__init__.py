@@ -9,13 +9,15 @@ def make_certificate(certificate_type: CertificateType) -> Type[Certificate]:
     Factory function for certificates.
     """
     if certificate_type == CertificateType.CBF:
-        from fosco.certificates.cbf import ControlBarrierFunction
+        from fosco.certificates.cbf import TrainableCBF
 
-        return ControlBarrierFunction
+        return TrainableCBF
     elif certificate_type == CertificateType.RCBF:
-        from fosco.certificates.rcbf import RobustControlBarrierFunction
+        from fosco.certificates.rcbf import TrainableRCBF
 
-        return RobustControlBarrierFunction
+        return TrainableRCBF
+    elif certificate_type == CertificateType.CBFgt:
+        raise NotImplementedError()
     else:
         raise NotImplementedError(
             f"Certificate type {certificate_type} not implemented"

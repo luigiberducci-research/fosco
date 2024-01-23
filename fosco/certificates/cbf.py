@@ -7,13 +7,14 @@ import torch
 from torch.optim import Optimizer
 
 from fosco.config import CegisConfig
-from fosco.certificates.certificate import Certificate
+from fosco.certificates.certificate import Certificate, TrainableCertificate
 from fosco.common.domains import Set, Rectangle
 from fosco.common.consts import DomainNames
 from fosco.common.utils import _set_assertion
 from fosco.learner import LearnerNN
 from fosco.verifier import SYMBOL
 from logger import LOGGING_LEVELS
+from systems import ControlAffineControllableDynamicalModel
 
 XD = DomainNames.XD.value
 XI = DomainNames.XI.value
@@ -34,11 +35,12 @@ class ControlBarrierFunction(Certificate):
     """
 
     def __init__(
-        self,
-        vars: dict[str, list],
-        domains: dict[str, Set],
-        config: CegisConfig,
-        verbose: int = 0,
+            self,
+            system: ControlAffineControllableDynamicalModel,
+            vars: dict[str, list],
+            domains: dict[str, Set],
+            config: CegisConfig,
+            verbose: int = 0,
     ) -> None:
         # todo rename vars to x, u
         assert all(
@@ -59,181 +61,9 @@ class ControlBarrierFunction(Certificate):
         self.n_vars = len(self.x_vars)
         self.n_controls = len(self.u_vars)
 
-        # loss parameters
-        self.loss_relu = config.LOSS_RELU
-        self.epochs = config.N_EPOCHS
-
-        # process loss margins
-        loss_keys = ["init", "unsafe", "lie"]
-        if isinstance(config.LOSS_MARGINS, float):
-            loss_margins = {k: config.LOSS_MARGINS for k in loss_keys}
-        else:
-            assert all(
-                [k in config.LOSS_MARGINS for k in loss_keys]
-            ), f"Missing loss margin, got {config.LOSS_MARGINS}"
-            loss_margins = config.LOSS_MARGINS
-        self.loss_margins = loss_margins
-
-        # process loss weights
-        if isinstance(config.LOSS_WEIGHTS, float):
-            loss_weights = {k: config.LOSS_WEIGHTS for k in loss_keys}
-        else:
-            assert all(
-                [k in config.LOSS_WEIGHTS for k in loss_keys]
-            ), f"Missing loss weight, got {config.LOSS_WEIGHTS}"
-            loss_weights = config.LOSS_WEIGHTS
-        self.loss_weights = loss_weights
-
         self._logger = logging.getLogger(__name__)
         self._logger.setLevel(LOGGING_LEVELS[verbose])
         self._logger.debug("CBF initialized")
-
-    def compute_loss(
-        self,
-        B_i: torch.Tensor,
-        B_u: torch.Tensor,
-        B_d: torch.Tensor,
-        Bdot_d: torch.Tensor,
-        alpha: torch.Tensor | float,
-    ) -> tuple[torch.Tensor, dict, dict]:
-        # todo make this private
-        """Computes loss function for CBF and its accuracy w.r.t. the batch of data.
-
-        Args:
-            B_i (torch.Tensor): Barrier values for initial set
-            B_u (torch.Tensor): Barrier values for unsafe set
-            B_d (torch.Tensor): Barrier values for domain
-            Bdot_d (torch.Tensor): Barrier derivative values for domain
-            alpha (torch.Tensor): coeff. linear class-k function, f(x) = alpha * x, for alpha in R_+
-
-        Returns:
-            tuple[torch.Tensor, float]: loss and accuracy
-        """
-        assert (
-            Bdot_d is None or B_d.shape == Bdot_d.shape
-        ), f"B_d and Bdot_d must have the same shape, got {B_d.shape} and {Bdot_d.shape}"
-        assert isinstance(
-            self.loss_margins, dict
-        ), f"Expected loss margins as dict, got {type(self.loss_margins)}"
-        assert isinstance(
-            self.loss_weights, dict
-        ), f"Expected loss weights as dict, got {type(self.loss_weights)}"
-
-        margin_init = self.loss_margins["init"]
-        margin_unsafe = self.loss_margins["unsafe"]
-        margin_lie = self.loss_margins["lie"]
-
-        weight_init = self.loss_weights["init"]
-        weight_unsafe = self.loss_weights["unsafe"]
-        weight_lie = self.loss_weights["lie"]
-
-        accuracy_i = (B_i >= margin_init).count_nonzero().item()
-        accuracy_u = (B_u < -margin_unsafe).count_nonzero().item()
-        accuracy_d = (Bdot_d + alpha * B_d >= margin_lie).count_nonzero().item()
-
-        percent_accuracy_init = 100 * accuracy_i / B_i.shape[0]
-        percent_accuracy_unsafe = 100 * accuracy_u / B_u.shape[0]
-        percent_accuracy_lie = 100 * accuracy_d / Bdot_d.shape[0]
-
-        # penalize B_i < 0
-        init_loss = weight_init * (self.loss_relu(margin_init - B_i)).mean()
-        # penalize B_u > 0
-        unsafe_loss = weight_unsafe * (self.loss_relu(B_u + margin_unsafe)).mean()
-        # penalize dB_d + alpha * B_d < 0
-        lie_loss = (
-            weight_lie * (self.loss_relu(margin_lie - (Bdot_d + alpha * B_d))).mean()
-        )
-
-        loss = init_loss + unsafe_loss + lie_loss
-
-        losses = {
-            "init_loss": init_loss.item(),
-            "unsafe_loss": unsafe_loss.item(),
-            "lie_loss": lie_loss.item(),
-            "tot_loss": loss.item(),
-        }
-
-        accuracy = {
-            "accuracy_init": percent_accuracy_init,
-            "accuracy_unsafe": percent_accuracy_unsafe,
-            "accuracy_derivative": percent_accuracy_lie,
-        }
-
-        # debug
-        logging.debug("Dataset Accuracy:")
-        logging.debug("\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
-
-        return loss, losses, accuracy
-
-    def learn(
-        self,
-        learner: LearnerNN,
-        optimizer: Optimizer,
-        datasets: dict,
-        f_torch: callable,
-    ) -> dict[str, float | np.ndarray]:
-        """
-        Updates the CBF model.
-
-        :param learner: LearnerNN object
-        :param optimizer: torch optimizer
-        :param datasets: dictionary of (string,torch.Tensor) pairs
-        :param f_torch: callable
-        """
-
-        # todo extend signature with **kwargs
-
-        condition_old = False
-        i1 = datasets[XD].shape[0]
-        i2 = datasets[XI].shape[0]
-        # samples = torch.cat([s for s in S.values()])
-        label_order = [XD, XI, XU]
-        state_samples = torch.cat(
-            [datasets[label][:, : self.n_vars] for label in label_order]
-        )
-        U_d = datasets[XD][:, self.n_vars : self.n_vars + self.n_controls]
-
-        losses, accuracies = {}, {}
-        for t in range(self.epochs):
-            optimizer.zero_grad()
-
-            # net gradient
-            B, gradB = learner.net.compute_net_gradnet(state_samples)
-
-            B_d = B[:i1, 0]
-            B_i = B[i1 : i1 + i2, 0]
-            B_u = B[i1 + i2 :, 0]
-
-            # compute lie derivative
-            assert (
-                B_d.shape[0] == U_d.shape[0]
-            ), f"expected pairs of state,input data. Got {B_d.shape[0]} and {U_d.shape[0]}"
-            X_d = state_samples[:i1]
-            gradB_d = gradB[:i1]
-            Sdot_d = f_torch(X_d, U_d)
-            Bdot_d = torch.sum(torch.mul(gradB_d, Sdot_d), dim=1)
-
-            loss, losses, accuracies = self.compute_loss(
-                B_i, B_u, B_d, Bdot_d, alpha=1.0
-            )
-
-            if t % math.ceil(self.epochs / 10) == 0 or self.epochs - t < 10:
-                # log_loss_acc(t, loss, accuracy, learner.verbose)
-                logging.debug(f"Epoch {t}: loss={loss}, accuracy={accuracies}")
-
-            # early stopping after 2 consecutive epochs with ~100% accuracy
-            condition = all(acc >= 99.9 for name, acc in accuracies.items())
-            if condition and condition_old:
-                break
-            condition_old = condition
-
-            loss.backward()
-            optimizer.step()
-
-        return {
-            "loss": losses,
-            "accuracy": accuracies,
-        }
 
     def get_constraints(self, verifier, B, sigma, Bdot, *args) -> Generator:
         """
@@ -282,8 +112,8 @@ class ControlBarrierFunction(Certificate):
         logging.debug(f"unsafe_constr: {unsafe_constr}")
 
         for cs in (
-            {XI: (inital_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
-            {XD: (lie_constr, self.x_vars + self.u_vars)},
+                {XI: (inital_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
+                {XD: (lie_constr, self.x_vars + self.u_vars)},
         ):
             yield cs
 
@@ -300,3 +130,204 @@ class ControlBarrierFunction(Certificate):
         _set_assertion(
             {dn.XD.value, dn.XI.value, dn.XU.value}, data_labels, "Data Sets"
         )
+
+
+class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
+
+    def __init__(
+            self,
+            system: ControlAffineControllableDynamicalModel,
+            vars: dict[str, list],
+            domains: dict[str, Set],
+            config: CegisConfig,
+            verbose: int = 0,
+    ):
+        super(TrainableCBF, self).__init__(system=system, vars=vars, domains=domains,
+                                                     config=config, verbose=verbose)
+
+        # loss parameters
+        self.loss_relu = config.LOSS_RELU
+        self.epochs = config.N_EPOCHS
+
+        # process loss margins
+        loss_keys = ["init", "unsafe", "lie"]
+        if isinstance(config.LOSS_MARGINS, float):
+            loss_margins = {k: config.LOSS_MARGINS for k in loss_keys}
+        else:
+            assert all(
+                [k in config.LOSS_MARGINS for k in loss_keys]
+            ), f"Missing loss margin, got {config.LOSS_MARGINS}"
+            loss_margins = config.LOSS_MARGINS
+        self.loss_margins = loss_margins
+
+        # process loss weights
+        if isinstance(config.LOSS_WEIGHTS, float):
+            loss_weights = {k: config.LOSS_WEIGHTS for k in loss_keys}
+        else:
+            assert all(
+                [k in config.LOSS_WEIGHTS for k in loss_keys]
+            ), f"Missing loss weight, got {config.LOSS_WEIGHTS}"
+            loss_weights = config.LOSS_WEIGHTS
+        self.loss_weights = loss_weights
+
+        # regularization on net gradient
+        self.loss_netgrad_weight = config.LOSS_NETGRAD_WEIGHT
+
+    def learn(
+            self,
+            learner: LearnerNN,
+            optimizer: Optimizer,
+            datasets: dict,
+            f_torch: callable,
+    ) -> dict[str, float | np.ndarray]:
+        """
+        Updates the CBF model.
+
+        :param learner: LearnerNN object
+        :param optimizer: torch optimizer
+        :param datasets: dictionary of (string,torch.Tensor) pairs
+        :param f_torch: callable
+        """
+
+        # todo extend signature with **kwargs
+
+        condition_old = False
+        i1 = datasets[XD].shape[0]
+        i2 = datasets[XI].shape[0]
+        # samples = torch.cat([s for s in S.values()])
+        label_order = [XD, XI, XU]
+        state_samples = torch.cat(
+            [datasets[label][:, : self.n_vars] for label in label_order]
+        )
+        U_d = datasets[XD][:, self.n_vars: self.n_vars + self.n_controls]
+
+        losses, accuracies, infos = {}, {}, {}
+        for t in range(self.epochs):
+            optimizer.zero_grad()
+
+            # net gradient
+            B, gradB = learner.net.compute_net_gradnet(state_samples)
+
+            B_d = B[:i1, 0]
+            B_i = B[i1: i1 + i2, 0]
+            B_u = B[i1 + i2:, 0]
+
+            # compute lie derivative
+            assert (
+                    B_d.shape[0] == U_d.shape[0]
+            ), f"expected pairs of state,input data. Got {B_d.shape[0]} and {U_d.shape[0]}"
+            X_d = state_samples[:i1]
+            gradB_d = gradB[:i1]
+            Sdot_d = f_torch(X_d, U_d)
+            Bdot_d = torch.sum(torch.mul(gradB_d, Sdot_d), dim=1)
+
+            loss, losses, accuracies = self.compute_loss(
+                B_i, B_u, B_d, Bdot_d, alpha=1.0
+            )
+
+            # regularization net gradient
+            netgrad_sos = torch.sum(torch.square(gradB))
+            netgrad_loss = self.loss_netgrad_weight * netgrad_sos
+            losses["netgrad_loss"] = netgrad_loss.item()
+            loss += netgrad_loss
+
+            # infos
+            infos = {
+                "netgrad_sos": netgrad_sos.item(),
+            }
+
+            if t % math.ceil(self.epochs / 10) == 0 or self.epochs - t < 10:
+                # log_loss_acc(t, loss, accuracy, learner.verbose)
+                logging.debug(f"Epoch {t}: loss={loss}, accuracy={accuracies}")
+
+            # early stopping after 2 consecutive epochs with ~100% accuracy
+            condition = all(acc >= 99.9 for name, acc in accuracies.items())
+            if condition and condition_old:
+                break
+            condition_old = condition
+
+            loss.backward()
+            optimizer.step()
+
+        return {
+            "loss": losses,
+            "accuracy": accuracies,
+            "info": infos,
+        }
+
+    def compute_loss(
+            self,
+            B_i: torch.Tensor,
+            B_u: torch.Tensor,
+            B_d: torch.Tensor,
+            Bdot_d: torch.Tensor,
+            alpha: torch.Tensor | float,
+    ) -> tuple[torch.Tensor, dict, dict]:
+        # todo make this private
+        """Computes loss function for CBF and its accuracy w.r.t. the batch of data.
+
+        Args:
+            B_i (torch.Tensor): Barrier values for initial set
+            B_u (torch.Tensor): Barrier values for unsafe set
+            B_d (torch.Tensor): Barrier values for domain
+            Bdot_d (torch.Tensor): Barrier derivative values for domain
+            alpha (torch.Tensor): coeff. linear class-k function, f(x) = alpha * x, for alpha in R_+
+
+        Returns:
+            tuple[torch.Tensor, float]: loss and accuracy
+        """
+        assert (
+                Bdot_d is None or B_d.shape == Bdot_d.shape
+        ), f"B_d and Bdot_d must have the same shape, got {B_d.shape} and {Bdot_d.shape}"
+        assert isinstance(
+            self.loss_margins, dict
+        ), f"Expected loss margins as dict, got {type(self.loss_margins)}"
+        assert isinstance(
+            self.loss_weights, dict
+        ), f"Expected loss weights as dict, got {type(self.loss_weights)}"
+
+        margin_init = self.loss_margins["init"]
+        margin_unsafe = self.loss_margins["unsafe"]
+        margin_lie = self.loss_margins["lie"]
+
+        weight_init = self.loss_weights["init"]
+        weight_unsafe = self.loss_weights["unsafe"]
+        weight_lie = self.loss_weights["lie"]
+
+        accuracy_i = (B_i >= margin_init).count_nonzero().item()
+        accuracy_u = (B_u < -margin_unsafe).count_nonzero().item()
+        accuracy_d = (Bdot_d + alpha * B_d >= margin_lie).count_nonzero().item()
+
+        percent_accuracy_init = 100 * accuracy_i / B_i.shape[0]
+        percent_accuracy_unsafe = 100 * accuracy_u / B_u.shape[0]
+        percent_accuracy_lie = 100 * accuracy_d / Bdot_d.shape[0]
+
+        # penalize B_i < 0
+        init_loss = weight_init * (self.loss_relu(margin_init - B_i)).mean()
+        # penalize B_u > 0
+        unsafe_loss = weight_unsafe * (self.loss_relu(B_u + margin_unsafe)).mean()
+        # penalize dB_d + alpha * B_d < 0
+        lie_loss = (
+                weight_lie * (self.loss_relu(margin_lie - (Bdot_d + alpha * B_d))).mean()
+        )
+
+        loss = init_loss + unsafe_loss + lie_loss
+
+        losses = {
+            "init_loss": init_loss.item(),
+            "unsafe_loss": unsafe_loss.item(),
+            "lie_loss": lie_loss.item(),
+            "tot_loss": loss.item(),
+        }
+
+        accuracy = {
+            "accuracy_init": percent_accuracy_init,
+            "accuracy_unsafe": percent_accuracy_unsafe,
+            "accuracy_derivative": percent_accuracy_lie,
+        }
+
+        # debug
+        logging.debug("Dataset Accuracy:")
+        logging.debug("\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
+
+        return loss, losses, accuracy

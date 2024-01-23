@@ -14,6 +14,8 @@ class DomainNames(Enum):
 class CertificateType(Enum):
     CBF = auto()
     RCBF = auto()
+    CBFgt = auto()  # ground truth CBF, only for evaluation of certain systems
+    RCBFgt = auto() # ground truth RCBF, only for evaluation of certain systems
 
     @classmethod
     def get_certificate_sets(
@@ -71,6 +73,6 @@ class LossReLUType(Enum):
         if self == LossReLUType.RELU:
             return torch.relu(x)
         elif self == LossReLUType.SOFTPLUS:
-            return torch.nn.functional.softplus(x)
+            return torch.nn.Softplus()(x)
         else:
             raise NotImplementedError(f"LossReLUType {self} not implemented")

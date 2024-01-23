@@ -144,6 +144,7 @@ class Cegis:
     def _initialise_certificate(self):
         certificate_type = make_certificate(certificate_type=self.config.CERTIFICATE)
         return certificate_type(
+            system=self.f,
             vars=self.x_map,
             domains=self.config.DOMAINS,
             verbose=self.verbose,

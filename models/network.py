@@ -3,9 +3,10 @@ from torch import nn
 
 from fosco.common.activations import activation
 from fosco.common.consts import ActivationType
+from models.module import TorchSymbolicModule
 
 
-class TorchMLP(nn.Module):
+class TorchMLP(TorchSymbolicModule):
     def __init__(
         self,
         input_size: int,
@@ -67,27 +68,29 @@ class TorchMLP(nn.Module):
 
         return y
 
-    def compute_net_gradnet(self, S: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """Computes the value of the neural network and its gradient.
+    def forward_smt(self, x):
+        pass
 
-        Computes gradient using autograd.
+    def gradient(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Computes the gradient of the neural network with respect to the input.
 
-            S (torch.Tensor): input tensor
+        Args:
+            x (torch.Tensor): input tensor
 
         Returns:
-            tuple[torch.Tensor, torch.Tensor]: (nn, grad_nn)
+            torch.Tensor: gradient of the neural network
         """
-        S_clone = torch.clone(S).requires_grad_()
-        nn = self(S_clone)
-
-        grad_nn = torch.autograd.grad(
-            outputs=nn,
-            inputs=S_clone,
-            grad_outputs=torch.ones_like(nn),
+        x_clone = torch.clone(x).requires_grad_()
+        y = self(x_clone)
+        dydx = torch.autograd.grad(
+            outputs=y,
+            inputs=x_clone,
+            grad_outputs=torch.ones_like(y),
             create_graph=True,
             retain_graph=True,
         )[0]
-        return nn, grad_nn
+        return dydx
 
     def save(self, outdir: str):
         import pathlib

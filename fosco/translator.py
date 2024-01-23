@@ -7,11 +7,9 @@ import z3
 
 from fosco.common.activations_symbolic import activation_sym, activation_der_sym
 from fosco.common.consts import VerifierType, TimeDomain, CertificateType
-from fosco.models.network import TorchMLP
+from models.network import TorchMLP
 from fosco.verifier import SYMBOL
 from logger import LOGGING_LEVELS
-from systems import ControlAffineControllableDynamicalModel
-from systems.system import UncertainControlAffineControllableDynamicalModel
 
 
 class Translator(ABC):

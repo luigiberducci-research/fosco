@@ -1,9 +1,8 @@
 import unittest
 
 import numpy as np
-import torch
 
-from fosco.models.network import TorchMLP
+from models.network import TorchMLP
 from fosco.translator import MLPZ3Translator, make_translator, RobustMLPZ3Translator
 from fosco.verifier import VerifierZ3
 

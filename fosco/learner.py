@@ -1,13 +1,12 @@
 from abc import abstractmethod
 from typing import Callable, Type
 
-import numpy as np
 import torch
 from torch import nn
 
 from fosco.common.activations import activation
 from fosco.common.consts import ActivationType, TimeDomain
-from fosco.models.network import TorchMLP
+from models.network import TorchMLP
 from systems import ControlAffineControllableDynamicalModel
 from systems.system import UncertainControlAffineControllableDynamicalModel
 

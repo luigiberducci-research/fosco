@@ -206,7 +206,8 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
             optimizer.zero_grad()
 
             # net gradient
-            B, gradB = learner.net.compute_net_gradnet(state_samples)
+            B = learner.net(state_samples)
+            gradB = learner.net.gradient(state_samples)
 
             B_d = B[:i1, 0]
             B_i = B[i1: i1 + i2, 0]

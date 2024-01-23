@@ -1,9 +1,7 @@
 import unittest
 
-import plotly
-
 from fosco.common.domains import Rectangle
-from fosco.models.network import TorchMLP
+from models.network import TorchMLP
 from fosco.plotting.utils import plot_func_and_domains
 
 

@@ -8,7 +8,7 @@ from fosco.common.consts import ActivationType
 
 class TestModel(unittest.TestCase):
     def test_save_mlp_model(self):
-        from fosco.models.network import TorchMLP
+        from models.network import TorchMLP
 
         tmp_dir = "tmp"
 
@@ -43,7 +43,7 @@ class TestModel(unittest.TestCase):
         shutil.rmtree(tmp_dir)
 
     def test_mlp_relu_out(self):
-        from fosco.models.network import TorchMLP
+        from models.network import TorchMLP
 
         model = TorchMLP(
             input_size=2,

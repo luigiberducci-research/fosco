@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 
 from fosco.common.domains import Rectangle, Sphere
-from fosco.models.network import TorchMLP
+from models.network import TorchMLP
 from systems import make_system
 from systems.system_env import SystemEnv
 from fosco.planner.safety_filter import CBFSafetyFilter

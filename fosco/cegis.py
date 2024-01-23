@@ -194,7 +194,7 @@ class Cegis:
             self.logger.log_image(tag="barrier", image=fig, step=iter)
 
             for dim in range(self.f.n_vars):
-                func = lambda x: self.learner.net.compute_net_gradnet(x)[1][:, dim]
+                func = lambda x: self.learner.net.gradient(x)[:, dim]
                 fig = plot_func_and_domains(
                     func=func,
                     in_domain=in_domain,

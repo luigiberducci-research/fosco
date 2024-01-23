@@ -225,7 +225,8 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
             optimizer.zero_grad()
 
             # net gradient
-            B, gradB = learner.net.compute_net_gradnet(state_samples)
+            B = learner.net(state_samples)
+            gradB = learner.net.gradient(state_samples)
             sigma = learner.xsigma(state_samples)
 
             B_d = B[:i1, 0]

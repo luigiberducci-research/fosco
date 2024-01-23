@@ -1,12 +1,18 @@
+from typing import Iterable
+
+import numpy as np
 import torch
 from torch import nn
 
 from fosco.common.activations import activation
+from fosco.common.activations_symbolic import activation_sym, activation_der_sym
 from fosco.common.consts import ActivationType
-from models.module import TorchSymbolicModule
+from fosco.verifier import SYMBOL
+from models.torchsym import TorchSymDiffModel
 
 
-class TorchMLP(TorchSymbolicModule):
+class TorchMLP(TorchSymDiffModel):
+
     def __init__(
         self,
         input_size: int,
@@ -14,6 +20,7 @@ class TorchMLP(TorchSymbolicModule):
         activation: tuple[str | ActivationType, ...],
         output_size: int = 1,
         output_activation: str | ActivationType = "linear",
+        round: int = -1,
     ):
         super(TorchMLP, self).__init__()
         assert len(hidden_sizes) == len(
@@ -60,7 +67,10 @@ class TorchMLP(TorchSymbolicModule):
             self.output_size == self.layers[-1].out_features
         ), "output size does not match last layer size"
 
-    def forward(self, x):
+        # for symbolic translation
+        self.round = round
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         y = x
         for idx, layer in enumerate(self.layers):
             z = layer(y)
@@ -68,19 +78,27 @@ class TorchMLP(TorchSymbolicModule):
 
         return y
 
-    def forward_smt(self, x):
-        pass
+    def forward_smt(self, x: Iterable[SYMBOL]) -> SYMBOL:
+        input_vars = np.array(x).reshape(-1, 1)
+
+        z, _ = network_until_last_layer(net=self, input_vars=input_vars, round=self.round)
+
+        if self.round < 0:
+            last_layer = self.layers[-1].weight.data.numpy()
+        else:
+            last_layer = np.round(self.layers[-1].weight.data.numpy(), self.round)
+
+        z = last_layer @ z
+        if self.layers[-1].bias is not None:
+            z += self.layers[-1].bias.data.numpy()[:, None]
+        assert z.shape == (1, 1), f"Wrong shape of z, expected (1, 1), got {z.shape}"
+
+        # last activation
+        z = activation_sym(self.acts[-1], z)
+
+        return z[0, 0]
 
     def gradient(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Computes the gradient of the neural network with respect to the input.
-
-        Args:
-            x (torch.Tensor): input tensor
-
-        Returns:
-            torch.Tensor: gradient of the neural network
-        """
         x_clone = torch.clone(x).requires_grad_()
         y = self(x_clone)
         dydx = torch.autograd.grad(
@@ -91,6 +109,36 @@ class TorchMLP(TorchSymbolicModule):
             retain_graph=True,
         )[0]
         return dydx
+
+    def gradient_smt(self, x: Iterable[SYMBOL]) -> Iterable[SYMBOL]:
+        input_vars = np.array(x).reshape(-1, 1)
+
+        z, jacobian = network_until_last_layer(net=self, input_vars=input_vars, round=self.round)
+
+        if self.round < 0:
+            last_layer = self.layers[-1].weight.data.numpy()
+        else:
+            last_layer = np.round(self.layers[-1].weight.data.numpy(), self.round)
+
+        zhat = last_layer @ z
+        if self.layers[-1].bias is not None:
+            zhat += self.layers[-1].bias.data.numpy()[:, None]
+
+        # last activation
+        z = activation_sym(self.acts[-1], zhat)
+
+        jacobian = last_layer @ jacobian
+        jacobian = np.diagflat(activation_der_sym(self.acts[-1], zhat)) @ jacobian
+
+        gradV = jacobian
+
+        assert z.shape == (1, 1)
+        assert gradV.shape == (
+            1,
+            self.input_size,
+        ), f"Wrong shape of gradV, expected (1, {self.input_size}), got {gradV.shape}"
+
+        return gradV
 
     def save(self, outdir: str):
         import pathlib
@@ -129,3 +177,39 @@ class TorchMLP(TorchSymbolicModule):
         model = TorchMLP(**params)
         model.load_state_dict(torch.load(logdir / "model.pt"))
         return model
+
+
+def network_until_last_layer(
+        net: TorchMLP, input_vars: Iterable[SYMBOL], round: int = -1
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Utility for symbolic forward pass excluding the last layer.
+
+    :param net: network model
+    :param input_vars: list of symbolic variables
+    :return: tuple (net output, its jacobian)
+    """
+    z = input_vars
+    jacobian = np.eye(net.input_size, net.input_size)
+
+    for idx, layer in enumerate(net.layers[:-1]):
+        if round < 0:
+            w = layer.weight.data.numpy()
+            if layer.bias is not None:
+                b = layer.bias.data.numpy()[:, None]
+            else:
+                b = np.zeros((layer.out_features, 1))
+        elif round >= 0:
+            w = np.round(layer.weight.data.numpy(), self.round)
+            if layer.bias is not None:
+                b = np.round(layer.bias.data.numpy(), self.round)[:, None]
+            else:
+                b = np.zeros((layer.out_features, 1))
+
+        zhat = w @ z + b
+        z = activation_sym(net.acts[idx], zhat)
+
+        jacobian = w @ jacobian
+        jacobian = np.diagflat(activation_der_sym(net.acts[idx], zhat)) @ jacobian
+
+    return z, jacobian

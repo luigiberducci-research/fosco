@@ -21,15 +21,15 @@ class Cegis:
     def __init__(self, config: CegisConfig, verbose: int = 0):
         self.config = config
 
+        # logging
+        self.verbose = min(max(verbose, 0), len(LOGGING_LEVELS) - 1)
+        self.logger, self.tlogger = self._initialise_logger()
+
         # seeding
         if self.config.SEED is None:
             self.config.SEED = torch.randint(0, 1000000, (1,)).item()
         torch.manual_seed(self.config.SEED)
         np.random.seed(self.config.SEED)
-
-        # logging
-        self.verbose = min(max(verbose, 0), len(LOGGING_LEVELS) - 1)
-        self.logger, self.tlogger = self._initialise_logger()
 
         # intialization
         self.f = self.config.SYSTEM()
@@ -44,8 +44,8 @@ class Cegis:
         self.translator = self._initialise_translator()
 
         self._result = None
-
         self._assert_state()
+        self.tlogger.info(f"Seed: {self.config.SEED}")
 
     def _initialise_logger(self) -> Logger:
         config = self.config.dict()

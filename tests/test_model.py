@@ -2,11 +2,40 @@ import os
 import unittest
 
 import torch
+import z3
 
 from fosco.common.consts import ActivationType
 
 
 class TestModel(unittest.TestCase):
+
+    def test_torchsym_model(self):
+        from models.network import TorchMLP
+
+        model = TorchMLP(
+            input_size=2, hidden_sizes=(4, 4), activation=("relu", "relu"), output_size=1
+        )
+
+        # numerical
+        x_batch = torch.randn(10, 2)
+        y_batch = model(x_batch)
+        dydx_batch = model.gradient(x_batch)
+
+        self.assertTrue(y_batch.shape == (10, 1))
+        self.assertTrue(dydx_batch.shape == (10, 2))
+
+        # symbolic
+        x_sym = z3.Reals("x0 x1")
+        y_sym = model.forward_smt(x_sym)
+        dydx_sym = model.gradient_smt(x_sym)
+
+        self.assertTrue(isinstance(y_sym, z3.ArithRef))
+        self.assertTrue(all([isinstance(dydx, z3.ArithRef) for dydx in dydx_sym[0]]), f"dydx_sym: {dydx_sym}")
+
+
+
+
+
     def test_save_mlp_model(self):
         from models.network import TorchMLP
 

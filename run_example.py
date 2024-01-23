@@ -104,7 +104,7 @@ if __name__ == "__main__":
     parser.add_argument("--n-data-samples", type=int, default=1000)
     parser.add_argument("--max-iters", type=int, default=100)
     parser.add_argument("--n-epochs", type=int, default=1000)
-    parser.add_argument("--loss-act", type=str, default="relu")
+    parser.add_argument("--loss-act", type=str, default="softplus")
     parser.add_argument("--loss-netgrad-weight", type=float, default=0.0)
     parser.add_argument("--verbose", type=int, default=1)
     args = parser.parse_args()

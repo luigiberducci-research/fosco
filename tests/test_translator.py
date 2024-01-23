@@ -30,7 +30,8 @@ class TestTranslator(unittest.TestCase):
 
         translator = MLPZ3Translator(rounding=-1)
 
-        expr_nn, expr_nndot = translator.get_symbolic_formula(x, nn, xdot)
+        expr_nn = nn.forward_smt(x=x)
+        expr_nndot = (nn.gradient_smt(x=x) @ xdot)[0, 0]
         assert isinstance(expr_nn, z3.ArithRef)
         assert isinstance(expr_nndot, z3.ArithRef)
 
@@ -72,7 +73,8 @@ class TestTranslator(unittest.TestCase):
 
         translator = MLPZ3Translator(rounding=-1)
 
-        expr_nn, expr_nndot = translator.get_symbolic_formula(x, nn, xdot)
+        expr_nn = nn.forward_smt(x=x)
+        expr_nndot = (nn.gradient_smt(x=x) @ xdot)[0, 0]
         assert isinstance(expr_nn, z3.ArithRef)
         assert isinstance(expr_nndot, z3.ArithRef)
 
@@ -143,7 +145,8 @@ class TestTranslator(unittest.TestCase):
 
         translator = MLPZ3Translator(rounding=-1)
 
-        expr_nn, expr_nndot = translator.get_symbolic_formula(x, nn, xdot)
+        expr_nn = nn.forward_smt(x=x)
+        expr_nndot = (nn.gradient_smt(x=x) @ xdot)[0, 0]
         assert isinstance(expr_nn, z3.ArithRef)
         assert isinstance(expr_nndot, z3.ArithRef)
 
@@ -207,8 +210,8 @@ class TestTranslator(unittest.TestCase):
                     do1_dh1[i, j] = z3.RealVal(0)
 
         for name, matrix in zip(
-            ["dy_do3", "do2_dh2", "dh2_do1", "do2_dh1", "dh1_dx"],
-            [dy_do2, do2_dh2, dh2_do1, do1_dh1, dh1_dx],
+                ["dy_do3", "do2_dh2", "dh2_do1", "do2_dh1", "dh1_dx"],
+                [dy_do2, do2_dh2, dh2_do1, do1_dh1, dh1_dx],
         ):
             print(f"{name}:{matrix.shape}")
 
@@ -247,8 +250,8 @@ class TestTranslator(unittest.TestCase):
 
         translator = MLPZ3Translator(rounding=-1)
 
-        expr_nn, expr_nndot = translator.get_symbolic_formula(x, nn, xdot)
-
+        expr_nn = nn.forward_smt(x=x)
+        expr_nndot = (nn.gradient_smt(x=x) @ xdot)[0, 0]
         assert isinstance(expr_nn, z3.ArithRef)
         assert isinstance(expr_nndot, z3.ArithRef)
 
@@ -302,8 +305,8 @@ class TestTranslator(unittest.TestCase):
 
         translator = MLPZ3Translator(rounding=-1)
 
-        expr_nn, expr_nndot = translator.get_symbolic_formula(x, nn, xdot)
-
+        expr_nn = nn.forward_smt(x=x)
+        expr_nndot = (nn.gradient_smt(x=x) @ xdot)[0, 0]
         assert isinstance(expr_nn, z3.ArithRef)
         assert isinstance(expr_nndot, z3.ArithRef)
 
@@ -353,72 +356,6 @@ class TestTranslator(unittest.TestCase):
         self.assertTrue(
             ok_grad,
             f"Wrong symbolic formula for Vdot. Got: \n{expr_nndot}, expected: \n{expected_expr_nndot}",
-        )
-
-    def test_separation_symbolic_functions_linearout(self):
-        n_vars = 2
-
-        x = VerifierZ3.new_vars(n_vars, base="x")
-        x = np.array(x).reshape(-1, 1)
-
-        nn = TorchMLP(input_size=n_vars, hidden_sizes=(), activation=(), output_size=1)
-
-        xdot = np.array(x).reshape(-1, 1)
-
-        translator = MLPZ3Translator(rounding=-1)
-
-        expr_nn, expr_nndot = translator.get_symbolic_formula(x, nn, xdot)
-
-        expr_nn2 = translator.get_symbolic_net(x, nn)
-        expr_nn_grad = translator.get_symbolic_net_grad(x, nn)
-        expr_nndot2 = (expr_nn_grad @ xdot)[0, 0]
-
-        ok_nn = self._check_equivalence(expr_nn, expr_nn2)
-        self.assertTrue(
-            ok_nn,
-            f"Wrong symbolic formula for V. Got: \n{expr_nn}, expected: \n{expr_nn2}",
-        )
-
-        ok_grad = self._check_equivalence(expr_nndot, expr_nndot2)
-        self.assertTrue(
-            ok_grad,
-            f"Wrong symbolic formula for Vdot. Got: \n{expr_nndot}, expected: \n{expr_nndot2}",
-        )
-
-    def test_separation_symbolic_functions_nonlinear_out(self):
-        n_vars = 2
-
-        x = VerifierZ3.new_vars(n_vars, base="x")
-        x = np.array(x).reshape(-1, 1)
-
-        nn = TorchMLP(
-            input_size=n_vars,
-            hidden_sizes=(),
-            activation=(),
-            output_size=1,
-            output_activation="relu",
-        )
-
-        xdot = np.array(x).reshape(-1, 1)
-
-        translator = MLPZ3Translator(rounding=-1)
-
-        expr_nn, expr_nndot = translator.get_symbolic_formula(x, nn, xdot)
-
-        expr_nn2 = translator.get_symbolic_net(x, nn)
-        expr_nn_grad = translator.get_symbolic_net_grad(x, nn)
-        expr_nndot2 = (expr_nn_grad @ xdot)[0, 0]
-
-        ok_nn = self._check_equivalence(expr_nn, expr_nn2)
-        self.assertTrue(
-            ok_nn,
-            f"Wrong symbolic formula for V. Got: \n{expr_nn}, expected: \n{expr_nn2}",
-        )
-
-        ok_grad = self._check_equivalence(expr_nndot, expr_nndot2)
-        self.assertTrue(
-            ok_grad,
-            f"Wrong symbolic formula for Vdot. Got: \n{expr_nndot}, expected: \n{expr_nndot2}",
         )
 
     def test_factory(self):

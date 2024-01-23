@@ -8,10 +8,10 @@ from fosco.common.activations import activation
 from fosco.common.activations_symbolic import activation_sym, activation_der_sym
 from fosco.common.consts import ActivationType
 from fosco.verifier import SYMBOL
-from models.torchsym import TorchSymDiffModel
+from models.torchsym import TorchSymModel
 
 
-class TorchMLP(TorchSymDiffModel):
+class TorchMLP(TorchSymModel):
 
     def __init__(
         self,

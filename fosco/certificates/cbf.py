@@ -26,12 +26,12 @@ class ControlBarrierFunction(Certificate):
     """
     Certifies Safety for continuous time controlled systems with control affine dynamics.
 
-    Note: CBF use different conventions.
-    B(Xi)>0, B(Xu)<0, Bdot(Xd) > -alpha(B(Xd)) for alpha class-k function
-
     Arguments:
+        system {ControlAffineDynamics}: control affine dynamics
         vars {dict}: dictionary of symbolic variables
         domains {dict}: dictionary of (string,domain) pairs
+        config {CegisConfig}: configuration object
+        verbose {int}: verbosity level
     """
 
     def __init__(
@@ -77,17 +77,18 @@ class ControlBarrierFunction(Certificate):
 
         # Bx >= 0 if x \in initial
         # counterexample: B < 0 and x \in initial
-        initial_constr = self._init_constraint_smt(verifier, B, B_constr)
+        initial_constr = self._init_constraint_smt(verifier=verifier, B=B, B_constr=B_constr)
 
         # Bx < 0 if x \in unsafe
         # counterexample: B >= 0 and x \in unsafe
-        unsafe_constr = self._unsafe_constraint_smt(verifier, B, B_constr)
+        unsafe_constr = self._unsafe_constraint_smt(verifier=verifier, B=B, B_constr=B_constr)
 
         # feasibility condition
         # exists u Bdot + alpha * Bx >= 0 if x \in domain
         # counterexample: x \in domain s.t. forall u Bdot + alpha * Bx < 0
         alpha = lambda x: x  # todo make it part of the cbf and pass it in input
-        feasible_constr = self._feasibility_constraint_smt(verifier, B, B_constr, Bdot, Bdot_constr, alpha)
+        feasible_constr = self._feasibility_constraint_smt(verifier=verifier, B=B, B_constr=B_constr, Bdot=Bdot,
+                                                              Bdot_constr=Bdot_constr, alpha=alpha)
 
         logging.debug(f"initial_constr: {initial_constr}")
         logging.debug(f"unsafe_constr: {unsafe_constr}")

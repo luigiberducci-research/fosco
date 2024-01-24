@@ -41,7 +41,7 @@ def make_domains(system_id: str) -> dict[str, Set]:
 
         XD = domains.Rectangle(vars=xvars, lb=(-5.0, -5.0), ub=(5.0, 5.0))
         UD = domains.Rectangle(vars=uvars, lb=(-5.0, -5.0), ub=(5.0, 5.0))
-        ZD = domains.Rectangle(vars=zvars, lb=(-1.0, -1.0), ub=(1.0, 1.0))
+        ZD = domains.Sphere(vars=zvars, centre=(0.0, 0.0), radius=1.0)
         XI = domains.Rectangle(vars=xvars, lb=(-5.0, -5.0), ub=(-4.0, -4.0))
         XU = domains.Sphere(
             vars=xvars, centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1], include_boundary=False

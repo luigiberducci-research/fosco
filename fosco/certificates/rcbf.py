@@ -26,12 +26,12 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
     """
     Certifies Safety for continuous time controlled systems with control affine dynamics.
 
-    Note: CBF use different conventions.
-    B(Xi)>0, B(Xu)<0, Bdot(Xd) > -alpha(B(Xd)) for alpha class-k function
-
     Arguments:
+        system {ControlAffineDynamics}: control affine dynamics
         vars {dict}: dictionary of symbolic variables
         domains {dict}: dictionary of (string,domain) pairs
+        config {CegisConfig}: configuration object
+        verbose {int}: verbosity level
     """
 
     def __init__(
@@ -46,40 +46,49 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
             [sv in vars for sv in ["v", "u", "z"]]
         ), f"Missing symbolic variables, got {vars}"
 
-        super().__init__(system=system, vars=vars, domains=domains, config=config, verbose=verbose)
+        super().__init__(
+            system=system, vars=vars, domains=domains, config=config, verbose=verbose
+        )
 
         self.z_vars = vars["z"]
         self.z_domain: SYMBOL = domains[ZD].generate_domain(self.z_vars)
         self.n_uncertain = len(self.z_vars)
 
-    def get_constraints(self, verifier, B, B_constr, sigma, sigma_constr, Bdot, Bdot_constr, Bdotz, Bdotz_constr) -> Generator:
+    def get_constraints(
+        self,
+        verifier,
+        B,
+        B_constr,
+        sigma,
+        sigma_constr,
+        Bdot,
+        Bdot_constr,
+        Bdotz,
+        Bdotz_constr,
+    ) -> Generator:
         """
-        :param verifier: verifier object
-        :param B: symbolic formula of the CBF
-        :param sigma: symbolic formula of compensator sigma
-        :param Bdot: symbolic formula of the CBF derivative (not yet Lie derivative)
-        :return: tuple of dictionaries of Barrier conditons
-        """
+        Returns the constraints for the CBF problem.
 
-        # todo extend signature with **kwargs
-        _True = verifier.solver_fncts()["True"]
-        _And = verifier.solver_fncts()["And"]
-        _Or = verifier.solver_fncts()["Or"]
-        _Not = verifier.solver_fncts()["Not"]
-        _Exists = verifier.solver_fncts()["Exists"]
-        _ForAll = verifier.solver_fncts()["ForAll"]
-        _Substitute = verifier.solver_fncts()["Substitute"]
-        _RealVal = verifier.solver_fncts()["RealVal"]
+        Args:
+            TODO
+
+        Returns:
+            generator: yields constraints for each domain
+        """
 
         # initial condition
         # Bx >= 0 if x \in initial
         # counterexample: B < 0 and x \in initial
-        initial_constr = self._init_constraint_smt(B, B_constr)
+        initial_constr = self._init_constraint_smt(
+            verifier=verifier, B=B, B_constr=B_constr
+        )
 
         # unsafe condition
         # Bx < 0 if x \in unsafe
         # counterexample: B >= 0 and x \in unsafe
-        unsafe_constr = self._unsafe_constraint_smt(B, B_constr)
+        unsafe_constr = self._unsafe_constraint_smt(
+            verifier=verifier, B=B, B_constr=B_constr
+        )
 
         # feasibility condition
         # exists u Bdot + alpha * Bx >= 0 if x \in domain
@@ -88,18 +97,33 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
         # note: smart trick for tractable verification using vertices of input convex-hull
         # counterexample: x \in domain and AND_v (u=v and Bdot + alpha * Bx < 0)
         alpha = lambda x: x
-        feasibility_constr = self._feasibility_constraint_smt(verifier, B, B_constr,
-                                                              sigma, sigma_constr, Bdot,
-                                                              Bdot_constr, alpha)
+        feasibility_constr = self._feasibility_constraint_smt(
+            verifier=verifier,
+            B=B,
+            B_constr=B_constr,
+            sigma=sigma,
+            sigma_constr=sigma_constr,
+            Bdot=Bdot,
+            Bdot_constr=Bdot_constr,
+            alpha=alpha,
+        )
 
         # robustness constraint
         # spec := forall z forall u (Bdot + alpha * Bx >= 0 implies Bdot(z) + alpha * B(z) >= 0)
         # counterexample: x \in xdomain and z \in zdomain and u \in udomain and
         #                 Bdot + alpha * Bx >= 0 and Bdot(z) + alpha * B(z) < 0
-        robust_constr = self._robust_constraint_smt(verifier, B, B_constr,
-                                                    sigma, sigma_constr, Bdot,
-                                                    Bdot_constr, Bdotz,
-                                                    Bdotz_constr, alpha)
+        robust_constr = self._robust_constraint_smt(
+            verifier=verifier,
+            B=B,
+            B_constr=B_constr,
+            sigma=sigma,
+            sigma_constr=sigma_constr,
+            Bdot=Bdot,
+            Bdot_constr=Bdot_constr,
+            Bdotz=Bdotz,
+            Bdotz_constr=Bdotz_constr,
+            alpha=alpha,
+        )
 
         logging.debug(f"inital_constr: {initial_constr}")
         logging.debug(f"unsafe_constr: {unsafe_constr}")
@@ -115,7 +139,9 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
         ):
             yield cs
 
-    def _feasibility_constraint_smt(self, verifier, B, B_constr, sigma, sigma_constr, Bdot, Bdot_constr, alpha) -> SYMBOL:
+    def _feasibility_constraint_smt(
+        self, verifier, B, B_constr, sigma, sigma_constr, Bdot, Bdot_constr, alpha
+    ) -> SYMBOL:
         """
         Feasibility constraint
 
@@ -146,7 +172,19 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
 
         return lie_constr
 
-    def _robust_constraint_smt(self, verifier, B, B_constr, sigma, sigma_constr, Bdot, Bdot_constr, Bdotz, Bdotz_constr, alpha) -> SYMBOL:
+    def _robust_constraint_smt(
+        self,
+        verifier,
+        B,
+        B_constr,
+        sigma,
+        sigma_constr,
+        Bdot,
+        Bdot_constr,
+        Bdotz,
+        Bdotz_constr,
+        alpha,
+    ) -> SYMBOL:
         """
         Robustness constraint
 
@@ -191,7 +229,6 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
 
 
 class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
-
     def __init__(
         self,
         system: ControlAffineDynamics,
@@ -208,14 +245,18 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
         if isinstance(config.LOSS_MARGINS, float):
             self.loss_margins["robust"] = config.LOSS_MARGINS
         else:
-            assert "robust" in config.LOSS_MARGINS, f"Missing loss margin, got {config.LOSS_MARGINS}"
+            assert (
+                "robust" in config.LOSS_MARGINS
+            ), f"Missing loss margin, got {config.LOSS_MARGINS}"
             self.loss_margins["robust"] = config.LOSS_MARGINS["robust"]
 
         # add extra loss weight for uncertainty loss
         if isinstance(config.LOSS_WEIGHTS, float):
             self.loss_weights["robust"] = config.LOSS_WEIGHTS
         else:
-            assert "robust" in config.LOSS_WEIGHTS, f"Missing loss weight, got {config.LOSS_WEIGHTS}"
+            assert (
+                "robust" in config.LOSS_WEIGHTS
+            ), f"Missing loss weight, got {config.LOSS_WEIGHTS}"
             self.loss_weights["robust"] = config.LOSS_WEIGHTS["robust"]
 
     def learn(

@@ -157,7 +157,7 @@ class Verifier:
                     original_point = self.compute_model(
                         vars=solver_vars[label], solver=solvers[label], res=res
                     )
-                    self._logger.info(f"{label}: Counterexample Found: {original_point}")
+                    self._logger.info(f"{label}: Counterexample Found: {solver_vars[label]} = {original_point}")
 
                     V_ctx = self.replace_point(
                         V_symbolic, solver_vars[label], original_point.numpy().T
@@ -165,8 +165,6 @@ class Verifier:
                     Vdot_ctx = self.replace_point(
                         Vdot_symbolic, solver_vars[label], original_point.numpy().T
                     )
-                    self._logger.debug("\nV_ctx: {} ".format(V_ctx))
-                    self._logger.debug("\nVdot_ctx: {} ".format(Vdot_ctx))
 
                     ces[label] = self.randomise_counterex(original_point)
                 else:

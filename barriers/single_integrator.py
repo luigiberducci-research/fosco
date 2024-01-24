@@ -124,13 +124,16 @@ class SingleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
         self._assert_forward_smt_input(x=x)
         _And = FUNCTIONS["And"]
 
-        dhdx, constraints = self._h.gradient_smt(x=x)
+        dhdx, dhdx_constraints = self._h.gradient_smt(x=x)
         norm = VerifierZ3.new_vars(n=1, base="norm")[0]
-        constraint = norm * norm == dhdx[0, 0] ** 2 + dhdx[0, 1] ** 2
+        norm_constraint = [
+            norm * norm == dhdx[0, 0] ** 2 + dhdx[0, 1] ** 2,
+            norm >= 0.0
+        ]
         sigma = norm * self._z_bound
 
         self._assert_forward_smt_output(x=sigma)
-        return sigma, constraints + [constraint]
+        return sigma, dhdx_constraints + norm_constraint
 
     def _assert_forward_input(self, x: torch.Tensor) -> None:
         state_dim = self._system.n_vars

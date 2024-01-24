@@ -2,11 +2,12 @@ import logging
 import numpy as np
 import torch
 
+from barriers import make_barrier
 from fosco.certificates import make_certificate
 from fosco.common.domains import Rectangle
 from fosco.config import CegisConfig, CegisResult
 from fosco.consolidator import make_consolidator
-from fosco.common.consts import DomainNames
+from fosco.common.consts import DomainNames, CertificateType
 from fosco.learner import make_learner, LearnerNN
 from fosco.plotting.data import scatter_datasets
 from fosco.plotting.utils import plot_func_and_domains
@@ -65,7 +66,7 @@ class Cegis:
 
         initial_models = {}
         if self.config.USE_INIT_MODELS:
-            known_fns = make_known_fn(system=self.f)
+            known_fns = make_barrier(system=self.f)
             initial_models["net"] = known_fns["barrier"]
             if self.config.CERTIFICATE == CertificateType.RCBF:
                 initial_models["xsigma"] = known_fns["compensator"]

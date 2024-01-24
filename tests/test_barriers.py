@@ -5,7 +5,7 @@ import torch
 import z3
 
 from barriers import make_barrier
-from models.torchsym import TorchSymModel
+from models.torchsym import TorchSymDiffModel, TorchSymModel
 from systems import make_system, add_uncertainty
 
 
@@ -15,7 +15,7 @@ class TestBarriers(unittest.TestCase):
 
         barrier_dict = make_barrier(system=system)
         cbf = barrier_dict["barrier"]
-        assert isinstance(cbf, TorchSymModel), f"expected TorchSymModel, got {type(cbf)}"
+        assert isinstance(cbf, TorchSymDiffModel), f"expected TorchSymModel, got {type(cbf)}"
 
         x = torch.rand((1000, system.n_vars))
 
@@ -33,7 +33,7 @@ class TestBarriers(unittest.TestCase):
 
         barrier_dict = make_barrier(system=system)
         cbf = barrier_dict["barrier"]
-        assert isinstance(cbf, TorchSymModel), f"expected TorchSymModel, got {type(cbf)}"
+        assert isinstance(cbf, TorchSymDiffModel), f"expected TorchSymModel, got {type(cbf)}"
 
         # test symbolic translation
         sx = z3.Reals("x y")
@@ -59,10 +59,10 @@ class TestBarriers(unittest.TestCase):
 
         # test numerical forward/gradient
         sig = sigma(x=x)
-        assert len(sig.shape) == 1 and sig.shape[0] == x.shape[0], f"expected shape (1000,), got {sig.shape}"
-
-        with self.assertRaises(NotImplementedError, msg="expected NotImplementedError"):
-            dhdx = sigma.gradient(x=x)
+        self.assertTrue(len(sig.shape) == 1 and sig.shape[0] == x.shape[0],
+                        f"expected shape (1000,), got {sig.shape}")
+        self.assertTrue(not hasattr(sigma, "gradient"), msg="compensator doesn't have gradient method")
+        self.assertTrue(not hasattr(sigma, "gradient_smt"), msg="compensator doesn't have gradient_smt method")
 
     def test_single_integrator_sigma_smt(self):
         system_fn = make_system("single_integrator")
@@ -77,9 +77,8 @@ class TestBarriers(unittest.TestCase):
         sx = z3.Reals("x y")
         sig = sigma.forward_smt(x=sx)
         self.assertTrue(isinstance(sig, z3.ArithRef), f"expected list of z3.ArithRef, got {type(sig)}")
-
-        with self.assertRaises(NotImplementedError, msg="expected NotImplementedError"):
-            dhdx = sigma.gradient_smt(x=sx)
+        self.assertTrue(not hasattr(sigma, "gradient"), msg="compensator doesn't have gradient method")
+        self.assertTrue(not hasattr(sigma, "gradient_smt"), msg="compensator doesn't have gradient_smt method")
 
 
 

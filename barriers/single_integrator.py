@@ -4,11 +4,11 @@ import numpy as np
 import torch
 
 from fosco.verifier import SYMBOL, FUNCTIONS
-from models.torchsym import TorchSymModel
+from models.torchsym import TorchSymDiffModel, TorchSymModel
 from systems import ControlAffineDynamics, UncertainControlAffineDynamics
 
 
-class SingleIntegratorCBF(TorchSymModel):
+class SingleIntegratorCBF(TorchSymDiffModel):
 
     def __init__(self, system: ControlAffineDynamics):
         super().__init__()
@@ -92,7 +92,7 @@ class SingleIntegratorCBF(TorchSymModel):
 
 class SingleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
 
-    def __init__(self, h: TorchSymModel, system: UncertainControlAffineDynamics):
+    def __init__(self, h: TorchSymDiffModel, system: UncertainControlAffineDynamics):
         super().__init__()
         self._system = system
         self._h = h # CBF (we use its gradient)
@@ -117,17 +117,6 @@ class SingleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
         sigma = _Sqrt(dhdx[0, 0] ** 2 + dhdx[0, 1] ** 2) * self._z_bound
         self._assert_forward_smt_output(x=sigma)
         return sigma
-
-    def gradient(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Never used. Do we need it?
-        """
-        raise NotImplementedError("the gradient of the compensator is not used in the optimization")
-    def gradient_smt(self, x: Iterable[SYMBOL]) -> Iterable[SYMBOL]:
-        """
-        Never used. Do we need it?
-        """
-        raise NotImplementedError("the gradient of the compensator is not used in the optimization")
 
     def _assert_forward_input(self, x: torch.Tensor) -> None:
         state_dim = self._system.n_vars

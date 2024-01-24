@@ -37,7 +37,19 @@ class TorchSymDiffFn(TorchSymFn, ABC):
         raise NotImplementedError
 
 
-class TorchSymModel(TorchSymDiffFn, ABC):
+class TorchSymModel(TorchSymFn, ABC):
+
+    @abstractmethod
+    def save(self, outdir: str):
+        raise NotImplementedError
+
+    @staticmethod
+    @abstractmethod
+    def load(logdir: str):
+        raise NotImplementedError
+
+
+class TorchSymDiffModel(TorchSymDiffFn, ABC):
 
     @abstractmethod
     def save(self, outdir: str):

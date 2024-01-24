@@ -93,9 +93,13 @@ class Verifier:
     def verify(
         self,
         V_symbolic: SYMBOL,
+        V_symbolic_constr: Iterable[SYMBOL],
         sigma_symbolic: SYMBOL,
+        sigma_symbolic_constr: Iterable[SYMBOL],
         Vdot_symbolic: SYMBOL,
+        Vdot_symbolic_constr: Iterable[SYMBOL],
         Vdotz_symbolic: SYMBOL,
+        Vdotz_symbolic_constr: Iterable[SYMBOL],
         **kwargs,
     ):
         """
@@ -110,7 +114,11 @@ class Verifier:
         found, timed_out = False, False
         # todo: different verifier may require different inputs -> clean call constraints_method
         fmls = self.constraints_method(
-            self, V_symbolic, sigma_symbolic, Vdot_symbolic, Vdotz_symbolic
+            self,
+            V_symbolic, V_symbolic_constr,
+            sigma_symbolic, sigma_symbolic_constr,
+            Vdot_symbolic, Vdot_symbolic_constr,
+            Vdotz_symbolic, Vdotz_symbolic_constr,
         )
         results = {}
         solvers = {}
@@ -162,7 +170,7 @@ class Verifier:
 
                     ces[label] = self.randomise_counterex(original_point)
                 else:
-                    self._logger.info(res)
+                    self._logger.info(f"{label}: {res}")
 
         return {"found": found, "cex": ces}
 
@@ -225,7 +233,7 @@ class Verifier:
 
 class VerifierZ3(Verifier):
     @staticmethod
-    def new_vars(n, base="x"):
+    def new_vars(n, base="x") -> list[SYMBOL]:
         return [z3.Real(base + str(i)) for i in range(n)]
 
     def new_solver(self):

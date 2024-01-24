@@ -50,7 +50,7 @@ class ControlBarrierFunction(Certificate):
         self.u_vars = vars["u"]
 
         self.x_domain: SYMBOL = domains[XD].generate_domain(self.x_vars)
-        self.u_set: Set = domains[UD]
+        self.u_set: Rectangle = domains[UD]
         self.u_domain: SYMBOL = domains[UD].generate_domain(self.u_vars)
         self.initial_domain: SYMBOL = domains[XI].generate_domain(self.x_vars)
         self.unsafe_domain: SYMBOL = domains[XU].generate_domain(self.x_vars)
@@ -65,7 +65,7 @@ class ControlBarrierFunction(Certificate):
         self._logger.setLevel(LOGGING_LEVELS[verbose])
         self._logger.debug("CBF initialized")
 
-    def get_constraints(self, verifier, B, sigma, Bdot, *args) -> Generator:
+    def get_constraints(self, verifier, B, B_constr, sigma, sigma_constr, Bdot, Bdot_constr, *args) -> Generator:
         """
         :param verifier: verifier object
         :param B: symbolic formula of the CBF
@@ -74,48 +74,91 @@ class ControlBarrierFunction(Certificate):
         :return: tuple of dictionaries of Barrier conditons
         """
         # todo extend signature with **kwargs
-        _True = verifier.solver_fncts()["True"]
-        _And = verifier.solver_fncts()["And"]
-        _Or = verifier.solver_fncts()["Or"]
-        _Not = verifier.solver_fncts()["Not"]
-        _Substitute = verifier.solver_fncts()["Substitute"]
-        _RealVal = verifier.solver_fncts()["RealVal"]
-
-        alpha = lambda x: 1.0 * x   # todo make it part of the cbf and pass it in input
 
         # Bx >= 0 if x \in initial
         # counterexample: B < 0 and x \in initial
-        initial_constr = _And(B < 0, self.initial_domain)
-        inital_constr = _And(initial_constr, self.x_domain)
+        inital_constr = self._init_constraint_smt(verifier, B, B_constr)
 
         # Bx < 0 if x \in unsafe
         # counterexample: B >= 0 and x \in unsafe
-        unsafe_constr = _And(B >= 0, self.unsafe_domain)
-        unsafe_constr = _And(unsafe_constr, self.x_domain)
+        unsafe_constr = self._unsafe_constraint_smt(verifier, B, B_constr)
 
         # feasibility condition
         # exists u Bdot + alpha * Bx >= 0 if x \in domain
         # counterexample: x \in domain s.t. forall u Bdot + alpha * Bx < 0
-        #
-        # note: smart trick for tractable verification using vertices of input convex-hull
-        # counterexample: x \in domain and AND_v (u=v and Bdot + alpha * Bx < 0)
+        alpha = lambda x: x  # todo make it part of the cbf and pass it in input
+        feasible_constr = self._feasibility_constraint_smt(verifier, B, B_constr, Bdot, Bdot_constr, alpha)
+
+        logging.debug(f"inital_constr: {inital_constr}")
+        logging.debug(f"unsafe_constr: {unsafe_constr}")
+        logging.debug(f"lie_constr: {feasible_constr}")
+
+        for cs in (
+                {XI: (inital_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
+                {XD: (feasible_constr, self.x_vars + self.u_vars)},
+        ):
+            yield cs
+
+    def _init_constraint_smt(self, verifier, B, B_constr) -> SYMBOL:
+        """
+        Initial constraint for CBF: the barrier must be non-negative in the initial set.
+        spec: Bx >= 0 if x \in initial
+        counterexample: B < 0 and x \in initial
+        """
+        _And = verifier.solver_fncts()["And"]
+
+        initial_constr = B < 0
+        for c in B_constr:
+            initial_constr = _And(initial_constr, c)
+        initial_constr = _And(initial_constr, self.initial_domain)  # add initial domain constraints
+        inital_constr = _And(initial_constr, self.x_domain)  # add state domain constraints (redundant)
+
+        return inital_constr
+
+    def _unsafe_constraint_smt(self, verifier, B, B_constr) -> SYMBOL:
+        """
+        Unsafe constraint for CBF: the barrier must be negative in the unsafe set.
+
+        spec: Bx < 0 if x \in unsafe
+        counterexample: B >= 0 and x \in unsafe
+        """
+        _And = verifier.solver_fncts()["And"]
+        unsafe_constr = B >= 0
+
+        for c in B_constr:
+            unsafe_constr = _And(unsafe_constr, c)
+        unsafe_constr = _And(unsafe_constr, self.unsafe_domain)
+        unsafe_constr = _And(unsafe_constr, self.x_domain)
+        return unsafe_constr
+
+    def _feasibility_constraint_smt(self, verifier, B, B_constr, Bdot, Bdot_constr, alpha) -> SYMBOL:
+        """
+        Feasibility constraint
+
+        spec: exists u Bdot + alpha * Bx >= 0 if x \in domain
+        counterexample: x \in domain s.t. forall u Bdot + alpha * Bx < 0
+
+        Note: trick for tractable verification using vertices of input convex-hull
+        counterexample: x \in domain and AND_v (u=v and Bdot + alpha * Bx < 0)
+        """
+        _And = verifier.solver_fncts()["And"]
+        _Substitute = verifier.solver_fncts()["Substitute"]
+        _RealVal = verifier.solver_fncts()["RealVal"]
+
         u_vertices = self.u_set.get_vertices()
-        lie_constr = _And(self.x_domain, B >= 0)
+        lie_constr = B >= 0
+        for c in B_constr:
+            lie_constr = _And(lie_constr, c)
+        lie_constr = _And(lie_constr, self.x_domain)
         for u_vert in u_vertices:
             vertex_constr = Bdot + alpha(B) < 0
+            for c in Bdot_constr:
+                vertex_constr = _And(vertex_constr, c)
             for u_var, u_val in zip(self.u_vars, u_vert):
                 vertex_constr = _Substitute(vertex_constr, (u_var, _RealVal(u_val)))
             lie_constr = _And(lie_constr, vertex_constr)
 
-        logging.debug(f"lie_constr: {lie_constr}")
-        logging.debug(f"inital_constr: {inital_constr}")
-        logging.debug(f"unsafe_constr: {unsafe_constr}")
-
-        for cs in (
-                {XI: (inital_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
-                {XD: (lie_constr, self.x_vars + self.u_vars)},
-        ):
-            yield cs
+        return lie_constr
 
     @staticmethod
     def _assert_state(domains, data):
@@ -143,7 +186,7 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
             verbose: int = 0,
     ):
         super(TrainableCBF, self).__init__(system=system, vars=vars, domains=domains,
-                                                     config=config, verbose=verbose)
+                                           config=config, verbose=verbose)
 
         # loss parameters
         self.loss_relu = config.LOSS_RELU

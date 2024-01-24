@@ -37,10 +37,10 @@ class TestBarriers(unittest.TestCase):
 
         # test symbolic translation
         sx = z3.Reals("x y")
-        hx = cbf.forward_smt(x=sx)
+        hx, constr = cbf.forward_smt(x=sx)
         assert isinstance(hx, z3.ArithRef), f"expected z3.ArithRef, got {type(hx)}"
 
-        dhdx = cbf.gradient_smt(x=sx)
+        dhdx, constr = cbf.gradient_smt(x=sx)
         self.assertTrue(isinstance(dhdx, np.ndarray),
                         f"expected np array, got {type(dhdx)}")
         self.assertTrue(all(isinstance(dhdxi, z3.ArithRef) for dhdxi in dhdx[0]),
@@ -75,7 +75,7 @@ class TestBarriers(unittest.TestCase):
 
         # test symbolic translation
         sx = z3.Reals("x y")
-        sig = sigma.forward_smt(x=sx)
+        sig, constr = sigma.forward_smt(x=sx)
         self.assertTrue(isinstance(sig, z3.ArithRef), f"expected list of z3.ArithRef, got {type(sig)}")
         self.assertTrue(not hasattr(sigma, "gradient"), msg="compensator doesn't have gradient method")
         self.assertTrue(not hasattr(sigma, "gradient_smt"), msg="compensator doesn't have gradient_smt method")

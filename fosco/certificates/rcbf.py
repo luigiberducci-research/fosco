@@ -52,7 +52,7 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
         self.z_domain: SYMBOL = domains[ZD].generate_domain(self.z_vars)
         self.n_uncertain = len(self.z_vars)
 
-    def get_constraints(self, verifier, B, sigma, Bdot, Bdotz) -> Generator:
+    def get_constraints(self, verifier, B, B_constr, sigma, sigma_constr, Bdot, Bdot_constr, Bdotz, Bdotz_constr) -> Generator:
         """
         :param verifier: verifier object
         :param B: symbolic formula of the CBF
@@ -187,8 +187,11 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
         :param datasets: dictionary of (string,torch.Tensor) pairs
         :param f_torch: callable
         """
-
         # todo extend signature with **kwargs
+
+        if optimizer is None:
+            return {}
+
         condition_old = False
         i1 = datasets[XD].shape[0]
         i2 = datasets[XI].shape[0]

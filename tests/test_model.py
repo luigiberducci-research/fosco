@@ -27,11 +27,14 @@ class TestModel(unittest.TestCase):
 
         # symbolic
         x_sym = z3.Reals("x0 x1")
-        y_sym = model.forward_smt(x_sym)
-        dydx_sym = model.gradient_smt(x_sym)
+        y_sym, y_constr = model.forward_smt(x_sym)
+        dydx_sym, dydx_constr = model.gradient_smt(x_sym)
 
         self.assertTrue(isinstance(y_sym, z3.ArithRef))
+        self.assertTrue(all([isinstance(c, z3.BoolRef) for c in y_constr]))
         self.assertTrue(all([isinstance(dydx, z3.ArithRef) for dydx in dydx_sym[0]]), f"dydx_sym: {dydx_sym}")
+        self.assertTrue(all([isinstance(c, z3.BoolRef) for c in dydx_constr]))
+
 
 
 

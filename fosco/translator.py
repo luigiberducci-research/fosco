@@ -21,7 +21,6 @@ class Translator(ABC):
         raise NotImplementedError
 
 
-
 class MLPZ3Translator(Translator):
     """
     Symbolic translator for feed-forward neural networks to z3 expressions.
@@ -35,11 +34,11 @@ class MLPZ3Translator(Translator):
         self._logger.debug("Translator initialized")
 
     def translate(
-        self,
-        x_v_map: dict[str, Iterable[SYMBOL]],
-        V_net: TorchMLP,
-        xdot: Iterable[SYMBOL],
-        **kwargs,
+            self,
+            x_v_map: dict[str, Iterable[SYMBOL]],
+            V_net: TorchMLP,
+            xdot: Iterable[SYMBOL],
+            **kwargs,
     ):
         """
         Translate a network forward pass and gradients into a symbolic expression
@@ -58,8 +57,9 @@ class MLPZ3Translator(Translator):
         x_vars = x_v_map["v"]
         xdot = np.array(xdot).reshape(-1, 1)
 
-        V_symbolic = V_net.forward_smt(x=x_vars)
-        Vdot_symbolic = (V_net.gradient_smt(x=x_vars) @ xdot)[0, 0]
+        V_symbolic, V_symbolic_constr = V_net.forward_smt(x=x_vars)
+        Vgrad_symbolic, Vdot_symbolic_constr = V_net.gradient_smt(x=x_vars)
+        Vdot_symbolic = (Vgrad_symbolic @ xdot)[0, 0]
 
         assert isinstance(
             V_symbolic, z3.ArithRef
@@ -71,10 +71,9 @@ class MLPZ3Translator(Translator):
         return {
             "V_symbolic": V_symbolic,
             "Vdot_symbolic": Vdot_symbolic,
+            "V_symbolic_constr": V_symbolic_constr,
+            "Vdot_symbolic_constr": Vdot_symbolic_constr,
         }
-
-
-
 
 
 class RobustMLPZ3Translator(MLPZ3Translator):
@@ -83,13 +82,13 @@ class RobustMLPZ3Translator(MLPZ3Translator):
     """
 
     def translate(
-        self,
-        x_v_map: dict[str, Iterable[SYMBOL]],
-        V_net: TorchMLP,
-        sigma_net: TorchMLP,
-        xdot: Iterable[SYMBOL],
-        xdotz: Iterable[SYMBOL] = None,
-        **kwargs,
+            self,
+            x_v_map: dict[str, Iterable[SYMBOL]],
+            V_net: TorchMLP,
+            sigma_net: TorchMLP,
+            xdot: Iterable[SYMBOL],
+            xdotz: Iterable[SYMBOL] = None,
+            **kwargs,
     ):
         """
         Translate a network forward pass and gradients into a symbolic expression
@@ -114,10 +113,11 @@ class RobustMLPZ3Translator(MLPZ3Translator):
         xdotz = np.array(xdotz).reshape(-1, 1)
 
         # robust cbf: compensation term
-        sigma_symbolic = sigma_net.forward_smt(x=x_vars)
+        sigma_symbolic, sigma_symbolic_constr = sigma_net.forward_smt(x=x_vars)
 
         # lie derivative under uncertain dynamics
-        Vdotz_symbolic = (V_net.gradient_smt(x=x_vars) @ xdotz)[0, 0]
+        Vgrad_symbolic, Vdotz_symbolic_constr = V_net.gradient_smt(x=x_vars)
+        Vdotz_symbolic = (Vgrad_symbolic @ xdotz)[0, 0]
 
         assert isinstance(
             sigma_symbolic, z3.ArithRef
@@ -127,17 +127,22 @@ class RobustMLPZ3Translator(MLPZ3Translator):
         ), f"Expected Vdot_symbolic to be z3.ArithRef, got {type(Vdotz_symbolic)}"
 
         symbolic_dict.update(
-            {"Vdotz_symbolic": Vdotz_symbolic, "sigma_symbolic": sigma_symbolic,}
+            {
+                "Vdotz_symbolic": Vdotz_symbolic,
+                "sigma_symbolic": sigma_symbolic,
+                "sigma_symbolic_constr": sigma_symbolic_constr,
+                "Vdotz_symbolic_constr": Vdotz_symbolic_constr,
+            }
         )
 
         return symbolic_dict
 
 
 def make_translator(
-    certificate_type: CertificateType,
-    verifier_type: VerifierType,
-    time_domain: TimeDomain,
-    **kwargs,
+        certificate_type: CertificateType,
+        verifier_type: VerifierType,
+        time_domain: TimeDomain,
+        **kwargs,
 ) -> Translator:
     """
     Factory function for translators.

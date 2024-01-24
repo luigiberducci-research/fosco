@@ -78,7 +78,7 @@ class TorchMLP(TorchSymDiffModel):
 
         return y
 
-    def forward_smt(self, x: Iterable[SYMBOL]) -> SYMBOL:
+    def forward_smt(self, x: Iterable[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL]]:
         input_vars = np.array(x).reshape(-1, 1)
 
         z, _ = network_until_last_layer(net=self, input_vars=input_vars, round=self.round)
@@ -96,7 +96,7 @@ class TorchMLP(TorchSymDiffModel):
         # last activation
         z = activation_sym(self.acts[-1], z)
 
-        return z[0, 0]
+        return z[0, 0], []
 
     def gradient(self, x: torch.Tensor) -> torch.Tensor:
         x_clone = torch.clone(x).requires_grad_()
@@ -110,7 +110,7 @@ class TorchMLP(TorchSymDiffModel):
         )[0]
         return dydx
 
-    def gradient_smt(self, x: Iterable[SYMBOL]) -> Iterable[SYMBOL]:
+    def gradient_smt(self, x: Iterable[SYMBOL]) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL]]:
         input_vars = np.array(x).reshape(-1, 1)
 
         z, jacobian = network_until_last_layer(net=self, input_vars=input_vars, round=self.round)
@@ -138,7 +138,7 @@ class TorchMLP(TorchSymDiffModel):
             self.input_size,
         ), f"Wrong shape of gradV, expected (1, {self.input_size}), got {gradV.shape}"
 
-        return gradV
+        return gradV, []
 
     def save(self, outdir: str):
         import pathlib

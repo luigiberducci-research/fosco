@@ -32,8 +32,9 @@ class TestTranslator(unittest.TestCase):
 
         translator = MLPZ3Translator(rounding=-1)
 
-        expr_nn = nn.forward_smt(x=x)
-        expr_nndot = (nn.gradient_smt(x=x) @ xdot)[0, 0]
+        expr_nn, constr_nn = nn.forward_smt(x=x)
+        expr_nn_grad, constr = nn.gradient_smt(x=x)
+        expr_nndot = (expr_nn_grad @ xdot)[0, 0]
         assert isinstance(expr_nn, z3.ArithRef)
         assert isinstance(expr_nndot, z3.ArithRef)
 
@@ -75,8 +76,9 @@ class TestTranslator(unittest.TestCase):
 
         translator = MLPZ3Translator(rounding=-1)
 
-        expr_nn = nn.forward_smt(x=x)
-        expr_nndot = (nn.gradient_smt(x=x) @ xdot)[0, 0]
+        expr_nn, constr_nn = nn.forward_smt(x=x)
+        expr_grad_smt, constr = nn.gradient_smt(x=x)
+        expr_nndot = (expr_grad_smt @ xdot)[0, 0]
         assert isinstance(expr_nn, z3.ArithRef)
         assert isinstance(expr_nndot, z3.ArithRef)
 
@@ -147,8 +149,9 @@ class TestTranslator(unittest.TestCase):
 
         translator = MLPZ3Translator(rounding=-1)
 
-        expr_nn = nn.forward_smt(x=x)
-        expr_nndot = (nn.gradient_smt(x=x) @ xdot)[0, 0]
+        expr_nn, constr_nn = nn.forward_smt(x=x)
+        expr_grad_smt, constr = nn.gradient_smt(x=x)
+        expr_nndot = (expr_grad_smt @ xdot)[0, 0]
         assert isinstance(expr_nn, z3.ArithRef)
         assert isinstance(expr_nndot, z3.ArithRef)
 
@@ -252,8 +255,9 @@ class TestTranslator(unittest.TestCase):
 
         translator = MLPZ3Translator(rounding=-1)
 
-        expr_nn = nn.forward_smt(x=x)
-        expr_nndot = (nn.gradient_smt(x=x) @ xdot)[0, 0]
+        expr_nn, constr_nn = nn.forward_smt(x=x)
+        expr_grad_smt, constr = nn.gradient_smt(x=x)
+        expr_nndot = (expr_grad_smt @ xdot)[0, 0]
         assert isinstance(expr_nn, z3.ArithRef)
         assert isinstance(expr_nndot, z3.ArithRef)
 
@@ -307,8 +311,9 @@ class TestTranslator(unittest.TestCase):
 
         translator = MLPZ3Translator(rounding=-1)
 
-        expr_nn = nn.forward_smt(x=x)
-        expr_nndot = (nn.gradient_smt(x=x) @ xdot)[0, 0]
+        expr_nn, constr_nn = nn.forward_smt(x=x)
+        expr_grad_smt, constr = nn.gradient_smt(x=x)
+        expr_nndot = (expr_grad_smt @ xdot)[0, 0]
         assert isinstance(expr_nn, z3.ArithRef)
         assert isinstance(expr_nndot, z3.ArithRef)
 

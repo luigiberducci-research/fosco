@@ -24,10 +24,16 @@ class TestVerifier(unittest.TestCase):
         C = vars[0] + 1.0
         dC = vars[0] + 6.0
         results = verifier.verify(
-            V_symbolic=C, Vdot_symbolic=dC, sigma_symbolic=None, Vdotz_symbolic=None
+            V_symbolic=C, V_symbolic_constr=[],
+            Vdot_symbolic=dC, Vdot_symbolic_constr=[],
+            sigma_symbolic=None, sigma_symbolic_constr=[],
+            Vdotz_symbolic=None, Vdotz_symbolic_constr=[]
         )
         results2 = verifier2.verify(
-            V_symbolic=C, Vdot_symbolic=dC, sigma_symbolic=None, Vdotz_symbolic=None
+            V_symbolic=C, V_symbolic_constr=[],
+            Vdot_symbolic=dC, Vdot_symbolic_constr=[],
+            sigma_symbolic=None, sigma_symbolic_constr=[],
+            Vdotz_symbolic=None, Vdotz_symbolic_constr=[]
         )
 
         self.assertTrue(

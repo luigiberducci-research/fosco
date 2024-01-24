@@ -2,8 +2,9 @@ from typing import Iterable
 
 import numpy as np
 import torch
+import z3
 
-from fosco.verifier import SYMBOL, FUNCTIONS
+from fosco.verifier import SYMBOL, FUNCTIONS, VerifierZ3
 from models.torchsym import TorchSymDiffModel, TorchSymModel
 from systems import ControlAffineDynamics, UncertainControlAffineDynamics
 
@@ -25,11 +26,11 @@ class SingleIntegratorCBF(TorchSymDiffModel):
         self._assert_forward_output(x=hx)
         return hx
 
-    def forward_smt(self, x: list[SYMBOL]) -> SYMBOL:
+    def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL]]:
         self._assert_forward_smt_input(x=x)
         hx = x[0] ** 2 + x[1] ** 2 - self._safety_dist ** 2
         self._assert_forward_smt_output(x=hx)
-        return hx
+        return hx, []
 
     def gradient(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -43,14 +44,14 @@ class SingleIntegratorCBF(TorchSymDiffModel):
         ], dim=-1)
         self._assert_gradient_output(x=hx)
         return hx
-    def gradient_smt(self, x: Iterable[SYMBOL]) -> Iterable[SYMBOL]:
+    def gradient_smt(self, x: Iterable[SYMBOL]) ->  tuple[Iterable[SYMBOL], Iterable[SYMBOL]]:
         self._assert_forward_smt_input(x=x)
         hx = np.array([[
             2 * x[0],
             2 * x[1]
         ]])
         self._assert_gradient_smt_output(x=hx)
-        return hx
+        return hx, []
 
     def _assert_forward_input(self, x: torch.Tensor) -> None:
         state_dim = self._system.n_vars
@@ -78,7 +79,7 @@ class SingleIntegratorCBF(TorchSymDiffModel):
 
     def _assert_gradient_smt_output(self, x: Iterable[SYMBOL]) -> None:
         state_dim = self._system.n_vars
-        assert (len(x.shape) == 2, f"expected shape (1, {state_dim}), got {x.shape}")
+        assert len(x.shape) == 2, f"expected shape (1, {state_dim}), got {x.shape}"
         assert x.shape[1] == state_dim, f"expected shape (1, {state_dim}), got {x.shape}"
         assert all([isinstance(xi, SYMBOL) for xi in x[0]]), f"expected symbolic grad w.r.t. input, got {x}"
 
@@ -110,13 +111,26 @@ class SingleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
         self._assert_forward_output(x=sigma)
         return sigma
 
-    def forward_smt(self, x: list[SYMBOL]) -> SYMBOL:
+    def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL]]:
+        """
+        Problem: z3 is not able to cope with sqrt.
+
+        Solution: forward pass as conjunction of two constraints
+        - note that sigma = sqrt(dhdx[0] ** 2 + dhdx[1] ** 2) is equivalent to
+          sigma ** 2 = dhdx[0] ** 2 + dhdx[1] ** 2
+        - then we forward pass as
+        And(sigma * z_bound, sigma ** 2 = dhdx[0] ** 2 + dhdx[1] ** 2)
+        """
         self._assert_forward_smt_input(x=x)
-        _Sqrt = FUNCTIONS["Sqrt"]
-        dhdx = self._h.gradient_smt(x=x)
-        sigma = _Sqrt(dhdx[0, 0] ** 2 + dhdx[0, 1] ** 2) * self._z_bound
+        _And = FUNCTIONS["And"]
+
+        dhdx, constraints = self._h.gradient_smt(x=x)
+        norm = VerifierZ3.new_vars(n=1, base="norm")[0]
+        constraint = norm * norm == dhdx[0, 0] ** 2 + dhdx[0, 1] ** 2
+        sigma = norm * self._z_bound
+
         self._assert_forward_smt_output(x=sigma)
-        return sigma
+        return sigma, constraints + [constraint]
 
     def _assert_forward_input(self, x: torch.Tensor) -> None:
         state_dim = self._system.n_vars

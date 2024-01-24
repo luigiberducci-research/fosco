@@ -350,10 +350,16 @@ class Cegis:
             "xdot_func": self.f._f_torch,  # numerical dynamics function
             "datasets": self.datasets,  # dictionary of datasets of training data
             "x_v_map": self.x_map,  # dictionary of symbolic variables
+
             "V_symbolic": None,  # symbolic expression of cbf
+            "V_symbolic_constr": None,  # extra constraints to use with V_symbolic (eg., extra vars)
             "sigma_symbolic": None,  # symbolic expression of compensator sigma
+            "sigma_symbolic_constr": None,  # extra constraints to use with sigma_symbolic (eg., extra vars)
             "Vdot_symbolic": None,  # symbolic expression of lie derivative w.r.t. nominal dynamics
+            "Vdot_symbolic_constr": None,  # extra constraints to use with Vdot_symbolic (eg., extra vars)
             "Vdotz_symbolic": None,  # symbolic expression of lie derivative w.r.t. uncertain dynamics
+            "Vdotz_symbolic_constr": None,  # extra constraints to use with Vdotz_symbolic (eg., extra vars)
+
             "xdot": self.xdot,  # symbolic expression of nominal dynamics
             "xdotz": self.xdotz,  # symbolic expression of uncertain dynamics
             "cex": None,  # counterexamples

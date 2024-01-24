@@ -12,7 +12,8 @@ class TestBarriers(unittest.TestCase):
     def test_single_integrator_cbf_torch(self):
         system = make_system("single_integrator")()
 
-        cbf = make_barrier("single_integrator", system=system)
+        barrier_dict = make_barrier(system=system)
+        cbf = barrier_dict["barrier"]
         assert isinstance(cbf, TorchSymModel), f"expected TorchSymModel, got {type(cbf)}"
 
         x = torch.rand((1000, system.n_vars, 1))
@@ -27,7 +28,8 @@ class TestBarriers(unittest.TestCase):
     def test_single_integrator_cbf_smt(self):
         system = make_system("single_integrator")()
 
-        cbf = make_barrier("single_integrator", system=system)
+        barrier_dict = make_barrier(system=system)
+        cbf = barrier_dict["barrier"]
         assert isinstance(cbf, TorchSymModel), f"expected TorchSymModel, got {type(cbf)}"
 
         # test symbolic translation

@@ -142,7 +142,9 @@ class TestCEGIS(unittest.TestCase):
 
     def test_single_integrator_rcbf_example(self):
         """
-        Test the single integrator example. We expect to find a certificate in a couple of iterations.
+        Test the use of RCBF for single-integrator with additive uncertainty.
+        Since at the moment, we dont have a simple example with uncertainty>0 that works in a couple of iter,
+        this test simply checks that the code runs using a dummy zero uncertainty.
         """
         import fosco
         from systems import make_system

@@ -5,6 +5,7 @@ import torch
 import z3
 
 from fosco.common.consts import ActivationType
+from systems import make_domains
 
 
 class TestModel(unittest.TestCase):
@@ -94,4 +95,46 @@ class TestModel(unittest.TestCase):
         )
 
     def test_use_init_model(self):
-        self.assertTrue(False)
+        """
+        This test check the init model is correctly loaded and used.
+        """
+        from systems import make_system
+        from barriers import make_barrier
+        from fosco.config import CegisConfig
+        from fosco.cegis import Cegis
+
+        system_type = "single_integrator"
+        system_fn = make_system(system_type)
+        barrier_dict = make_barrier(system=system_fn())
+        init_barrier = barrier_dict["barrier"]
+
+        sets = {
+            k: s for k, s in make_domains(system_id=system_type).items() if k in ["lie", "input", "init", "unsafe"]
+        }
+        data_gen = {
+            "init": lambda n: sets["init"].generate_data(n),
+            "unsafe": lambda n: sets["unsafe"].generate_data(n),
+            "lie": lambda n: torch.concatenate(
+                [sets["lie"].generate_data(n), sets["input"].generate_data(n)], dim=1
+            )
+        }
+
+        cfg = CegisConfig(
+            SYSTEM=system_fn,
+            DOMAINS=sets,
+            DATA_GEN=data_gen,
+            USE_INIT_MODELS=True,
+            CEGIS_MAX_ITERS=10,
+        )
+
+        cegis = Cegis(config=cfg, verbose=2)
+
+        self.assertTrue(isinstance(cegis.learner.net, type(init_barrier)), "type mismatch")
+
+        # numerical check on in-out
+        x = torch.randn(10, 2, 1)
+        y = cegis.learner.net(x)
+        y_init = init_barrier(x)
+        self.assertTrue(torch.allclose(y, y_init), f"expected {y_init}, got {y}")
+
+

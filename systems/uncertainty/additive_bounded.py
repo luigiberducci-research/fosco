@@ -1,13 +1,10 @@
 import numpy as np
 import torch
 
-from systems.system import (
-    UncertainControlAffineDynamics,
-    ControlAffineDynamics,
-)
+from systems.uncertainty.uncertainty_wrapper import UncertaintyWrapper
 
 
-class AdditiveBoundedUncertainty(UncertainControlAffineDynamics):
+class AdditiveBoundedUncertainty(UncertaintyWrapper):
     """
     Wrapper to add additive bounded uncertainty to a system.
         - X, U as in the base system
@@ -15,9 +12,6 @@ class AdditiveBoundedUncertainty(UncertainControlAffineDynamics):
 
     f(x) = f_base(x) + I Z + 0 Z u = f_base(x) + z
     """
-
-    def __init__(self, base_system: ControlAffineDynamics):
-        super().__init__(system=base_system)
 
     @property
     def n_uncertain(self) -> int:
@@ -51,8 +45,9 @@ class AdditiveBoundedUncertainty(UncertainControlAffineDynamics):
         self._assert_symbolic_input(x, z)
         return np.zeros((self.n_vars, self.n_controls))
 
+    @staticmethod
     def _assert_batched_input(
-        self, x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
+            x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
     ) -> None:
         assert (
             len(x.shape) == 3

@@ -114,7 +114,7 @@ class SingleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
         self._assert_forward_smt_input(x=x)
         _Sqrt = FUNCTIONS["Sqrt"]
         dhdx = self._h.gradient_smt(x=x)
-        sigma = _Sqrt(dhdx[0] ** 2 + dhdx[1] ** 2) * self._z_bound
+        sigma = _Sqrt(dhdx[0, 0] ** 2 + dhdx[0, 1] ** 2) * self._z_bound
         self._assert_forward_smt_output(x=sigma)
         return sigma
 

@@ -1,3 +1,4 @@
+from barriers.single_integrator import SingleIntegratorCompensatorAdditiveBoundedUncertainty
 from models.torchsym import TorchSymModel
 from systems import ControlAffineDynamics
 
@@ -5,10 +6,8 @@ from systems import ControlAffineDynamics
 def make_barrier(system: ControlAffineDynamics, **kwargs) -> dict[str, TorchSymModel]:
     if system.id == "single_integrator":
         from barriers.single_integrator import SingleIntegratorCBF
-        return {
-            "barrier": SingleIntegratorCBF(system=system),
-            "compensator": None,
-        }
-
+        barrier = SingleIntegratorCBF(system=system)
+        compensator = SingleIntegratorCompensatorAdditiveBoundedUncertainty(h=barrier, system=system)
+        return {"barrier": barrier, "compensator": compensator}
     else:
         raise NotImplementedError(f"barrier {id} not implemented")

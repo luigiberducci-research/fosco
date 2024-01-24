@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 
 import numpy as np
 import torch
@@ -7,7 +7,7 @@ import z3
 from fosco.common.utils import contains_object
 
 
-class ControlAffineDynamics:
+class ControlAffineDynamics(ABC):
     """
     Implements a controllable dynamical model with control-affine dynamics dx = f(x) + g(x) u
     """
@@ -66,23 +66,11 @@ class ControlAffineDynamics:
         return self.f(v, u)
 
 
-class UncertainControlAffineDynamics(
-    ControlAffineDynamics
-):
+class UncertainControlAffineDynamics(ControlAffineDynamics):
     """
-    Implements a controllable dynamical model with control-affine dynamics dx = f(x) + g(x) u
+    Extends a control-affine dynamical model with additive/multiplicative uncertainty dependent on variables z.
+        dx = f(x) + g(x) u + fz(x, z) + gz(x, z) u
     """
-
-    def __init__(self, system: ControlAffineDynamics):
-        self._base_system = system
-
-    @property
-    def n_vars(self) -> int:
-        return self._base_system.n_vars
-
-    @property
-    def n_controls(self) -> int:
-        return self._base_system.n_controls
 
     @property
     @abstractmethod
@@ -162,3 +150,5 @@ class UncertainControlAffineDynamics(
         only_nominal: bool = False,
     ) -> np.ndarray | torch.Tensor:
         return self.f(v, u, z, only_nominal=only_nominal)
+
+

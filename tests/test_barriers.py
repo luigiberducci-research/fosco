@@ -76,8 +76,7 @@ class TestBarriers(unittest.TestCase):
         # test symbolic translation
         sx = z3.Reals("x y")
         sig = sigma.forward_smt(x=sx)
-        self.assertTrue(all(isinstance(sigi, z3.ArithRef) for sigi in sig),
-                        f"expected list of z3.ArithRef, got {type(sig)}")
+        self.assertTrue(isinstance(sig, z3.ArithRef), f"expected list of z3.ArithRef, got {type(sig)}")
 
         with self.assertRaises(NotImplementedError, msg="expected NotImplementedError"):
             dhdx = sigma.gradient_smt(x=sx)

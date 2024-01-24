@@ -22,12 +22,12 @@ def make_system(system_id: str) -> Type[ControlAffineDynamics]:
 
 
 def add_uncertainty(uncertainty_type: str | None, system_fn: callable) -> callable:
-    from systems.uncertainty_wrappers import AdditiveBoundedUncertainty
+    from systems.uncertainty.additive_bounded import AdditiveBoundedUncertainty
 
     if uncertainty_type is None:
         return system_fn
     if uncertainty_type == "additive_bounded":
-        return lambda: AdditiveBoundedUncertainty(system_fn())
+        return lambda: AdditiveBoundedUncertainty(system=system_fn())
     else:
         raise NotImplementedError(f"Uncertainty {uncertainty_type} not implemented")
 

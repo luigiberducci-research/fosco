@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import z3
 
-from systems.uncertainty_wrappers import AdditiveBoundedUncertainty
+from systems.uncertainty.additive_bounded import AdditiveBoundedUncertainty
 from tests.test_translator import check_smt_equivalence
 
 
@@ -57,7 +57,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         T = 10.0
         dt = 0.1
 
-        f = AdditiveBoundedUncertainty(base_system=SingleIntegrator())
+        f = AdditiveBoundedUncertainty(system=SingleIntegrator())
 
         t = dt
         while t < T:
@@ -77,7 +77,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         T = 10.0
         dt = 0.1
 
-        f = AdditiveBoundedUncertainty(base_system=DoubleIntegrator())
+        f = AdditiveBoundedUncertainty(system=DoubleIntegrator())
 
         t = dt
         while t < T:
@@ -104,7 +104,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         u = [z3.Real(var) for var in input_vars]
         z = [z3.Real(var) for var in uncertain_vars]
 
-        f = AdditiveBoundedUncertainty(base_system=SingleIntegrator())
+        f = AdditiveBoundedUncertainty(system=SingleIntegrator())
 
         xdot = f.f(x, u, z)
 
@@ -132,7 +132,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         dt = 0.1
 
         f = SingleIntegrator()
-        fz = AdditiveBoundedUncertainty(base_system=SingleIntegrator())
+        fz = AdditiveBoundedUncertainty(system=SingleIntegrator())
 
         t = dt
         while t < T:
@@ -163,7 +163,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         z = [z3.Real(var) for var in uncertain_vars]
 
         f = SingleIntegrator()
-        fz = AdditiveBoundedUncertainty(base_system=SingleIntegrator())
+        fz = AdditiveBoundedUncertainty(system=SingleIntegrator())
 
         xdot = f.f(x, u)
         xdotz = fz.f(x, u, z, only_nominal=True)
@@ -179,7 +179,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         from systems.single_integrator import SingleIntegrator
 
         f = SingleIntegrator()
-        fz = AdditiveBoundedUncertainty(base_system=SingleIntegrator())
+        fz = AdditiveBoundedUncertainty(system=SingleIntegrator())
 
         self.assertEqual(f.n_vars, fz.n_vars)
         self.assertEqual(f.n_controls, fz.n_controls)
@@ -190,7 +190,22 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         self.assertTrue(torch.isclose(f.gx_torch(x), fz.gx_torch(x)).all())
 
         sx = z3.Reals("x y")
-        self.assertTrue([check_smt_equivalence(f1, f2) for f1, f2 in zip(f.fx_smt(sx), fz.fx_smt(sx))])
-        self.assertTrue([check_smt_equivalence(f1, f2) for f1, f2 in zip(f.gx_smt(sx), fz.gx_smt(sx))])
-
-
+        # check equivalence for each term in the array of symbolic expressions, fx.shape = (n_vars,)
+        self.assertTrue(
+            all(
+                [
+                    f1 == f2 or check_smt_equivalence(f1, f2)
+                    for f1, f2 in zip(f.fx_smt(sx), fz.fx_smt(sx))
+                ]
+            )
+        )
+        # check equivalence for each term in the matrix of symbolic expressions, gx.shape = (n_vars, n_controls)
+        self.assertTrue(
+            all(
+                [
+                    f1 == f2 or check_smt_equivalence(f1, f2)
+                    for fv1, fv2 in zip(f.gx_smt(sx), fz.gx_smt(sx))
+                    for f1, f2 in zip(fv1, fv2)
+                ]
+            )
+        )

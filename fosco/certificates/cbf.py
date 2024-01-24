@@ -81,7 +81,7 @@ class ControlBarrierFunction(Certificate):
         _Substitute = verifier.solver_fncts()["Substitute"]
         _RealVal = verifier.solver_fncts()["RealVal"]
 
-        alpha = lambda x: 1.0 * x
+        alpha = lambda x: 1.0 * x   # todo make it part of the cbf and pass it in input
 
         # Bx >= 0 if x \in initial
         # counterexample: B < 0 and x \in initial
@@ -100,7 +100,7 @@ class ControlBarrierFunction(Certificate):
         # note: smart trick for tractable verification using vertices of input convex-hull
         # counterexample: x \in domain and AND_v (u=v and Bdot + alpha * Bx < 0)
         u_vertices = self.u_set.get_vertices()
-        lie_constr = self.x_domain
+        lie_constr = _And(self.x_domain, B >= 0)
         for u_vert in u_vertices:
             vertex_constr = Bdot + alpha(B) < 0
             for u_var, u_val in zip(self.u_vars, u_vert):
@@ -188,8 +188,10 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
         :param datasets: dictionary of (string,torch.Tensor) pairs
         :param f_torch: callable
         """
-
         # todo extend signature with **kwargs
+
+        if optimizer is None:
+            return {}
 
         condition_old = False
         i1 = datasets[XD].shape[0]

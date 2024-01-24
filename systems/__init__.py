@@ -44,7 +44,7 @@ def make_domains(system_id: str) -> dict[str, Set]:
         ZD = domains.Rectangle(vars=zvars, lb=(-1.0, -1.0), ub=(1.0, 1.0))
         XI = domains.Rectangle(vars=xvars, lb=(-5.0, -5.0), ub=(-4.0, -4.0))
         XU = domains.Sphere(
-            vars=xvars, centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1]
+            vars=xvars, centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1], include_boundary=False
         )
     elif system_id == "double_integrator":
         xvars = ["x0", "x1", "x2", "x3"]

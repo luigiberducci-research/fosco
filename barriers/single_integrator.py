@@ -15,6 +15,7 @@ class SingleIntegratorCBF(TorchSymModel):
         self._system = system
         self._safety_dist = 1.0 # todo this should be taken from system
 
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         h(x) = | x - x_o |^2 - R^2
@@ -36,7 +37,7 @@ class SingleIntegratorCBF(TorchSymModel):
         dhdx1 = 2 * x[1]
         """
         self._assert_forward_input(x=x)
-        hx = torch.cat([
+        hx = torch.stack([
             2 * x[:, 0],
             2 * x[:, 1]
         ], dim=-1)
@@ -44,23 +45,22 @@ class SingleIntegratorCBF(TorchSymModel):
         return hx
     def gradient_smt(self, x: Iterable[SYMBOL]) -> Iterable[SYMBOL]:
         self._assert_forward_smt_input(x=x)
-        hx = [
+        hx = np.array([[
             2 * x[0],
             2 * x[1]
-        ]
+        ]])
         self._assert_gradient_smt_output(x=hx)
         return hx
 
     def _assert_forward_input(self, x: torch.Tensor) -> None:
         state_dim = self._system.n_vars
         assert isinstance(x, torch.Tensor), f"expected batch input to be tensor, got {type(x)}"
-        assert len(x.shape) == 3, f"expected batch input (batch, {state_dim}, 1), got {x.shape}"
-        assert x.shape[1:] == (state_dim, 1), f"expected batch input (batch, {state_dim}, 1), got {x.shape}"
+        assert len(x.shape) == 2, f"expected batch input (batch, {state_dim}), got {x.shape}"
+        assert x.shape[1] == state_dim, f"expected batch input (batch, {state_dim}), got {x.shape}"
 
     def _assert_forward_output(self, x: torch.Tensor) -> None:
         assert isinstance(x, torch.Tensor), f"expected batch output to be tensor, got {type(x)}"
-        assert len(x.shape) == 2, f"expected batch output (batch, 1), got {x.shape}"
-        assert x.shape[1] == 1, f"expected batch output (batch, 1), got {x.shape}"
+        assert len(x.shape) == 1, f"expected output of shape (batch,), got {x.shape}"
 
     def _assert_gradient_output(self, x: torch.Tensor) -> None:
         state_dim = self._system.n_vars
@@ -78,8 +78,9 @@ class SingleIntegratorCBF(TorchSymModel):
 
     def _assert_gradient_smt_output(self, x: Iterable[SYMBOL]) -> None:
         state_dim = self._system.n_vars
-        assert len(x) == state_dim, f"expected symbolic gradient w.r.t. input of shape {state_dim}, got {x}"
-        assert all([isinstance(xi, SYMBOL) for xi in x]), f"expected symbolic grad w.r.t. input, got {x}"
+        assert (len(x.shape) == 2, f"expected shape (1, {state_dim}), got {x.shape}")
+        assert x.shape[1] == state_dim, f"expected shape (1, {state_dim}), got {x.shape}"
+        assert all([isinstance(xi, SYMBOL) for xi in x[0]]), f"expected symbolic grad w.r.t. input, got {x}"
 
     def save(self, outdir: str):
         pass

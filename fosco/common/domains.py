@@ -170,10 +170,11 @@ class Rectangle(Set):
 
 
 class Sphere(Set):
-    def __init__(self, centre, radius, vars: list[str] = None, dim_select=None):
+    def __init__(self, centre, radius, vars: list[str] = None, dim_select=None, include_boundary: bool =True):
         self.centre = centre
         self.radius = radius
         self.dimension = len(centre)
+        self.include_boundary = include_boundary
         super().__init__(vars=vars)
         self.dim_select = dim_select
 
@@ -187,38 +188,19 @@ class Sphere(Set):
         """
         if self.dim_select:
             x = [x[i] for i in self.dim_select]
-        return (
-            sum([(x[i] - self.centre[i]) ** 2 for i in range(len(x))])
-            <= self.radius ** 2
-        )
 
-    def generate_boundary(self, x):
-        """
-        param x: data point x
-        returns: symbolic formula for domain boundary
-        """
-        if self.dim_select:
-            x = [x[i] for i in self.dim_select]
-        return (
-            sum([(x[i] - self.centre[i]) ** 2 for i in range(self.dimension)])
-            == self.radius ** 2
-        )
+        if self.include_boundary:
+            domain = (
+                sum([(x[i] - self.centre[i]) ** 2 for i in range(self.dimension)])
+                <= self.radius ** 2
+            )
+        else:
+            domain = (
+                sum([(x[i] - self.centre[i]) ** 2 for i in range(self.dimension)])
+                < self.radius ** 2
+            )
+        return domain
 
-    def generate_interior(self, x):
-        """Returns interior of the sphere
-
-        Args:
-            x (List): symbolic data point x
-
-        Returns:
-            symbolic formula for interior of the sphere
-        """
-        if self.dim_select:
-            x = [x[i] for i in self.dim_select]
-        return (
-            sum([(x[i] - self.centre[i]) ** 2 for i in range(self.dimension)])
-            < self.radius ** 2
-        )
 
     def generate_data(self, batch_size):
         """

@@ -7,6 +7,7 @@ import z3
 
 from fosco.common.utils import contains_object
 from fosco.common.consts import VerifierType
+from fosco.logger import LOGGING_LEVELS
 
 SYMBOL = z3.ArithRef
 INF: float = 1e300
@@ -28,7 +29,7 @@ FUNCTIONS = {
 
 class Verifier:
     def __init__(
-        self, constraints_method: Callable[[], Generator], solver_vars: Iterable[SYMBOL]
+        self, constraints_method: Callable[[], Generator], solver_vars: Iterable[SYMBOL], verbose: int = 0
     ):
         super().__init__()
         self.xs = solver_vars
@@ -47,6 +48,10 @@ class Verifier:
         assert self.counterexample_n > 0
         assert self._n_cex_to_keep > 0
         assert self._solver_timeout > 0
+
+        self._logger = logging.getLogger(__name__)
+        self._logger.setLevel(LOGGING_LEVELS[verbose])
+        self._logger.debug("Translator initialized")
 
     @staticmethod
     def new_vars(n, base: str = "x") -> list[SYMBOL]:
@@ -127,14 +132,14 @@ class Verifier:
                 solver_vars[label] = vars  # todo: select diff vars for input and state
                 # if sat, found counterexample; if unsat, C is lyap
                 if timedout:
-                    logging.info(label + "timed out")
+                    self._logger.info(label + "timed out")
             if any(self.is_sat(res) for res in results.values()):
                 break
 
         ces = {label: [] for label in results.keys()}  # [[] for res in results.keys()]
 
         if all(self.is_unsat(res) for res in results.values()):
-            logging.info("No counterexamples found!")
+            self._logger.info("No counterexamples found!")
             found = True
         else:
             for index, o in enumerate(results.items()):
@@ -143,7 +148,7 @@ class Verifier:
                     original_point = self.compute_model(
                         vars=solver_vars[label], solver=solvers[label], res=res
                     )
-                    logging.info(f"{label}: Counterexample Found: {original_point}")
+                    self._logger.info(f"{label}: Counterexample Found: {original_point}")
 
                     V_ctx = self.replace_point(
                         V_symbolic, solver_vars[label], original_point.numpy().T
@@ -151,12 +156,12 @@ class Verifier:
                     Vdot_ctx = self.replace_point(
                         Vdot_symbolic, solver_vars[label], original_point.numpy().T
                     )
-                    logging.debug("\nV_ctx: {} ".format(V_ctx))
-                    logging.debug("\nVdot_ctx: {} ".format(Vdot_ctx))
+                    self._logger.debug("\nV_ctx: {} ".format(V_ctx))
+                    self._logger.debug("\nVdot_ctx: {} ".format(Vdot_ctx))
 
                     ces[label] = self.randomise_counterex(original_point)
                 else:
-                    logging.info(res)
+                    self._logger.info(res)
 
         return {"found": found, "cex": ces}
 
@@ -173,7 +178,7 @@ class Verifier:
             solver.set("timeout", max(1, self._solver_timeout * 1000))
         except:
             pass
-        logging.debug("Fml: {}".format(fml))
+        self._logger.debug("Fml: {}".format(fml))
         timer = timeit.default_timer()
         res = self._solver_solve(solver, fml)
         timer = timeit.default_timer() - timer

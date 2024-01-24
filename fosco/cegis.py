@@ -15,7 +15,7 @@ from fosco.translator import make_translator
 from fosco.verifier import make_verifier
 from fosco.logger import make_logger, Logger, LOGGING_LEVELS
 from systems.system import UncertainControlAffineDynamics
-from systems.utils import lie_derivative_fn
+from systems.utils import lie_derivative_fn, cbf_condition_fn
 
 
 class Cegis:
@@ -85,7 +85,9 @@ class Cegis:
     def _initialise_verifier(self):
         verifier_type = make_verifier(self.config.VERIFIER)
         verifier_instance = verifier_type(
-            solver_vars=self.x, constraints_method=self.certificate.get_constraints
+            solver_vars=self.x,
+            constraints_method=self.certificate.get_constraints,
+            verbose=self.verbose
         )
         return verifier_instance
 
@@ -267,9 +269,9 @@ class Cegis:
                         + alpha(self.learner.net(x))
                     )
                 else:
-                    func = lambda x: lie_derivative_fn(
-                        certificate=self.learner.net, f=f, ctrl=ctrl
-                    )(x) + alpha(self.learner.net(x))
+                    func = lambda x: cbf_condition_fn(
+                        certificate=self.learner.net, alpha=alpha, f=f, ctrl=ctrl
+                    )(x)
                 fig = plot_func_and_domains(
                     func=func,
                     in_domain=in_domain,
@@ -290,10 +292,6 @@ class Cegis:
                     dim_select=(0, 1),
                 )
                 self.logger.log_image(tag="compensator", image=fig, step=iter)
-
-            if state["found"]:
-                self.tlogger.debug("found valid certificate")
-                break
 
             self.tlogger.info(f"Iteration {iter}")
 
@@ -329,6 +327,10 @@ class Cegis:
             self.tlogger.debug("Consolidator")
             outputs = self.consolidator.get(**state)
             state.update(outputs)
+
+            if state["found"]:
+                self.tlogger.debug("found valid certificate")
+                break
 
         # state = self.process_timers(state)
         self.tlogger.info(f"CEGIS finished after {iter} iterations")

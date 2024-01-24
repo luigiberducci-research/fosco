@@ -92,3 +92,6 @@ class TestModel(unittest.TestCase):
             torch.all(y_batch >= 0.0),
             f"relu output must be non-negative, got {y_batch}",
         )
+
+    def test_use_init_model(self):
+        self.assertTrue(False)

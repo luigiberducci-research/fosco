@@ -26,6 +26,7 @@ class CegisConfig:
     VERIFIER: VerifierType = VerifierType.Z3
     CEGIS_MAX_ITERS: int = 10
     ROUNDING: int = 3
+    USE_INIT_MODELS: bool = False
     # training
     DATA_GEN: dict[str, callable] = None
     N_DATA: int = 500

@@ -62,6 +62,14 @@ class Cegis:
 
     def _initialise_learner(self) -> LearnerNN:
         learner_type = make_learner(system=self.f, time_domain=self.config.TIME_DOMAIN)
+
+        initial_models = {}
+        if self.config.USE_INIT_MODELS:
+            known_fns = make_known_fn(system=self.f)
+            initial_models["net"] = known_fns["barrier"]
+            if self.config.CERTIFICATE == CertificateType.RCBF:
+                initial_models["xsigma"] = known_fns["compensator"]
+
         learner_instance = learner_type(
             state_size=self.f.n_vars,
             learn_method=self.certificate.learn,
@@ -69,6 +77,7 @@ class Cegis:
             activation=self.config.ACTIVATION,
             lr=self.config.LEARNING_RATE,
             weight_decay=self.config.WEIGHT_DECAY,
+            initial_models=initial_models,
         )
         return learner_instance
 
@@ -167,6 +176,9 @@ class Cegis:
         state = self.init_state()
 
         iter = None
+
+        # todo pretrain supervised-learning
+
 
         for iter in range(1, self.config.CEGIS_MAX_ITERS + 1):
 

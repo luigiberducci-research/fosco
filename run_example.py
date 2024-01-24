@@ -12,6 +12,7 @@ def main(args):
     system_type = args.system
     uncertainty_type = args.uncertainty
     certificate_type = CertificateType[args.certificate.upper()]
+    use_init_models = args.use_init_models
     activations = tuple([ActivationType[a.upper()] for a in args.activations])
     n_hidden_neurons = args.n_hidden_neurons
     n_data_samples = args.n_data_samples
@@ -70,6 +71,7 @@ def main(args):
         DOMAINS=sets,
         DATA_GEN=data_gen,
         CERTIFICATE=certificate_type,
+        USE_INIT_MODELS=use_init_models,
         TIME_DOMAIN=TimeDomain.CONTINUOUS,
         VERIFIER=VerifierType.Z3,
         ACTIVATION=activations,
@@ -97,6 +99,7 @@ if __name__ == "__main__":
     parser.add_argument("--system", type=str, default="single_integrator")
     parser.add_argument("--uncertainty", type=str, default=None)
     parser.add_argument("--certificate", type=str, default="cbf")
+    parser.add_argument("--use-init-models", action="store_true")
     parser.add_argument(
         "--activations", type=str, nargs="+", default=["relu", "linear"]
     )

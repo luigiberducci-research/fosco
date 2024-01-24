@@ -5,7 +5,7 @@ import numpy as np
 from gymnasium.core import ObsType, ActType
 
 from fosco.common.domains import Set, Rectangle
-from systems import ControlAffineControllableDynamicalModel
+from systems import ControlAffineDynamics
 
 
 class SystemEnv(gymnasium.Env):
@@ -15,7 +15,7 @@ class SystemEnv(gymnasium.Env):
 
     def __init__(
         self,
-        system: ControlAffineControllableDynamicalModel,
+        system: ControlAffineDynamics,
         domains: dict[str, Set],
         dt: float = 0.1,
         max_time: float = 100.0,
@@ -81,7 +81,7 @@ class SystemEnv(gymnasium.Env):
 
     def _assert_input(self, system, domains):
         assert isinstance(
-            system, ControlAffineControllableDynamicalModel
+            system, ControlAffineDynamics
         ), f"system must be a ControlAffineControllableDynamicalModel, got {type(system)}"
         assert isinstance(domains, dict), f"domains must be a dict, got {type(domains)}"
 

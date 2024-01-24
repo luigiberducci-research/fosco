@@ -3,12 +3,12 @@ from typing import Type
 from fosco.common import domains
 from fosco.common.domains import Set
 from .system import (
-    ControlAffineControllableDynamicalModel,
-    UncertainControlAffineControllableDynamicalModel,
+    ControlAffineDynamics,
+    UncertainControlAffineDynamics,
 )
 
 
-def make_system(system_id: str) -> Type[ControlAffineControllableDynamicalModel]:
+def make_system(system_id: str) -> Type[ControlAffineDynamics]:
     if system_id == "single_integrator":
         from systems.single_integrator import SingleIntegrator
 

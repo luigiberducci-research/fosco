@@ -13,7 +13,7 @@ from fosco.plotting.utils import plot_func_and_domains
 from fosco.translator import make_translator
 from fosco.verifier import make_verifier
 from fosco.logger import make_logger, Logger, LOGGING_LEVELS
-from systems.system import UncertainControlAffineControllableDynamicalModel
+from systems.system import UncertainControlAffineDynamics
 from systems.utils import lie_derivative_fn
 
 
@@ -85,7 +85,7 @@ class Cegis:
         x = verifier_type.new_vars(self.f.n_vars, base="x")
         u = verifier_type.new_vars(self.f.n_controls, base="u")
 
-        if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
+        if isinstance(self.f, UncertainControlAffineDynamics):
             z = verifier_type.new_vars(self.f.n_uncertain, base="z")
         else:
             z = None
@@ -111,7 +111,7 @@ class Cegis:
         return x, x_map, domains
 
     def _initialise_dynamics(self):
-        if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
+        if isinstance(self.f, UncertainControlAffineDynamics):
             xdot = self.f(**self.x_map, only_nominal=True)
             xdotz = self.f(**self.x_map)
         else:
@@ -221,7 +221,7 @@ class Cegis:
                     lambda x: torch.ones((x.shape[0], self.f.n_controls))
                     * torch.tensor(u).float()
                 )
-                if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
+                if isinstance(self.f, UncertainControlAffineDynamics):
                     f = lambda x, u: self.f._f_torch(
                         x, u, z=torch.zeros((x.shape[0], self.f.n_uncertain))
                     )
@@ -245,7 +245,7 @@ class Cegis:
 
                 # cbf condition
                 alpha = lambda x: 1.0 * x
-                if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
+                if isinstance(self.f, UncertainControlAffineDynamics):
                     func = (
                         lambda x: lie_derivative_fn(
                             certificate=self.learner.net, f=f, ctrl=ctrl
@@ -268,7 +268,7 @@ class Cegis:
                     tag=f"cbf_condition", image=fig, step=iter, context={"u": str(u)}
                 )
 
-            if isinstance(self.f, UncertainControlAffineControllableDynamicalModel):
+            if isinstance(self.f, UncertainControlAffineDynamics):
                 fig = plot_func_and_domains(
                     func=self.learner.xsigma,
                     in_domain=in_domain,

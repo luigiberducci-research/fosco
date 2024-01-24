@@ -3,12 +3,11 @@ from abc import abstractmethod
 import numpy as np
 import torch
 import z3
-from matplotlib import pyplot as plt
 
 from fosco.common.utils import contains_object
 
 
-class ControlAffineControllableDynamicalModel:
+class ControlAffineDynamics:
     """
     Implements a controllable dynamical model with control-affine dynamics dx = f(x) + g(x) u
     """
@@ -62,14 +61,14 @@ class ControlAffineControllableDynamicalModel:
         return self.f(v, u)
 
 
-class UncertainControlAffineControllableDynamicalModel(
-    ControlAffineControllableDynamicalModel
+class UncertainControlAffineDynamics(
+    ControlAffineDynamics
 ):
     """
     Implements a controllable dynamical model with control-affine dynamics dx = f(x) + g(x) u
     """
 
-    def __init__(self, base_system: ControlAffineControllableDynamicalModel):
+    def __init__(self, base_system: ControlAffineDynamics):
         self._base_system = base_system
         super().__init__()
 

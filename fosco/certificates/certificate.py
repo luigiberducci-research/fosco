@@ -4,7 +4,7 @@ import numpy as np
 
 from fosco.config import CegisConfig
 from fosco.common.domains import Set
-from systems import ControlAffineControllableDynamicalModel
+from systems import ControlAffineDynamics
 
 
 class Certificate(ABC):
@@ -15,7 +15,7 @@ class Certificate(ABC):
     @abstractmethod
     def __init__(
         self,
-        system: ControlAffineControllableDynamicalModel,
+        system: ControlAffineDynamics,
         vars: dict[str, list],
         domains: dict[str, Set],
         config: CegisConfig,

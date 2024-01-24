@@ -7,8 +7,8 @@ from torch import nn
 from fosco.common.activations import activation
 from fosco.common.consts import ActivationType, TimeDomain
 from models.network import TorchMLP
-from systems import ControlAffineControllableDynamicalModel
-from systems.system import UncertainControlAffineControllableDynamicalModel
+from systems import ControlAffineDynamics
+from systems.system import UncertainControlAffineDynamics
 
 
 class LearnerNN(nn.Module):
@@ -178,10 +178,10 @@ class LearnerRobustCT(LearnerNN):
 
 
 def make_learner(
-    system: ControlAffineControllableDynamicalModel, time_domain: TimeDomain
+    system: ControlAffineDynamics, time_domain: TimeDomain
 ) -> Type[LearnerNN]:
     if (
-        isinstance(system, UncertainControlAffineControllableDynamicalModel)
+        isinstance(system, UncertainControlAffineDynamics)
         and time_domain == TimeDomain.CONTINUOUS
     ):
         return LearnerRobustCT

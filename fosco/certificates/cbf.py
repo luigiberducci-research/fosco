@@ -14,7 +14,7 @@ from fosco.common.utils import _set_assertion
 from fosco.learner import LearnerNN
 from fosco.verifier import SYMBOL
 from fosco.logger import LOGGING_LEVELS
-from systems import ControlAffineControllableDynamicalModel
+from systems import ControlAffineDynamics
 
 XD = DomainNames.XD.value
 XI = DomainNames.XI.value
@@ -36,7 +36,7 @@ class ControlBarrierFunction(Certificate):
 
     def __init__(
             self,
-            system: ControlAffineControllableDynamicalModel,
+            system: ControlAffineDynamics,
             vars: dict[str, list],
             domains: dict[str, Set],
             config: CegisConfig,
@@ -136,7 +136,7 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
 
     def __init__(
             self,
-            system: ControlAffineControllableDynamicalModel,
+            system: ControlAffineDynamics,
             vars: dict[str, list],
             domains: dict[str, Set],
             config: CegisConfig,

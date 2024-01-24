@@ -2,12 +2,12 @@ import numpy as np
 import torch
 
 from systems.system import (
-    UncertainControlAffineControllableDynamicalModel,
-    ControlAffineControllableDynamicalModel,
+    UncertainControlAffineDynamics,
+    ControlAffineDynamics,
 )
 
 
-class AdditiveBoundedUncertainty(UncertainControlAffineControllableDynamicalModel):
+class AdditiveBoundedUncertainty(UncertainControlAffineDynamics):
     """
     Wrapper to add additive bounded uncertainty to a system.
         - X, U as in the base system

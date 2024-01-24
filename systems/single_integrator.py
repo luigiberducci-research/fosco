@@ -1,10 +1,10 @@
 import numpy as np
 import torch
 
-from systems import ControlAffineControllableDynamicalModel
+from systems import ControlAffineDynamics
 
 
-class SingleIntegrator(ControlAffineControllableDynamicalModel):
+class SingleIntegrator(ControlAffineDynamics):
     """
     Single integrator system. X=[x, y], U=[vx, vy]
     dX/dt = [vx, vy]

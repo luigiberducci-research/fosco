@@ -10,7 +10,7 @@ from fosco.common.consts import (
     LossReLUType,
 )
 from fosco.logger import LoggerType
-from systems import ControlAffineControllableDynamicalModel
+from systems import ControlAffineDynamics
 
 CegisResult = namedtuple("CegisResult", ["found", "net", "infos"])
 
@@ -18,7 +18,7 @@ CegisResult = namedtuple("CegisResult", ["found", "net", "infos"])
 @dataclass
 class CegisConfig:
     # system
-    SYSTEM: Type[ControlAffineControllableDynamicalModel] = None
+    SYSTEM: Type[ControlAffineDynamics] = None
     DOMAINS: dict[str, Any] = None
     TIME_DOMAIN: TimeDomain = TimeDomain.CONTINUOUS
     # fosco

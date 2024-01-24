@@ -77,7 +77,7 @@ class ControlBarrierFunction(Certificate):
 
         # Bx >= 0 if x \in initial
         # counterexample: B < 0 and x \in initial
-        inital_constr = self._init_constraint_smt(verifier, B, B_constr)
+        initial_constr = self._init_constraint_smt(verifier, B, B_constr)
 
         # Bx < 0 if x \in unsafe
         # counterexample: B >= 0 and x \in unsafe
@@ -89,12 +89,12 @@ class ControlBarrierFunction(Certificate):
         alpha = lambda x: x  # todo make it part of the cbf and pass it in input
         feasible_constr = self._feasibility_constraint_smt(verifier, B, B_constr, Bdot, Bdot_constr, alpha)
 
-        logging.debug(f"inital_constr: {inital_constr}")
+        logging.debug(f"initial_constr: {initial_constr}")
         logging.debug(f"unsafe_constr: {unsafe_constr}")
         logging.debug(f"lie_constr: {feasible_constr}")
 
         for cs in (
-                {XI: (inital_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
+                {XI: (initial_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
                 {XD: (feasible_constr, self.x_vars + self.u_vars)},
         ):
             yield cs

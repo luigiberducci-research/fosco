@@ -71,21 +71,15 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
         _Substitute = verifier.solver_fncts()["Substitute"]
         _RealVal = verifier.solver_fncts()["RealVal"]
 
-        alpha = lambda x: 1.0 * x
-
         # initial condition
         # Bx >= 0 if x \in initial
         # counterexample: B < 0 and x \in initial
-        initial_constr = _And(B < 0, self.initial_domain)
-        # add domain constraints
-        inital_constr = _And(initial_constr, self.x_domain)
+        initial_constr = self._init_constraint_smt(B, B_constr)
 
         # unsafe condition
         # Bx < 0 if x \in unsafe
         # counterexample: B >= 0 and x \in unsafe
-        unsafe_constr = _And(B >= 0, self.unsafe_domain)
-        # add domain constraints
-        unsafe_constr = _And(unsafe_constr, self.x_domain)
+        unsafe_constr = self._unsafe_constraint_smt(B, B_constr)
 
         # feasibility condition
         # exists u Bdot + alpha * Bx >= 0 if x \in domain
@@ -93,39 +87,91 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
         #
         # note: smart trick for tractable verification using vertices of input convex-hull
         # counterexample: x \in domain and AND_v (u=v and Bdot + alpha * Bx < 0)
-        u_vertices = self.u_set.get_vertices()
-        lie_constr = self.x_domain
-        for u_vert in u_vertices:
-            vertex_constr = Bdot - sigma + alpha(B) < 0
-            for u_var, u_val in zip(self.u_vars, u_vert):
-                vertex_constr = _Substitute(vertex_constr, (u_var, _RealVal(u_val)))
-            lie_constr = _And(lie_constr, vertex_constr)
+        alpha = lambda x: x
+        feasibility_constr = self._feasibility_constraint_smt(verifier, B, B_constr,
+                                                              sigma, sigma_constr, Bdot,
+                                                              Bdot_constr, alpha)
 
         # robustness constraint
         # spec := forall z forall u (Bdot + alpha * Bx >= 0 implies Bdot(z) + alpha * B(z) >= 0)
         # counterexample: x \in xdomain and z \in zdomain and u \in udomain and
         #                 Bdot + alpha * Bx >= 0 and Bdot(z) + alpha * B(z) < 0
+        robust_constr = self._robust_constraint_smt(verifier, B, B_constr,
+                                                    sigma, sigma_constr, Bdot,
+                                                    Bdot_constr, Bdotz,
+                                                    Bdotz_constr, alpha)
+
+        logging.debug(f"inital_constr: {initial_constr}")
+        logging.debug(f"unsafe_constr: {unsafe_constr}")
+        logging.debug(f"lie_constr: {feasibility_constr}")
+        logging.debug(f"robust_constr: {robust_constr}")
+
+        for cs in (
+            {XI: (initial_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
+            {
+                XD: (feasibility_constr, self.x_vars + self.u_vars + self.z_vars),
+                ZD: (robust_constr, self.x_vars + self.u_vars + self.z_vars),
+            },
+        ):
+            yield cs
+
+    def _feasibility_constraint_smt(self, verifier, B, B_constr, sigma, sigma_constr, Bdot, Bdot_constr, alpha) -> SYMBOL:
+        """
+        Feasibility constraint
+
+        spec: exists u Bdot + alpha * Bx >= 0 if x \in domain
+        counterexample: x \in domain s.t. forall u Bdot + alpha * Bx < 0
+
+        Note: trick for tractable verification using vertices of input convex-hull
+        counterexample: x \in domain and AND_v (u=v and Bdot + alpha * Bx < 0)
+        """
+        _And = verifier.solver_fncts()["And"]
+        _Substitute = verifier.solver_fncts()["Substitute"]
+        _RealVal = verifier.solver_fncts()["RealVal"]
+
+        lie_constr = B >= 0
+        for c in B_constr:
+            lie_constr = _And(lie_constr, c)
+        lie_constr = _And(lie_constr, self.x_domain)
+
+        for u_vert in self.u_set.get_vertices():
+            # this is different from vanilla cbf because of the compensator sigma
+            vertex_constr = Bdot - sigma + alpha(B) < 0
+            for c in Bdot_constr + sigma_constr + B_constr:
+                vertex_constr = _And(vertex_constr, c)
+
+            for u_var, u_val in zip(self.u_vars, u_vert):
+                vertex_constr = _Substitute(vertex_constr, (u_var, _RealVal(u_val)))
+            lie_constr = _And(lie_constr, vertex_constr)
+
+        return lie_constr
+
+    def _robust_constraint_smt(self, verifier, B, B_constr, sigma, sigma_constr, Bdot, Bdot_constr, Bdotz, Bdotz_constr, alpha) -> SYMBOL:
+        """
+        Robustness constraint
+
+        spec := forall z forall u (Bdot + alpha * Bx >= 0 implies Bdot(z) + alpha * B(z) >= 0)
+        counterexample: x \in xdomain and z \in zdomain and u \in udomain and
+                        Bdot + alpha * Bx >= 0 and Bdot(z) + alpha * B(z) < 0
+        """
+        _And = verifier.solver_fncts()["And"]
+
         is_nominal_safe = Bdot - sigma + alpha(B) >= 0
+        for c in Bdot_constr + sigma_constr + B_constr:
+            is_nominal_safe = _And(is_nominal_safe, c)
+
         is_uncertain_unsafe = Bdotz + alpha(B) < 0
+        for c in Bdotz_constr + B_constr:
+            is_uncertain_unsafe = _And(is_uncertain_unsafe, c)
+
         robust_constr = _And(is_nominal_safe, is_uncertain_unsafe)
+
         # add domain constraints
         robust_constr = _And(robust_constr, self.x_domain)
         robust_constr = _And(robust_constr, self.z_domain)
         robust_constr = _And(robust_constr, self.u_domain)
 
-        logging.debug(f"inital_constr: {inital_constr}")
-        logging.debug(f"unsafe_constr: {unsafe_constr}")
-        logging.debug(f"lie_constr: {lie_constr}")
-        logging.debug(f"robust_constr: {robust_constr}")
-
-        for cs in (
-            {XI: (inital_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
-            {
-                XD: (lie_constr, self.x_vars + self.u_vars + self.z_vars),
-                ZD: (robust_constr, self.x_vars + self.u_vars + self.z_vars),
-            },
-        ):
-            yield cs
+        return robust_constr
 
     @staticmethod
     def _assert_state(domains, data):

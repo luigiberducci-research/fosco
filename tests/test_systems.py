@@ -1,9 +1,11 @@
 import unittest
 
 import numpy as np
+import torch
 import z3
 
 from systems.uncertainty_wrappers import AdditiveBoundedUncertainty
+from tests.test_translator import check_smt_equivalence
 
 
 class TestControlAffineDynamicalSystem(unittest.TestCase):
@@ -172,3 +174,23 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         self.assertTrue(
             str(xdot[1]) == str(xdotz[1]), f"expected ydot = vy, got {xdotz[1]}",
         )
+
+    def test_properties_and_methods(self):
+        from systems.single_integrator import SingleIntegrator
+
+        f = SingleIntegrator()
+        fz = AdditiveBoundedUncertainty(base_system=SingleIntegrator())
+
+        self.assertEqual(f.n_vars, fz.n_vars)
+        self.assertEqual(f.n_controls, fz.n_controls)
+        self.assertEqual(f.id, fz.id)
+
+        x = torch.rand((10, f.n_vars, 1))
+        self.assertTrue(torch.isclose(f.fx_torch(x), fz.fx_torch(x)).all())
+        self.assertTrue(torch.isclose(f.gx_torch(x), fz.gx_torch(x)).all())
+
+        sx = z3.Reals("x y")
+        self.assertTrue([check_smt_equivalence(f1, f2) for f1, f2 in zip(f.fx_smt(sx), fz.fx_smt(sx))])
+        self.assertTrue([check_smt_equivalence(f1, f2) for f1, f2 in zip(f.gx_smt(sx), fz.gx_smt(sx))])
+
+

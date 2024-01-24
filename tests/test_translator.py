@@ -7,14 +7,16 @@ from fosco.translator import MLPZ3Translator, make_translator, RobustMLPZ3Transl
 from fosco.verifier import VerifierZ3
 
 
+def check_smt_equivalence(expr1, expr2):
+    import z3
+
+    s = z3.Solver()
+    s.add(z3.Not(expr1 == expr2))
+
+    return s.check() == z3.unsat
+
+
 class TestTranslator(unittest.TestCase):
-    def _check_equivalence(self, expr1, expr2):
-        import z3
-
-        s = z3.Solver()
-        s.add(z3.Not(expr1 == expr2))
-
-        return s.check() == z3.unsat
 
     def test_translator_linear_layer(self):
         import z3
@@ -45,13 +47,13 @@ class TestTranslator(unittest.TestCase):
         expected_expr_nn = expected_expr_nn[0]
         expected_expr_nndot = expected_expr_nndot[0]
 
-        ok_nn = self._check_equivalence(expr_nn, expected_expr_nn)
+        ok_nn = check_smt_equivalence(expr_nn, expected_expr_nn)
         self.assertTrue(
             ok_nn,
             f"Wrong symbolic formula for V. Got: \n{expr_nn}, expected: \n{expected_expr_nn}",
         )
 
-        ok_grad = self._check_equivalence(expr_nndot, expected_expr_nndot)
+        ok_grad = check_smt_equivalence(expr_nndot, expected_expr_nndot)
         self.assertTrue(
             ok_grad,
             f"Wrong symbolic formula for Vdot. Got: \n{expr_nndot}, expected: \n{expected_expr_nndot}",
@@ -94,7 +96,7 @@ class TestTranslator(unittest.TestCase):
 
         expected_expr_nn = z2[0, 0]
 
-        ok_nn = self._check_equivalence(expr_nn, expected_expr_nn)
+        ok_nn = check_smt_equivalence(expr_nn, expected_expr_nn)
         self.assertTrue(
             ok_nn,
             f"Wrong symbolic formula for V. Got: \n{expr_nn}, expected: \n{expected_expr_nn}",
@@ -120,7 +122,7 @@ class TestTranslator(unittest.TestCase):
 
         expected_expr_nndot = (grad_nn @ xdot)[0, 0]
 
-        ok_grad = self._check_equivalence(expr_nndot, expected_expr_nndot)
+        ok_grad = check_smt_equivalence(expr_nndot, expected_expr_nndot)
         self.assertTrue(
             ok_grad,
             f"Wrong symbolic formula for Vdot. Got: \n{expr_nndot}, expected: \n{expected_expr_nndot}",
@@ -173,7 +175,7 @@ class TestTranslator(unittest.TestCase):
 
         expected_expr_nn = o3[0, 0]
 
-        ok_nn = self._check_equivalence(expr_nn, expected_expr_nn)
+        ok_nn = check_smt_equivalence(expr_nn, expected_expr_nn)
         self.assertTrue(
             ok_nn,
             f"Wrong symbolic formula for V. Got: \n{expr_nn}, expected: \n{expected_expr_nn}",
@@ -219,7 +221,7 @@ class TestTranslator(unittest.TestCase):
 
         expected_expr_nndot = (grad_nn @ xdot)[0, 0]
 
-        ok_grad = self._check_equivalence(expr_nndot, expected_expr_nndot)
+        ok_grad = check_smt_equivalence(expr_nndot, expected_expr_nndot)
         self.assertTrue(
             ok_grad,
             f"Wrong symbolic formula for Vdot. Got: \n{expr_nndot}, expected: \n{expected_expr_nndot}",
@@ -264,7 +266,7 @@ class TestTranslator(unittest.TestCase):
 
         expected_expr_nn = z1
 
-        ok_nn = self._check_equivalence(expr_nn, expected_expr_nn)
+        ok_nn = check_smt_equivalence(expr_nn, expected_expr_nn)
         self.assertTrue(
             ok_nn,
             f"Wrong symbolic formula for V. Got: \n{expr_nn}, expected: \n{expected_expr_nn}",
@@ -277,7 +279,7 @@ class TestTranslator(unittest.TestCase):
         grad_nn = dy_dz @ dz_dx
         expected_expr_nndot = (grad_nn @ xdot)[0, 0]
 
-        ok_grad = self._check_equivalence(expr_nndot, expected_expr_nndot)
+        ok_grad = check_smt_equivalence(expr_nndot, expected_expr_nndot)
         self.assertTrue(
             ok_grad,
             f"Wrong symbolic formula for Vdot. Got: \n{expr_nndot}, expected: \n{expected_expr_nndot}",
@@ -326,7 +328,7 @@ class TestTranslator(unittest.TestCase):
 
         expected_expr_nn = z2
 
-        ok_nn = self._check_equivalence(expr_nn, expected_expr_nn)
+        ok_nn = check_smt_equivalence(expr_nn, expected_expr_nn)
         self.assertTrue(
             ok_nn,
             f"Wrong symbolic formula for V. Got: \n{expr_nn}, expected: \n{expected_expr_nn}",
@@ -352,7 +354,7 @@ class TestTranslator(unittest.TestCase):
         grad_nn = dact_dy @ (dy_dz @ (dz_dh @ dh_dx))
 
         expected_expr_nndot = (grad_nn @ xdot)[0, 0]
-        ok_grad = self._check_equivalence(expr_nndot, expected_expr_nndot)
+        ok_grad = check_smt_equivalence(expr_nndot, expected_expr_nndot)
         self.assertTrue(
             ok_grad,
             f"Wrong symbolic formula for Vdot. Got: \n{expr_nndot}, expected: \n{expected_expr_nndot}",

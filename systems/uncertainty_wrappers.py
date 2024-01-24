@@ -16,6 +16,9 @@ class AdditiveBoundedUncertainty(UncertainControlAffineDynamics):
     f(x) = f_base(x) + I Z + 0 Z u = f_base(x) + z
     """
 
+    def __init__(self, base_system: ControlAffineDynamics):
+        super().__init__(system=base_system)
+
     @property
     def n_uncertain(self) -> int:
         return self.n_vars

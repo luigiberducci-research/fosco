@@ -73,9 +73,8 @@ class UncertainControlAffineDynamics(
     Implements a controllable dynamical model with control-affine dynamics dx = f(x) + g(x) u
     """
 
-    def __init__(self, base_system: ControlAffineDynamics):
-        self._base_system = base_system
-        super().__init__()
+    def __init__(self, system: ControlAffineDynamics):
+        self._base_system = system
 
     @property
     def n_vars(self) -> int:

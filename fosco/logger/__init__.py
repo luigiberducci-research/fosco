@@ -1,7 +1,7 @@
 import enum
 import logging
 
-from logger.logger import Logger
+from fosco.logger.logger import Logger
 
 LOGGING_LEVELS = [logging.WARNING, logging.INFO, logging.DEBUG]
 
@@ -19,11 +19,11 @@ def make_logger(logger_type: LoggerType | str = None, **kwargs) -> Logger | None
         logger_type = LoggerType[logger_type.upper()]
 
     if logger_type == LoggerType.AIM:
-        from logger.logger_aim import AimLogger
+        from fosco.logger.logger_aim import AimLogger
 
         return AimLogger(**kwargs)
     elif logger_type == LoggerType.TEXT:
-        from logger.logger_text import TextLogger
+        from fosco.logger.logger_text import TextLogger
 
         return TextLogger(**kwargs)
     else:

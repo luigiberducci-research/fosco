@@ -1,6 +1,6 @@
 import aim
 
-from logger.logger import Logger, VideoType, ImageType
+from fosco.logger.logger import Logger, VideoType, ImageType
 
 
 class AimLogger(Logger):

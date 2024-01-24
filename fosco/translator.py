@@ -5,12 +5,10 @@ from typing import Iterable
 import numpy as np
 import z3
 
-from fosco.common.activations_symbolic import activation_sym, activation_der_sym
 from fosco.common.consts import VerifierType, TimeDomain, CertificateType
-from models.network import TorchMLP, network_until_last_layer
+from models.network import TorchMLP
 from fosco.verifier import SYMBOL
-from logger import LOGGING_LEVELS
-from models.torchsym import TorchSymDiffFn
+from fosco.logger import LOGGING_LEVELS
 
 
 class Translator(ABC):

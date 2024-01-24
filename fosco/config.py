@@ -9,7 +9,7 @@ from fosco.common.consts import (
     ActivationType,
     LossReLUType,
 )
-from logger import LoggerType
+from fosco.logger import LoggerType
 from systems import ControlAffineControllableDynamicalModel
 
 CegisResult = namedtuple("CegisResult", ["found", "net", "infos"])

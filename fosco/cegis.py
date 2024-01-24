@@ -12,7 +12,7 @@ from fosco.plotting.data import scatter_datasets
 from fosco.plotting.utils import plot_func_and_domains
 from fosco.translator import make_translator
 from fosco.verifier import make_verifier
-from logger import make_logger, Logger, LOGGING_LEVELS
+from fosco.logger import make_logger, Logger, LOGGING_LEVELS
 from systems.system import UncertainControlAffineControllableDynamicalModel
 from systems.utils import lie_derivative_fn
 

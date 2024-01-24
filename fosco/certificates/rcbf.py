@@ -7,15 +7,12 @@ import torch
 from torch.optim import Optimizer
 
 from fosco.certificates.cbf import ControlBarrierFunction, TrainableCBF
-from fosco.certificates.certificate import TrainableCertificate
 from fosco.config import CegisConfig
-from fosco.certificates import Certificate
-from fosco.common.domains import Set, Rectangle
+from fosco.common.domains import Set
 from fosco.common.consts import DomainNames
 from fosco.common.utils import _set_assertion
 from fosco.learner import LearnerCT
 from fosco.verifier import SYMBOL
-from logger import LOGGING_LEVELS
 from systems import ControlAffineControllableDynamicalModel
 
 XD = DomainNames.XD.value

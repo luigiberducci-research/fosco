@@ -3,12 +3,12 @@ import unittest
 import matplotlib.pyplot as plt
 import numpy as np
 
-from logger.logger_text import TextLogger
+from fosco.logger.logger_text import TextLogger
 
 
 class TestAimLogger(unittest.TestCase):
     def test_make_run(self):
-        from logger.logger_aim import AimLogger
+        from fosco.logger import AimLogger
 
         config = {"foo": "bar"}
         logger = AimLogger(config=config, experiment="test")
@@ -38,9 +38,9 @@ class TestAimLogger(unittest.TestCase):
         self.assertTrue(image is not None)
 
     def test_factory(self):
-        from logger import LoggerType
-        from logger import make_logger
-        from logger.logger_aim import AimLogger
+        from fosco.logger import LoggerType
+        from fosco.logger import make_logger
+        from fosco.logger import AimLogger
 
         # logger from type
         logger = make_logger(logger_type=LoggerType.AIM, config={"foo": "bar"})

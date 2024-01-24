@@ -1,5 +1,5 @@
-from logger import Logger
-from logger.logger import ImageType
+from fosco.logger import Logger
+from fosco.logger.logger import ImageType
 import logging
 
 

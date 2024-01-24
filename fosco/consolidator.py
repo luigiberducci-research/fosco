@@ -2,7 +2,7 @@ import logging
 
 import torch
 
-from logger import LOGGING_LEVELS
+from fosco.logger import LOGGING_LEVELS
 
 
 class Consolidator:

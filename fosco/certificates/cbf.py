@@ -13,7 +13,7 @@ from fosco.common.consts import DomainNames
 from fosco.common.utils import _set_assertion
 from fosco.learner import LearnerNN
 from fosco.verifier import SYMBOL
-from logger import LOGGING_LEVELS
+from fosco.logger import LOGGING_LEVELS
 from systems import ControlAffineControllableDynamicalModel
 
 XD = DomainNames.XD.value

@@ -3,7 +3,7 @@ import torch
 import fosco.cegis
 from fosco.common.consts import ActivationType, LossReLUType
 from fosco.common.consts import CertificateType, TimeDomain, VerifierType
-from logger import LoggerType
+from fosco.logger import LoggerType
 from systems import make_system, make_domains, add_uncertainty
 
 

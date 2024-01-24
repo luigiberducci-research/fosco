@@ -11,6 +11,10 @@ class SingleIntegrator(ControlAffineDynamics):
     """
 
     @property
+    def id(self) -> str:
+        return "single_integrator"
+
+    @property
     def n_vars(self) -> int:
         return 2
 

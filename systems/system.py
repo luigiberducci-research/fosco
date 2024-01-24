@@ -14,6 +14,11 @@ class ControlAffineDynamics:
 
     @property
     @abstractmethod
+    def id(self) -> str:
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
     def n_vars(self) -> int:
         raise NotImplementedError()
 

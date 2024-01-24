@@ -11,6 +11,10 @@ class DoubleIntegrator(ControlAffineDynamics):
     """
 
     @property
+    def id(self) -> str:
+        return "double_integrator"
+
+    @property
     def n_vars(self) -> int:
         return 4
 

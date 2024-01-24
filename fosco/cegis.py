@@ -182,9 +182,43 @@ class Cegis:
 
         # todo pretrain supervised-learning
 
-
         for iter in range(1, self.config.CEGIS_MAX_ITERS + 1):
+            self.tlogger.info(f"Iteration {iter}")
 
+            # Log training distribution
+            context = "dataset"
+            for name, dataset in self.datasets.items():
+                self.logger.log_scalar(
+                    tag=f"{name}_data",
+                    value=len(dataset),
+                    step=iter,
+                    context={context: name},
+                )
+
+            # Learner component
+            self.tlogger.debug("Learner")
+            outputs = self.learner.update(**state)
+            for context, dict_metrics in outputs.items():
+                self.logger.log_scalar(
+                    tag=None, value=dict_metrics, step=iter, context={context: True}
+                )
+
+            # Translator component
+            self.tlogger.debug("Translator")
+            outputs = self.translator.translate(**state)
+            state.update(outputs)
+
+            # Verifier component
+            self.tlogger.debug("Verifier")
+            outputs = self.verifier.verify(**state)
+            state.update(outputs)
+
+            # Consolidator component
+            self.tlogger.debug("Consolidator")
+            outputs = self.consolidator.get(**state)
+            state.update(outputs)
+
+            # Logging
             # logging data distribution
             # for each of them, scatter the counter-examples with different color than the rest of the data
             fig = scatter_datasets(
@@ -234,7 +268,7 @@ class Cegis:
                 u = (lb + ub) / 2.0 + u_norm * (ub - lb) / 2.0
                 ctrl = (
                     lambda x: torch.ones((x.shape[0], self.f.n_controls))
-                    * torch.tensor(u).float()
+                              * torch.tensor(u).float()
                 )
                 if isinstance(self.f, UncertainControlAffineDynamics):
                     f = lambda x, u: self.f._f_torch(
@@ -261,17 +295,12 @@ class Cegis:
                 # cbf condition
                 alpha = lambda x: 1.0 * x
                 if isinstance(self.f, UncertainControlAffineDynamics):
-                    func = (
-                        lambda x: lie_derivative_fn(
-                            certificate=self.learner.net, f=f, ctrl=ctrl
-                        )(x)
-                        - self.learner.xsigma(x)
-                        + alpha(self.learner.net(x))
-                    )
+                    sigma = self.learner.xsigma
                 else:
-                    func = lambda x: cbf_condition_fn(
-                        certificate=self.learner.net, alpha=alpha, f=f, ctrl=ctrl
-                    )(x)
+                    sigma = None
+                func = lambda x: cbf_condition_fn(
+                    certificate=self.learner.net, alpha=alpha, f=f, ctrl=ctrl, sigma=sigma
+                )(x)
                 fig = plot_func_and_domains(
                     func=func,
                     in_domain=in_domain,
@@ -293,41 +322,7 @@ class Cegis:
                 )
                 self.logger.log_image(tag="compensator", image=fig, step=iter)
 
-            self.tlogger.info(f"Iteration {iter}")
-
-            # Log training distribution
-            context = "dataset"
-            for name, dataset in self.datasets.items():
-                self.logger.log_scalar(
-                    tag=f"{name}_data",
-                    value=len(dataset),
-                    step=iter,
-                    context={context: name},
-                )
-
-            # Learner component
-            self.tlogger.debug("Learner")
-            outputs = self.learner.update(**state)
-            for context, dict_metrics in outputs.items():
-                self.logger.log_scalar(
-                    tag=None, value=dict_metrics, step=iter, context={context: True}
-                )
-
-            # Translator component
-            self.tlogger.debug("Translator")
-            outputs = self.translator.translate(**state)
-            state.update(outputs)
-
-            # Verifier component
-            self.tlogger.debug("Verifier")
-            outputs = self.verifier.verify(**state)
-            state.update(outputs)
-
-            # Consolidator component
-            self.tlogger.debug("Consolidator")
-            outputs = self.consolidator.get(**state)
-            state.update(outputs)
-
+            # Check termination
             if state["found"]:
                 self.tlogger.debug("found valid certificate")
                 break

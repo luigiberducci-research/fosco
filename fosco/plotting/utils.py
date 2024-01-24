@@ -50,7 +50,7 @@ def plot_func_and_domains(
         x_ext[:, dim_select] = x
 
         x_ext = torch.from_numpy(x_ext).float()
-        return func(x_ext).detach().numpy()
+        return func(x_ext).detach().numpy().squeeze()
 
     xrange = (
         in_domain.lower_bounds[dim_select[0]],

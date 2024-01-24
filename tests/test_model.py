@@ -132,7 +132,7 @@ class TestModel(unittest.TestCase):
         self.assertTrue(isinstance(cegis.learner.net, type(init_barrier)), "type mismatch")
 
         # numerical check on in-out
-        x = torch.randn(10, 2, 1)
+        x = torch.randn(10, 2)
         y = cegis.learner.net(x)
         y_init = init_barrier(x)
         self.assertTrue(torch.allclose(y, y_init), f"expected {y_init}, got {y}")

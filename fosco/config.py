@@ -36,6 +36,7 @@ class CegisConfig:
     N_HIDDEN_NEURONS: tuple[int, ...] = (10,)
     ACTIVATION: tuple[ActivationType, ...] = (ActivationType.SQUARE,)
     # loss
+    OPTIMIZER: str | None = None
     LOSS_MARGINS: dict[str, float] | float = 0.0
     LOSS_WEIGHTS: dict[str, float] | float = 1.0
     LOSS_RELU: LossReLUType = LossReLUType.RELU

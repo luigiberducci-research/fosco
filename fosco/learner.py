@@ -36,6 +36,7 @@ class LearnerCT(LearnerNN):
             learn_method,
             hidden_sizes: tuple[int, ...],
             activation: tuple[ActivationType, ...],
+            optimizer: str | None,
             lr: float,
             weight_decay: float,
             initial_models: dict[str, nn.Module] | None = None,
@@ -54,9 +55,7 @@ class LearnerCT(LearnerNN):
             )
 
         if len(list(self.parameters())) > 0:
-            self.optimizer = torch.optim.AdamW(
-                params=self.parameters(), lr=lr, weight_decay=weight_decay,
-            )
+            self.optimizer = make_optimizer(optimizer, params=self.parameters(), lr=lr, weight_decay=weight_decay)
         else:
             self.optimizer = None
 
@@ -79,6 +78,7 @@ class LearnerRobustCT(LearnerCT):
             learn_method,
             hidden_sizes: tuple[int, ...],
             activation: tuple[ActivationType, ...],
+            optimizer: str | None,
             lr: float,
             weight_decay: float,
             initial_models: dict[str, nn.Module] | None = None,
@@ -107,9 +107,7 @@ class LearnerRobustCT(LearnerCT):
 
         # overriden optimizer with all module parameters
         if len(list(self.parameters())) > 0:
-            self.optimizer = torch.optim.AdamW(
-                params=self.parameters(), lr=lr, weight_decay=weight_decay,
-            )
+            self.optimizer = make_optimizer(optimizer, params=self.parameters(), lr=lr, weight_decay=weight_decay)
         else:
             self.optimizer = None
 
@@ -128,3 +126,12 @@ def make_learner(
         raise NotImplementedError(
             f"Unsupported learner for system {type(system)} and time domain {time_domain}"
         )
+
+
+def make_optimizer(optimizer: str | None, **kwargs) -> torch.optim.Optimizer:
+    if optimizer is None or optimizer == "adam":
+        return torch.optim.Adam(**kwargs)
+    elif optimizer == "sgd":
+        return torch.optim.SGD(**kwargs)
+    else:
+        raise NotImplementedError(f"Optimizer {optimizer} not implemented")

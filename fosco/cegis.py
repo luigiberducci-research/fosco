@@ -76,6 +76,7 @@ class Cegis:
             learn_method=self.certificate.learn,
             hidden_sizes=self.config.N_HIDDEN_NEURONS,
             activation=self.config.ACTIVATION,
+            optimizer=self.config.OPTIMIZER,
             lr=self.config.LEARNING_RATE,
             weight_decay=self.config.WEIGHT_DECAY,
             initial_models=initial_models,

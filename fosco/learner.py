@@ -88,6 +88,7 @@ class LearnerRobustCT(LearnerCT):
             learn_method=learn_method,
             hidden_sizes=hidden_sizes,
             activation=activation,
+            optimizer=optimizer,
             lr=lr,
             weight_decay=weight_decay,
             initial_models=initial_models

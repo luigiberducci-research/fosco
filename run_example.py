@@ -85,7 +85,7 @@ def main(args):
         OPTIMIZER=optimizer,
         LOSS_MARGINS={"init": 0.0, "unsafe": 0.0, "lie": 0.0, "robust": 0.0},
         LOSS_WEIGHTS={"init": 1.0, "unsafe": 1.0, "lie": 1.0, "robust": 1.0,
-                      "conservative_b": 0.10, "conservative_sigma": 0.0},
+                      "conservative_b": 0.05, "conservative_sigma": 0.0},
         LOSS_RELU=loss_act_type,
         LOSS_NETGRAD_WEIGHT=loss_netgrad_weight,
     )

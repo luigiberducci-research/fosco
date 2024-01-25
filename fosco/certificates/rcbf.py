@@ -109,20 +109,14 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
         )
 
         # robustness constraint
-        # spec := forall z forall u (Bdot + alpha * Bx >= 0 implies Bdot(z) + alpha * B(z) >= 0)
-        # counterexample: x \in xdomain and z \in zdomain and u \in udomain and
-        #                 Bdot + alpha * Bx >= 0 and Bdot(z) + alpha * B(z) < 0
         robust_constr = self._robust_constraint_smt(
             verifier=verifier,
-            B=B,
-            B_constr=B_constr,
             sigma=sigma,
             sigma_constr=sigma_constr,
             Bdot=Bdot,
             Bdot_constr=Bdot_constr,
             Bdotz=Bdotz,
             Bdotz_constr=Bdotz_constr,
-            alpha=alpha,
         )
 
         logging.debug(f"inital_constr: {initial_constr}")
@@ -172,37 +166,29 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
 
         return lie_constr
 
+
     def _robust_constraint_smt(
         self,
         verifier,
-        B,
-        B_constr,
         sigma,
         sigma_constr,
         Bdot,
         Bdot_constr,
         Bdotz,
         Bdotz_constr,
-        alpha,
     ) -> SYMBOL:
         """
         Robustness constraint
 
-        spec := forall z forall u (Bdot + alpha * Bx >= 0 implies Bdot(z) + alpha * B(z) >= 0)
+        spec := forall z forall u forall z (sigma(x, u, z) >= - (Bdotz - Bdot))
         counterexample: x \in xdomain and z \in zdomain and u \in udomain and
-                        Bdot + alpha * Bx >= 0 and Bdot(z) + alpha * B(z) < 0
+                        sigma(x,u,z) < - (Bdotz - Bdot)
         """
         _And = verifier.solver_fncts()["And"]
 
-        is_nominal_safe = Bdot - sigma + alpha(B) >= 0
-        for c in Bdot_constr + sigma_constr + B_constr:
-            is_nominal_safe = _And(is_nominal_safe, c)
-
-        is_uncertain_unsafe = Bdotz + alpha(B) < 0
-        for c in Bdotz_constr + B_constr:
-            is_uncertain_unsafe = _And(is_uncertain_unsafe, c)
-
-        robust_constr = _And(is_nominal_safe, is_uncertain_unsafe)
+        robust_constr = sigma < - (Bdotz - Bdot)
+        for c in Bdotz_constr + Bdot_constr + sigma_constr:
+            robust_constr = _And(robust_constr, c)
 
         # add domain constraints
         robust_constr = _And(robust_constr, self.x_domain)
@@ -477,18 +463,18 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
             weight_lie
             * (self.loss_relu(margin_lie - (Bdot_d - sigma_d + alpha * B_d))).mean()
         )
+
         # penalize dB_d - sigma_d + alpha * B_d >=0 and Bdotz_d + alpha * B_d < 0
-        robust_loss = (
-            weight_robust
-            * (
-                self.loss_relu(
-                    torch.min(
-                        (Bdot_dz - sigma_dz + alpha * B_dz) - margin_robust,
-                        margin_robust - (Bdotz_dz + alpha * B_dz),
-                    )
-                )
-            ).mean()
-        )
+        #is_nom_safe = (Bdot_dz - sigma_dz + alpha * B_dz) - margin_robust
+        #is_uncertain_unsafe = margin_robust - (Bdotz_dz + alpha * B_dz)
+        #to_correct = torch.min(is_nom_safe, is_uncertain_unsafe)
+        #robust_loss = weight_robust * (self.loss_relu(to_correct)).mean()
+
+        # penalize sigma_dz < - (Bdotz_dz - Bdot_dz)
+        # penalize sigma_dz + Bdotz_dz - Bdot_dz < 0
+        # equivalent to relu(margin_robust - (sigma_dz + Bdotz_dz - Bdot_dz))
+        compensator_term = sigma_dz + Bdotz_dz - Bdot_dz
+        robust_loss = weight_robust * (self.loss_relu(margin_robust - compensator_term)).mean()
 
         loss = init_loss + unsafe_loss + lie_loss + robust_loss
 

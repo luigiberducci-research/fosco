@@ -125,11 +125,12 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
         logging.debug(f"robust_constr: {robust_constr}")
 
         for cs in (
+            # first check initial and unsafe conditions
             {XI: (initial_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
-            {
-                XD: (feasibility_constr, self.x_vars + self.u_vars + self.z_vars),
-                ZD: (robust_constr, self.x_vars + self.u_vars + self.z_vars),
-            },
+            # then check robustness to uncertainty
+            {ZD: (robust_constr, self.x_vars + self.u_vars + self.z_vars)},
+            # finally check feasibility
+            {XD: (feasibility_constr, self.x_vars + self.u_vars + self.z_vars)},
         ):
             yield cs
 
@@ -238,12 +239,14 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
 
         # add extra loss weight for uncertainty loss
         if isinstance(config.LOSS_WEIGHTS, float):
-            self.loss_weights["robust"] = config.LOSS_WEIGHTS
+            for loss in ["robust", "conservative_b", "conservative_sigma"]:
+                self.loss_weights[loss] = config.LOSS_WEIGHTS
         else:
-            assert (
-                "robust" in config.LOSS_WEIGHTS
-            ), f"Missing loss weight, got {config.LOSS_WEIGHTS}"
-            self.loss_weights["robust"] = config.LOSS_WEIGHTS["robust"]
+            for loss in ["robust", "conservative_b", "conservative_sigma"]:
+                assert (
+                    loss in config.LOSS_WEIGHTS
+                ), f"Missing loss weight {loss}, got {config.LOSS_WEIGHTS}"
+                self.loss_weights[loss] = config.LOSS_WEIGHTS[loss]
 
     def learn(
         self,
@@ -433,6 +436,8 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
         weight_unsafe = self.loss_weights["unsafe"]
         weight_lie = self.loss_weights["lie"]
         weight_robust = self.loss_weights["robust"]
+        weight_conservative_b = self.loss_weights["conservative_b"]
+        weight_conservative_s = self.loss_weights["conservative_sigma"]
 
         accuracy_i = (B_i >= margin_init).count_nonzero().item()
         accuracy_u = (B_u < -margin_unsafe).count_nonzero().item()
@@ -464,19 +469,20 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
             * (self.loss_relu(margin_lie - (Bdot_d - sigma_d + alpha * B_d))).mean()
         )
 
-        # penalize dB_d - sigma_d + alpha * B_d >=0 and Bdotz_d + alpha * B_d < 0
-        #is_nom_safe = (Bdot_dz - sigma_dz + alpha * B_dz) - margin_robust
-        #is_uncertain_unsafe = margin_robust - (Bdotz_dz + alpha * B_dz)
-        #to_correct = torch.min(is_nom_safe, is_uncertain_unsafe)
-        #robust_loss = weight_robust * (self.loss_relu(to_correct)).mean()
-
         # penalize sigma_dz < - (Bdotz_dz - Bdot_dz)
         # penalize sigma_dz + Bdotz_dz - Bdot_dz < 0
         # equivalent to relu(margin_robust - (sigma_dz + Bdotz_dz - Bdot_dz))
         compensator_term = sigma_dz + Bdotz_dz - Bdot_dz
-        robust_loss = weight_robust * (self.loss_relu(margin_robust - compensator_term)).mean()
+        loss_robust = self.loss_relu(margin_robust - compensator_term)
+        robust_loss = weight_robust * (loss_robust).mean()
 
-        loss = init_loss + unsafe_loss + lie_loss + robust_loss
+        # regularization losses
+        # penalize high sigma and negative B (conservative)
+        loss_sigma_pos = self.loss_relu(sigma_dz).mean()    # penalize sigma_dz > 0
+        loss_B_neg = self.loss_relu(-B_dz).mean()    # penalize B_dz < 0
+        loss_conservative = weight_conservative_b * loss_B_neg + weight_conservative_s * loss_sigma_pos
+
+        loss = init_loss + unsafe_loss + lie_loss + robust_loss + loss_conservative
 
         losses = {
             "init_loss": init_loss.item(),

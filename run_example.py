@@ -14,7 +14,7 @@ def main(args):
     certificate_type = CertificateType[args.certificate.upper()]
     use_init_models = args.use_init_models
     activations = tuple([ActivationType[a.upper()] for a in args.activations])
-    n_hidden_neurons = args.n_hidden_neurons
+    n_hidden_neurons = args.n_hiddens
     n_data_samples = args.n_data_samples
     optimizer = args.optimizer
     loss_act_type = LossReLUType[args.loss_act.upper()]
@@ -84,7 +84,8 @@ def main(args):
         N_EPOCHS=n_epochs,
         OPTIMIZER=optimizer,
         LOSS_MARGINS={"init": 0.0, "unsafe": 0.0, "lie": 0.0, "robust": 0.0},
-        LOSS_WEIGHTS={"init": 1.0, "unsafe": 1.0, "lie": 1.0, "robust": 1.0},
+        LOSS_WEIGHTS={"init": 1.0, "unsafe": 1.0, "lie": 1.0, "robust": 1.0,
+                      "conservative_b": 0.10, "conservative_sigma": 0.0},
         LOSS_RELU=loss_act_type,
         LOSS_NETGRAD_WEIGHT=loss_netgrad_weight,
     )
@@ -105,7 +106,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--activations", type=str, nargs="+", default=["relu", "linear"]
     )
-    parser.add_argument("--n-hidden-neurons", type=int, nargs="+", default=[5, 5])
+    parser.add_argument("--n-hiddens", type=int, nargs="+", default=[5, 5])
     parser.add_argument("--n-data-samples", type=int, default=1000)
     parser.add_argument("--max-iters", type=int, default=100)
     parser.add_argument("--n-epochs", type=int, default=1000)

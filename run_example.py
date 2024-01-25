@@ -104,7 +104,7 @@ if __name__ == "__main__":
     parser.add_argument("--certificate", type=str, default="cbf")
     parser.add_argument("--use-init-models", action="store_true")
     parser.add_argument(
-        "--activations", type=str, nargs="+", default=["relu", "linear"]
+        "--activations", type=str, nargs="+", default=["square", "linear"]
     )
     parser.add_argument("--n-hiddens", type=int, nargs="+", default=[5, 5])
     parser.add_argument("--n-data-samples", type=int, default=1000)

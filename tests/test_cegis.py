@@ -49,10 +49,10 @@ class TestCEGIS(unittest.TestCase):
             CEGIS_MAX_ITERS=5,
             ROUNDING=3,
             DATA_GEN=data_gen,
-            N_DATA=500,
+            N_DATA=1000,
             LEARNING_RATE=1e-3,
             WEIGHT_DECAY=1e-4,
-            N_HIDDEN_NEURONS=(10, 10,),
+            N_HIDDEN_NEURONS=(5, 5,),
             ACTIVATION=(ActivationType.RELU, ActivationType.LINEAR),
             SEED=0,
         )
@@ -79,57 +79,11 @@ class TestCEGIS(unittest.TestCase):
         Test the single integrator example. We expect to find a certificate in a couple of iterations.
         """
         import fosco
-        from systems import make_system
-        from fosco.common import domains
 
-        seed = 916104
-        system_name = "single_integrator"
-        n_hidden_neurons = 5
-        activations = (ActivationType.RELU, ActivationType.LINEAR)
-        n_data_samples = 1000
-        n_hidden_neurons = (n_hidden_neurons,) * len(activations)
-        certificate_type = CertificateType.CBF
-        verbose = 0
+        config = self._get_single_integrator_config()
+        config.SEED = 916104
 
-        system = make_system(system_id=system_name)
-
-        XD = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
-        UD = domains.Rectangle(vars=["u0", "u1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
-        XI = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(-4.0, -4.0))
-        XU = domains.Sphere(
-            vars=["x0", "x1"], centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1]
-        )
-
-        sets = {
-            "lie": XD,
-            "input": UD,
-            "init": XI,
-            "unsafe": XU,
-        }
-        data_gen = {
-            "lie": lambda n: torch.concatenate(
-                [XD.generate_data(n), UD.generate_data(n)], dim=1
-            ),
-            "init": lambda n: XI.generate_data(n),
-            "unsafe": lambda n: XU.generate_data(n),
-        }
-
-        config = fosco.cegis.CegisConfig(
-            SYSTEM=system,
-            DOMAINS=sets,
-            DATA_GEN=data_gen,
-            CERTIFICATE=certificate_type,
-            TIME_DOMAIN=TimeDomain.CONTINUOUS,
-            VERIFIER=VerifierType.Z3,
-            ACTIVATION=activations,
-            N_HIDDEN_NEURONS=n_hidden_neurons,
-            LOSS_RELU=fosco.common.consts.LossReLUType.SOFTPLUS,
-            N_EPOCHS=1000,
-            CEGIS_MAX_ITERS=5,
-            N_DATA=n_data_samples,
-            SEED=seed,
-        )
-        cegis = fosco.cegis.Cegis(config=config, verbose=verbose)
+        cegis = fosco.cegis.Cegis(config=config, verbose=0)
 
         result = cegis.solve()
 

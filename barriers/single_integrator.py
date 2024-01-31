@@ -196,12 +196,13 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
         _And = FUNCTIONS["And"]
 
         dhdx, dhdx_constraints = self._h.gradient_smt(x=x)
+        hx = self._h(x=x) # to check if this is correct or should we use something like self._h_smt(x=x)
         norm = VerifierZ3.new_vars(n=1, base="norm")[0]
         norm_constraint = [
             norm * norm == dhdx[0, 0] ** 2 + dhdx[0, 1] ** 2,
             norm >= 0.0
         ]
-        sigma = norm * self._z_bound
+        sigma = norm * self._z_bound* self._k_function(hx)
 
         self._assert_forward_smt_output(x=sigma)
         return sigma, dhdx_constraints + norm_constraint

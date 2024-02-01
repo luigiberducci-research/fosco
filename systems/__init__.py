@@ -26,7 +26,7 @@ def add_uncertainty(uncertainty_type: str | None, system_fn: callable) -> callab
 
     if uncertainty_type is None:
         return system_fn
-    if uncertainty_type == "additive_bounded":
+    if uncertainty_type == "additive_bounded" or "tunable_additive_bounded":
         return lambda: AdditiveBoundedUncertainty(system=system_fn())
     else:
         raise NotImplementedError(f"Uncertainty {uncertainty_type} not implemented")

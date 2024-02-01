@@ -19,6 +19,7 @@ CegisResult = namedtuple("CegisResult", ["found", "net", "infos"])
 class CegisConfig:
     # system
     SYSTEM: Type[ControlAffineDynamics] = None
+    UNCERTAINTY: str = None
     DOMAINS: dict[str, Any] = None
     TIME_DOMAIN: TimeDomain = TimeDomain.CONTINUOUS
     # fosco

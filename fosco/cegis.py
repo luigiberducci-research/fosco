@@ -66,7 +66,7 @@ class Cegis:
 
         initial_models = {}
         if self.config.USE_INIT_MODELS:
-            known_fns = make_barrier(system=self.f)
+            known_fns = make_barrier(system=self.f, uncertainty=self.config.UNCERTAINTY)
             initial_models["net"] = known_fns["barrier"]
             if self.config.CERTIFICATE == CertificateType.RCBF:
                 initial_models["xsigma"] = known_fns["compensator"]

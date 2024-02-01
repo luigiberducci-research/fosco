@@ -69,6 +69,7 @@ def main(args):
 
     config = fosco.cegis.CegisConfig(
         SYSTEM=system,
+        UNCERTAINTY=uncertainty_type,
         DOMAINS=sets,
         DATA_GEN=data_gen,
         CERTIFICATE=certificate_type,

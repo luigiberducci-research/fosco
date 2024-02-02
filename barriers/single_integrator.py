@@ -227,9 +227,11 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
 
     def _k_function(self, hx: torch.Tensor) -> torch.Tensor:
         '''
-        It is a continuous, nonincreasing function κ : R≥0 → R with κ(0) = 1
+        It is a continuous, non-increasing function κ : R≥0 → R with κ(0) = 1
         '''
-        return 2 / (1 + torch.exp(hx))
+        return 2 / (1 + torch.exp(hx)) # z3 does not supports exp, try polynomial; also we can see what is the range of hx,
+
+        # k_function = 1 / (hx ^ m + 1)
 
     def save(self, outdir: str):
         pass

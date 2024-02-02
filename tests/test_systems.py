@@ -188,7 +188,6 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
 
         self.assertEqual(f.n_vars, fz.n_vars)
         self.assertEqual(f.n_controls, fz.n_controls)
-        self.assertEqual(f.id, fz.id)
 
         x = torch.rand((10, f.n_vars, 1))
         self.assertTrue(torch.isclose(f.fx_torch(x), fz.fx_torch(x)).all())

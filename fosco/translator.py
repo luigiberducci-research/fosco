@@ -6,6 +6,7 @@ import numpy as np
 import z3
 
 from fosco.common.consts import VerifierType, TimeDomain, CertificateType
+from fosco.common.timing import timed
 from models.network import TorchMLP
 from fosco.verifier import SYMBOL
 from fosco.logger import LOGGING_LEVELS
@@ -17,7 +18,13 @@ class Translator(ABC):
     """
 
     @abstractmethod
-    def translate(self, **kwargs):
+    def translate(self, **kwargs) -> dict:
+        """
+        Translate a network forward pass and gradients into a symbolic expression.
+
+        Returns:
+            - dictionary of symbolic expressions
+        """
         raise NotImplementedError
 
 
@@ -33,13 +40,14 @@ class MLPZ3Translator(Translator):
         self._logger.setLevel(LOGGING_LEVELS[verbose])
         self._logger.debug("Translator initialized")
 
+    @timed
     def translate(
             self,
             x_v_map: dict[str, Iterable[SYMBOL]],
             V_net: TorchMLP,
             xdot: Iterable[SYMBOL],
             **kwargs,
-    ):
+    ) -> dict:
         """
         Translate a network forward pass and gradients into a symbolic expression
         of the function and Lie derivative w.r.t. the system dynamics.
@@ -54,6 +62,8 @@ class MLPZ3Translator(Translator):
         Returns:
             dict of symbolic expressions
         """
+        assert "v" in x_v_map, "x_v_map must contain key 'v' for symbolic variables"
+
         x_vars = x_v_map["v"]
         xdot = np.array(xdot).reshape(-1, 1)
 
@@ -81,6 +91,7 @@ class RobustMLPZ3Translator(MLPZ3Translator):
     Symbolic translator for robust model to z3 expressions.
     """
 
+    @timed
     def translate(
             self,
             x_v_map: dict[str, Iterable[SYMBOL]],
@@ -107,7 +118,8 @@ class RobustMLPZ3Translator(MLPZ3Translator):
         assert sigma_net is not None, "sigma_net must be not None"
         assert xdotz is not None, "xdotz must be not None"
 
-        symbolic_dict = super().translate(x_v_map, V_net, xdot)
+        # note: ignore elapsed_time here, it is because of the decorator timed
+        symbolic_dict, elapsed_time = super().translate(x_v_map, V_net, xdot)
 
         x_vars = x_v_map["v"]
         xdotz = np.array(xdotz).reshape(-1, 1)

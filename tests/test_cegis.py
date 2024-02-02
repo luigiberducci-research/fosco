@@ -65,7 +65,7 @@ class TestCEGIS(unittest.TestCase):
             0  # make sure we don't train to check correctness of the cegis loop
         )
 
-        c = Cegis(config=config, verbose=2)
+        c = Cegis(config=config, verbose=0)
         results = c.solve()
 
         infos = results.infos

@@ -2,6 +2,7 @@ import logging
 
 import torch
 
+from fosco.common.timing import timed
 from fosco.logger import LOGGING_LEVELS
 
 
@@ -13,6 +14,7 @@ class Consolidator:
         self._logger.setLevel(LOGGING_LEVELS[verbose])
         self._logger.debug("Consolidator initialized")
 
+    @timed
     def get(self, cex, datasets, **kwargs):
         datasets = self.add_ces_to_data(cex, datasets)
         # todo: return logging info about data augmentation

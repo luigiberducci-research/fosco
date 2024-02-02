@@ -10,7 +10,7 @@ from systems.system_env import SystemEnv
 class TestEnv(unittest.TestCase):
     def test_single_integrator_system_env(self):
         svars, uvars = ["x0", "x1"], ["u0", "u1"]
-        system = make_system(system_id="single_integrator")()
+        system = make_system(system_id="SingleIntegrator")()
         domains = {
             "input": Rectangle(vars=uvars, lb=(-5.0, -5.0), ub=(5.0, 5.0)),
             "init": Rectangle(vars=svars, lb=(-5.0, -5.0), ub=(-4.0, -4.0)),
@@ -22,7 +22,7 @@ class TestEnv(unittest.TestCase):
 
     def test_double_integrator_system_env(self):
         svars, uvars = ["x0", "x1", "x2", "x3"], ["u0", "u1"]
-        system = make_system(system_id="double_integrator")()
+        system = make_system(system_id="DoubleIntegrator")()
         domains = {
             "input": Rectangle(vars=uvars, lb=(-5.0, -5.0), ub=(5.0, 5.0)),
             "init": Rectangle(

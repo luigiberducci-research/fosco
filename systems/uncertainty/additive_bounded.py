@@ -1,10 +1,12 @@
 import numpy as np
 import torch
 
+from systems.uncertainty.uncertainty_wrapper import register
 from systems.uncertainty.uncertainty_wrapper import UncertaintyWrapper
 
 
-class AdditiveBoundedUncertainty(UncertaintyWrapper):
+@register
+class AdditiveBounded(UncertaintyWrapper):
     """
     Wrapper to add additive bounded uncertainty to a system.
         - X, U as in the base system
@@ -12,6 +14,10 @@ class AdditiveBoundedUncertainty(UncertaintyWrapper):
 
     f(x) = f_base(x) + I Z + 0 Z u = f_base(x) + z
     """
+
+    @property
+    def uncertainty_id(self) -> str:
+        return self.__class__.__name__
 
     @property
     def n_uncertain(self) -> int:

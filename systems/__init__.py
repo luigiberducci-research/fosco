@@ -6,35 +6,27 @@ from .system import (
     ControlAffineDynamics,
     UncertainControlAffineDynamics,
 )
+from .single_integrator import SingleIntegrator
+from .double_integrator import DoubleIntegrator
+
 
 
 def make_system(system_id: str) -> Type[ControlAffineDynamics]:
-    if system_id == "single_integrator":
-        from systems.single_integrator import SingleIntegrator
-
-        return SingleIntegrator
-    elif system_id == "double_integrator":
-        from systems.double_integrator import DoubleIntegrator
-
-        return DoubleIntegrator
+    """
+    Factory function for systems.
+    """
+    if system_id in system.SYSTEM_REGISTRY:
+        return system.SYSTEM_REGISTRY[system_id]
     else:
         raise NotImplementedError(f"System {system_id} not implemented")
 
 
-def add_uncertainty(uncertainty_type: str | None, system_fn: callable) -> callable:
-    from systems.uncertainty.additive_bounded import AdditiveBoundedUncertainty
 
-    if uncertainty_type is None:
-        return system_fn
-    if uncertainty_type == "additive_bounded":
-        return lambda: AdditiveBoundedUncertainty(system=system_fn())
-    else:
-        raise NotImplementedError(f"Uncertainty {uncertainty_type} not implemented")
 
 
 def make_domains(system_id: str) -> dict[str, Set]:
     XD, UD, ZD, XI, XU = None, None, None, None, None
-    if system_id == "single_integrator":
+    if system_id == "SingleIntegrator":
         xvars = ["x0", "x1"]
         uvars = ["u0", "u1"]
         zvars = ["z0", "z1"]
@@ -46,7 +38,7 @@ def make_domains(system_id: str) -> dict[str, Set]:
         XU = domains.Sphere(
             vars=xvars, centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1], include_boundary=False
         )
-    elif system_id == "double_integrator":
+    elif system_id == "DoubleIntegrator":
         xvars = ["x0", "x1", "x2", "x3"]
         uvars = ["u0", "u1"]
         zvars = ["z0", "z1", "z2", "z3"]

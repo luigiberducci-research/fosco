@@ -5,6 +5,7 @@ from typing import Callable, Generator, Iterable, Type
 import torch
 import z3
 
+from fosco.common.timing import timed
 from fosco.common.utils import contains_object
 from fosco.common.consts import VerifierType
 from fosco.logger import LOGGING_LEVELS
@@ -90,6 +91,7 @@ class Verifier:
     def replace_point(expr, ver_vars, point):
         raise NotImplementedError("")
 
+    @timed
     def verify(
         self,
         V_symbolic: SYMBOL,

@@ -106,7 +106,7 @@ class TestModel(unittest.TestCase):
         from fosco.config import CegisConfig
         from fosco.cegis import Cegis
 
-        system_type = "single_integrator"
+        system_type = "SingleIntegrator"
         system_fn = make_system(system_type)
         barrier_dict = make_barrier(system=system_fn())
         init_barrier = barrier_dict["barrier"]

@@ -65,7 +65,7 @@ class TestCEGIS(unittest.TestCase):
             0  # make sure we don't train to check correctness of the cegis loop
         )
 
-        c = Cegis(config=config, verbose=2)
+        c = Cegis(config=config, verbose=0)
         results = c.solve()
 
         infos = results.infos
@@ -102,11 +102,11 @@ class TestCEGIS(unittest.TestCase):
         """
         import fosco
         from systems import make_system
-        from systems import add_uncertainty
+        from systems.uncertainty import add_uncertainty
         from fosco.common import domains
 
         seed = 916104
-        system_name = "single_integrator"
+        system_name = "SingleIntegrator"
         n_hidden_neurons = 5
         activations = (ActivationType.RELU, ActivationType.LINEAR)
         n_data_samples = 1000
@@ -115,7 +115,7 @@ class TestCEGIS(unittest.TestCase):
         verbose = 0
 
         system = make_system(system_id=system_name)
-        system = add_uncertainty(uncertainty_type="additive_bounded", system_fn=system)
+        system = add_uncertainty(uncertainty_type="AdditiveBounded", system_fn=system)
 
         XD = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
         UD = domains.Rectangle(vars=["u0", "u1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))

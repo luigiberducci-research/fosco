@@ -2,8 +2,10 @@ import numpy as np
 import torch
 
 from systems import ControlAffineDynamics
+from systems.system import register
 
 
+@register
 class SingleIntegrator(ControlAffineDynamics):
     """
     Single integrator system. X=[x, y], U=[vx, vy]
@@ -12,7 +14,7 @@ class SingleIntegrator(ControlAffineDynamics):
 
     @property
     def id(self) -> str:
-        return "single_integrator"
+        return self.__class__.__name__
 
     @property
     def n_vars(self) -> int:

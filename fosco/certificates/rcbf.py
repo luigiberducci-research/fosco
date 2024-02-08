@@ -111,12 +111,15 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
         # robustness constraint
         robust_constr = self._robust_constraint_smt(
             verifier=verifier,
+            B=B,
+            B_constr=B_constr,
             sigma=sigma,
             sigma_constr=sigma_constr,
             Bdot=Bdot,
             Bdot_constr=Bdot_constr,
             Bdotz=Bdotz,
             Bdotz_constr=Bdotz_constr,
+            alpha=alpha,
         )
 
         logging.debug(f"inital_constr: {initial_constr}")
@@ -171,23 +174,40 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
     def _robust_constraint_smt(
         self,
         verifier,
+        B,
+        B_constr,
         sigma,
         sigma_constr,
         Bdot,
         Bdot_constr,
         Bdotz,
         Bdotz_constr,
+        alpha,
     ) -> SYMBOL:
         """
         Robustness constraint
 
-        spec := forall z forall u forall z (sigma(x, u, z) >= - (Bdotz - Bdot))
+        spec := forall x in belt(B==0) forall u forall z  B(x)>0 -> (sigma(x, u, z) >= - (Bdotz - Bdot))
         counterexample: x \in xdomain and z \in zdomain and u \in udomain and
-                        sigma(x,u,z) < - (Bdotz - Bdot)
+                        B(x) > 0 and B(x) < 0.5 and sigma(x,u,z) < - (Bdotz - Bdot)
         """
         _And = verifier.solver_fncts()["And"]
 
-        robust_constr = sigma < - (Bdotz - Bdot)
+
+        # precondition: we are in the belt of the barrier
+        belt_constr = _And(B > 0, B < 0.5)
+        for c in B_constr:
+            belt_constr = _And(belt_constr, c)
+
+        # precondition: the input satisfies the feasibility constraint
+        feas_constr = Bdot - sigma + alpha(B) >= 0
+        for c in B_constr + Bdot_constr:
+            feas_constr = _And(feas_constr, c)
+
+        pre_constr = _And(belt_constr, feas_constr)
+
+        # sigma is not compensating enough
+        robust_constr = _And(pre_constr, sigma < - (Bdotz - Bdot))
         for c in Bdotz_constr + Bdot_constr + sigma_constr:
             robust_constr = _And(robust_constr, c)
 

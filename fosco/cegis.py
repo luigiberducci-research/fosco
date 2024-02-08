@@ -22,18 +22,20 @@ class Cegis:
     def __init__(self, config: CegisConfig, verbose: int = 0):
         self.config = config
 
-        # logging
-        self.verbose = min(max(verbose, 0), len(LOGGING_LEVELS) - 1)
-        self.logger, self.tlogger = self._initialise_logger()
-
         # seeding
         if self.config.SEED is None:
             self.config.SEED = torch.randint(0, 1000000, (1,)).item()
         torch.manual_seed(self.config.SEED)
         np.random.seed(self.config.SEED)
 
-        # intialization
+        # system intialization
         self.f = self.config.SYSTEM()
+
+        # logging
+        self.verbose = min(max(verbose, 0), len(LOGGING_LEVELS) - 1)
+        self.logger, self.tlogger = self._initialise_logger()
+
+        # domains, dynamics, data
         self.x, self.x_map, self.domains = self._initialise_domains()
         self.xdot, self.xdotz = self._initialise_dynamics()
         self.datasets = self._initialise_data()
@@ -198,26 +200,30 @@ class Cegis:
 
             # Learner component
             self.tlogger.debug("Learner")
-            outputs = self.learner.update(**state)
+            outputs, elapsed_time = self.learner.update(**state)
             for context, dict_metrics in outputs.items():
                 self.logger.log_scalar(
                     tag=None, value=dict_metrics, step=iter, context={context: True}
                 )
+            self.logger.log_scalar(tag="time_learner", value=elapsed_time, step=iter)
 
             # Translator component
             self.tlogger.debug("Translator")
-            outputs = self.translator.translate(**state)
+            outputs, elapsed_time = self.translator.translate(**state)
             state.update(outputs)
+            self.logger.log_scalar(tag="time_translator", value=elapsed_time, step=iter)
 
             # Verifier component
             self.tlogger.debug("Verifier")
-            outputs = self.verifier.verify(**state)
+            outputs, elapsed_time = self.verifier.verify(**state)
             state.update(outputs)
+            self.logger.log_scalar(tag="time_verifier", value=elapsed_time, step=iter)
 
             # Consolidator component
             self.tlogger.debug("Consolidator")
-            outputs = self.consolidator.get(**state)
+            outputs, elapsed_time = self.consolidator.get(**state)
             state.update(outputs)
+            self.logger.log_scalar(tag="time_consolidator", value=elapsed_time, step=iter)
 
             # Logging
             # logging data distribution
@@ -269,7 +275,7 @@ class Cegis:
                 u = (lb + ub) / 2.0 + u_norm * (ub - lb) / 2.0
                 ctrl = (
                     lambda x: torch.ones((x.shape[0], self.f.n_controls))
-                              * torch.tensor(u).float()
+                    * torch.tensor(u).float()
                 )
                 if isinstance(self.f, UncertainControlAffineDynamics):
                     f = lambda x, u: self.f._f_torch(
@@ -300,7 +306,11 @@ class Cegis:
                 else:
                     sigma = None
                 func = lambda x: cbf_condition_fn(
-                    certificate=self.learner.net, alpha=alpha, f=f, ctrl=ctrl, sigma=sigma
+                    certificate=self.learner.net,
+                    alpha=alpha,
+                    f=f,
+                    ctrl=ctrl,
+                    sigma=sigma,
                 )(x)
                 fig = plot_func_and_domains(
                     func=func,
@@ -351,7 +361,6 @@ class Cegis:
             "xdot_func": self.f._f_torch,  # numerical dynamics function
             "datasets": self.datasets,  # dictionary of datasets of training data
             "x_v_map": self.x_map,  # dictionary of symbolic variables
-
             "V_symbolic": None,  # symbolic expression of cbf
             "V_symbolic_constr": None,  # extra constraints to use with V_symbolic (eg., extra vars)
             "sigma_symbolic": None,  # symbolic expression of compensator sigma
@@ -360,15 +369,9 @@ class Cegis:
             "Vdot_symbolic_constr": None,  # extra constraints to use with Vdot_symbolic (eg., extra vars)
             "Vdotz_symbolic": None,  # symbolic expression of lie derivative w.r.t. uncertain dynamics
             "Vdotz_symbolic_constr": None,  # extra constraints to use with Vdotz_symbolic (eg., extra vars)
-
             "xdot": self.xdot,  # symbolic expression of nominal dynamics
             "xdotz": self.xdotz,  # symbolic expression of uncertain dynamics
             "cex": None,  # counterexamples
-            # CegisStateKeys.found: False,
-            # CegisStateKeys.verification_timed_out: False,
-            # CegisStateKeys.cex: None,
-            # CegisStateKeys.trajectory: None,
-            # CegisStateKeys.ENet: self.config.ENET,
         }
 
         return state

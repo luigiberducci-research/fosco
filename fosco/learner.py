@@ -6,6 +6,7 @@ from torch import nn
 
 from fosco.common.activations import activation
 from fosco.common.consts import ActivationType, TimeDomain
+from fosco.common.timing import timed
 from models.network import TorchMLP
 from systems import ControlAffineDynamics
 from systems.system import UncertainControlAffineDynamics
@@ -61,6 +62,7 @@ class LearnerCT(LearnerNN):
 
         self.learn_method = learn_method
 
+    @timed
     def update(self, datasets, xdot_func, **kwargs) -> dict:
         output = self.learn_method(self, self.optimizer, datasets, xdot_func)
         return output

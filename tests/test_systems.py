@@ -4,7 +4,6 @@ import numpy as np
 import torch
 import z3
 
-from systems.uncertainty.additive_bounded import AdditiveBoundedUncertainty
 from tests.test_translator import check_smt_equivalence
 
 
@@ -49,6 +48,7 @@ class TestControlAffineDynamicalSystem(unittest.TestCase):
 class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
     def test_noisy_single_integrator(self):
         from systems.single_integrator import SingleIntegrator
+        from systems.uncertainty.additive_bounded import AdditiveBounded
 
         x = np.zeros((10, 2))
         u = np.ones((10, 2))
@@ -57,7 +57,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         T = 10.0
         dt = 0.1
 
-        f = AdditiveBoundedUncertainty(system=SingleIntegrator())
+        f = AdditiveBounded(system=SingleIntegrator())
 
         t = dt
         while t < T:
@@ -69,6 +69,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
 
     def test_noisy_double_integrator(self):
         from systems.double_integrator import DoubleIntegrator
+        from systems.uncertainty.additive_bounded import AdditiveBounded
 
         x = np.zeros((10, 4))
         u = np.ones((10, 2)) * 0.1
@@ -77,7 +78,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         T = 10.0
         dt = 0.1
 
-        f = AdditiveBoundedUncertainty(system=DoubleIntegrator())
+        f = AdditiveBounded(system=DoubleIntegrator())
 
         t = dt
         while t < T:
@@ -95,6 +96,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
 
     def test_noisy_single_integrator_z3(self):
         from systems.single_integrator import SingleIntegrator
+        from systems.uncertainty.additive_bounded import AdditiveBounded
 
         state_vars = ["x", "y"]
         input_vars = ["vx", "vy"]
@@ -104,7 +106,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         u = [z3.Real(var) for var in input_vars]
         z = [z3.Real(var) for var in uncertain_vars]
 
-        f = AdditiveBoundedUncertainty(system=SingleIntegrator())
+        f = AdditiveBounded(system=SingleIntegrator())
 
         xdot = f.f(x, u, z)
 
@@ -123,6 +125,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         is actually equivalent to simulating the nominal system.
         """
         from systems.single_integrator import SingleIntegrator
+        from systems.uncertainty.additive_bounded import AdditiveBounded
 
         x = np.zeros((10, 2))
         u = np.ones((10, 2))
@@ -132,7 +135,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         dt = 0.1
 
         f = SingleIntegrator()
-        fz = AdditiveBoundedUncertainty(system=SingleIntegrator())
+        fz = AdditiveBounded(system=SingleIntegrator())
 
         t = dt
         while t < T:
@@ -153,6 +156,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         actually matches the symbolic expression for the nominal dynamics.
         """
         from systems.single_integrator import SingleIntegrator
+        from systems.uncertainty.additive_bounded import AdditiveBounded
 
         state_vars = ["x", "y"]
         input_vars = ["vx", "vy"]
@@ -163,7 +167,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         z = [z3.Real(var) for var in uncertain_vars]
 
         f = SingleIntegrator()
-        fz = AdditiveBoundedUncertainty(system=SingleIntegrator())
+        fz = AdditiveBounded(system=SingleIntegrator())
 
         xdot = f.f(x, u)
         xdotz = fz.f(x, u, z, only_nominal=True)
@@ -177,13 +181,13 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
 
     def test_properties_and_methods(self):
         from systems.single_integrator import SingleIntegrator
+        from systems.uncertainty.additive_bounded import AdditiveBounded
 
         f = SingleIntegrator()
-        fz = AdditiveBoundedUncertainty(system=SingleIntegrator())
+        fz = AdditiveBounded(system=SingleIntegrator())
 
         self.assertEqual(f.n_vars, fz.n_vars)
         self.assertEqual(f.n_controls, fz.n_controls)
-        self.assertEqual(f.id, fz.id)
 
         x = torch.rand((10, f.n_vars, 1))
         self.assertTrue(torch.isclose(f.fx_torch(x), fz.fx_torch(x)).all())
@@ -209,3 +213,12 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
                 ]
             )
         )
+
+        # check incremental id assignment
+        id1 = f.id
+        id2 = fz.id
+
+        self.assertTrue(isinstance(id1, str), f"expected id1 to be a string, got {type(id1)}")
+        self.assertTrue(isinstance(id2, str), f"expected id2 to be a string, got {type(id2)}")
+        self.assertTrue(id1 != id2, f"expected id1 != id2, got {id1} == {id2}")
+        self.assertTrue(id1 in id2, f"expected id1 in id2, got {id1} not in {id2}")

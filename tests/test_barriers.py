@@ -6,12 +6,13 @@ import z3
 
 from barriers import make_barrier
 from models.torchsym import TorchSymDiffModel, TorchSymModel
-from systems import make_system, add_uncertainty
+from systems import make_system
+from systems.uncertainty import add_uncertainty
 
 
 class TestBarriers(unittest.TestCase):
     def test_single_integrator_cbf_torch(self):
-        system = make_system("single_integrator")()
+        system = make_system("SingleIntegrator")()
 
         barrier_dict = make_barrier(system=system)
         cbf = barrier_dict["barrier"]
@@ -29,7 +30,7 @@ class TestBarriers(unittest.TestCase):
                         f"expected shape (1000, {system.n_vars}), got {dhdx.shape}")
 
     def test_single_integrator_cbf_smt(self):
-        system = make_system("single_integrator")()
+        system = make_system("SingleIntegrator")()
 
         barrier_dict = make_barrier(system=system)
         cbf = barrier_dict["barrier"]
@@ -47,8 +48,8 @@ class TestBarriers(unittest.TestCase):
                         f"expected list of z3.ArithRef, got {type(dhdx[0])}")
 
     def test_single_integrator_sigma_torch(self):
-        system_fn = make_system("single_integrator")
-        system_fn = add_uncertainty("additive_bounded", system_fn=system_fn)
+        system_fn = make_system("SingleIntegrator")
+        system_fn = add_uncertainty("AdditiveBounded", system_fn=system_fn)
         system = system_fn()
 
         barrier_dict = make_barrier(system=system)
@@ -65,8 +66,8 @@ class TestBarriers(unittest.TestCase):
         self.assertTrue(not hasattr(sigma, "gradient_smt"), msg="compensator doesn't have gradient_smt method")
 
     def test_single_integrator_sigma_smt(self):
-        system_fn = make_system("single_integrator")
-        system_fn = add_uncertainty("additive_bounded", system_fn=system_fn)
+        system_fn = make_system("SingleIntegrator")
+        system_fn = add_uncertainty("AdditiveBounded", system_fn=system_fn)
         system = system_fn()
 
         barrier_dict = make_barrier(system=system)

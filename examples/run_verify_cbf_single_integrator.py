@@ -3,15 +3,14 @@ Example of verifying a known valid CBF for single-integrator dynamics.
 """
 import torch
 
-import fosco
 from fosco.cegis import Cegis
 from fosco.common.consts import CertificateType
 from fosco.config import CegisConfig
-from systems import make_system, add_uncertainty, make_domains
+from systems import make_system, make_domains
 
 
 def main(args):
-    system_id = "single_integrator"
+    system_id = "SingleIntegrator"
     verbose = 1
 
     system_fn = make_system(system_id=system_id)

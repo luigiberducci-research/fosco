@@ -6,6 +6,16 @@ import z3
 
 from fosco.common.utils import contains_object
 
+SYSTEM_REGISTRY = {}
+
+
+def register(cls):
+    """
+    Decorator to register a system class in the systems registry.
+    """
+    SYSTEM_REGISTRY[cls.__name__] = cls
+    return cls
+
 
 class ControlAffineDynamics(ABC):
     """

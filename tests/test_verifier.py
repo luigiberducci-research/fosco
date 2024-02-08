@@ -18,8 +18,10 @@ class TestVerifier(unittest.TestCase):
             yield {"unsat": z3.And(C >= 0.0, C < 0)}
 
         vars = verifier_fn.new_vars(n=1)
-        verifier = verifier_fn(solver_vars=vars, constraints_method=constraint_gen)
-        verifier2 = verifier_fn(solver_vars=vars, constraints_method=constraint_gen2)
+        verifier = verifier_fn(solver_vars=vars, constraints_method=constraint_gen,
+                               solver_timeout=10, n_counterexamples=1)
+        verifier2 = verifier_fn(solver_vars=vars, constraints_method=constraint_gen2,
+                                solver_timeout=10, n_counterexamples=1)
 
         C = vars[0] + 1.0
         dC = vars[0] + 6.0

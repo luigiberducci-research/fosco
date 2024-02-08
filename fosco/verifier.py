@@ -4,6 +4,7 @@ from typing import Callable, Generator, Iterable, Type
 
 import torch
 import z3
+from typing import Any
 
 from fosco.common.timing import timed
 from fosco.common.utils import contains_object
@@ -31,7 +32,13 @@ FUNCTIONS = {
 
 class Verifier:
     def __init__(
-        self, constraints_method: Callable[[], Generator], solver_vars: Iterable[SYMBOL], verbose: int = 0
+        self,
+        constraints_method: Callable[..., Generator],
+        solver_vars: Iterable[SYMBOL],
+        solver_timeout: int,
+        n_counterexamples: int,
+        rounding: int = -1,
+        verbose: int = 0
     ):
         super().__init__()
         self.xs = solver_vars
@@ -42,10 +49,10 @@ class Verifier:
         self.iter = -1
         self._last_cex = []
 
-        # todo: make these params configurable
-        self.counterexample_n = 20  # todo: move this to consolidator
+        self.counterexample_n = n_counterexamples  # todo: move this to consolidator
         self._n_cex_to_keep = self.counterexample_n * 1
-        self._solver_timeout = 30
+        self._solver_timeout = solver_timeout
+        self._rounding = rounding
 
         assert self.counterexample_n > 0
         assert self._n_cex_to_keep > 0
@@ -75,7 +82,6 @@ class Verifier:
     def is_unsat(self, res) -> bool:
         raise NotImplementedError("")
 
-    @staticmethod
     def _solver_solve(self, solver, fml):
         raise NotImplementedError("")
 
@@ -96,11 +102,11 @@ class Verifier:
         self,
         V_symbolic: SYMBOL,
         V_symbolic_constr: Iterable[SYMBOL],
-        sigma_symbolic: SYMBOL,
+        sigma_symbolic: SYMBOL | None,
         sigma_symbolic_constr: Iterable[SYMBOL],
         Vdot_symbolic: SYMBOL,
         Vdot_symbolic_constr: Iterable[SYMBOL],
-        Vdotz_symbolic: SYMBOL,
+        Vdotz_symbolic: SYMBOL | None,
         Vdotz_symbolic_constr: Iterable[SYMBOL],
         **kwargs,
     ):
@@ -137,7 +143,7 @@ class Verifier:
                     vars = self.xs
 
                 s = self.new_solver()
-                res, timedout = self.solve_with_timeout(s, condition)
+                res, timedout = self._solver_solve(solver=s, fml=condition)
                 results[label] = res
                 solvers[label] = s
                 solver_vars[label] = vars  # todo: select diff vars for input and state
@@ -161,38 +167,26 @@ class Verifier:
                     )
                     self._logger.info(f"{label}: Counterexample Found: {solver_vars[label]} = {original_point}")
 
-                    V_ctx = self.replace_point(
-                        V_symbolic, solver_vars[label], original_point.numpy().T
-                    )
-                    Vdot_ctx = self.replace_point(
-                        Vdot_symbolic, solver_vars[label], original_point.numpy().T
-                    )
+                    # debug
+                    for sym_name, sym in zip(["V", "Sigma", "Vdot", "Vdotz"],
+                                             [V_symbolic, sigma_symbolic, Vdot_symbolic, Vdotz_symbolic]):
+                        if sym is None:
+                            continue
+                        replaced = self.replace_point(
+                            sym, solver_vars[label], original_point.numpy().T
+                        )
+                        if hasattr(replaced, "as_fraction"):
+                            fraction = replaced.as_fraction()
+                            value = float(fraction.numerator / fraction.denominator)
+                        else:
+                            value = None
+                        self._logger.debug(f"[cex] {sym_name}: {value}")
 
                     ces[label] = self.randomise_counterex(original_point)
                 else:
                     self._logger.info(f"{label}: {res}")
 
         return {"found": found, "cex": ces}
-
-    def solve_with_timeout(self, solver, fml):
-        """
-        :param fml:
-        :param solver: z3 solver
-        :return:
-                res: sat if found ctx
-                timedout: true if verification timed out
-        """
-        try:
-            # todo: does it work for solver to set timeout this way?
-            solver.set("timeout", max(1, self._solver_timeout * 1000))
-        except:
-            pass
-        self._logger.debug("Fml: {}".format(fml))
-        timer = timeit.default_timer()
-        res = self._solver_solve(solver, fml)
-        timer = timeit.default_timer() - timer
-        timedout = timer >= self._solver_timeout
-        return res, timedout
 
     def compute_model(self, vars, solver, res):
         """
@@ -273,8 +267,30 @@ class VerifierZ3(Verifier):
         return res == z3.unsat
 
     def _solver_solve(self, solver, fml):
+        """
+        :param fml:
+        :param solver: z3 solver
+        :return:
+                res: sat if found ctx
+                timedout: true if verification timed out
+        """
+        try:
+            solver.set("timeout", max(1, self._solver_timeout * 1000))
+        except:
+            pass
+
+        if self._rounding > 0:
+            fml = self.round_expr(fml, rounding=self._rounding)
+
+        self._logger.debug(f"Fml: {z3.simplify(fml)}")
+
+        timer = timeit.default_timer()
         solver.add(fml)
-        return solver.check()
+        res = solver.check()
+        timer = timeit.default_timer() - timer
+
+        timedout = timer >= self._solver_timeout
+        return res, timedout
 
     def _solver_model(self, solver, res):
         return solver.model()
@@ -296,6 +312,28 @@ class VerifierZ3(Verifier):
 
     def solver_fncts(self):
         return FUNCTIONS
+
+    def round_expr(self, e: SYMBOL, rounding: int) -> SYMBOL:
+        """
+        Recursive conversion of coefficients to rounded values.
+
+        Args:
+            e:  z3 expression
+            rounding: number of decimals to round to
+
+        Returns:
+            e: z3 expression with rounded coefficients
+        """
+        assert rounding > 0, "rounding must be > 0"
+
+        # base case: rational coeff
+        if z3.is_const(e) and hasattr(e, "as_fraction"):
+            num, den = e.as_fraction().numerator, e.as_fraction().denominator
+            return z3.RealVal(round(float(num) / float(den), rounding))
+
+        # recursive case: non-const expr
+        args = [self.round_expr(arg, rounding) for arg in e.children()]
+        return e.decl()(*args)
 
 
 def make_verifier(type: VerifierType) -> Type[VerifierZ3]:

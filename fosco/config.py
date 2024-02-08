@@ -24,6 +24,8 @@ class CegisConfig:
     # fosco
     CERTIFICATE: CertificateType = CertificateType.CBF
     VERIFIER: VerifierType = VerifierType.Z3
+    VERIFIER_TIMEOUT: int = 30
+    VERIFIER_N_CEX: int = 20
     CEGIS_MAX_ITERS: int = 10
     ROUNDING: int = 3
     USE_INIT_MODELS: bool = False
@@ -46,6 +48,7 @@ class CegisConfig:
     SEED: int = None
     # logging
     LOGGER: LoggerType = None
+    EXP_NAME: str = None
 
     def __getitem__(self, item):
         return getattr(self, item)

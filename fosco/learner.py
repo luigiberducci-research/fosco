@@ -55,16 +55,16 @@ class LearnerCT(LearnerNN):
                 activation=activation,
             )
 
+        self.optimizers = {}
         if len(list(self.parameters())) > 0:
-            self.optimizer = make_optimizer(optimizer, params=self.parameters(), lr=lr, weight_decay=weight_decay)
-        else:
-            self.optimizer = None
+            self.optimizers["barrier"] = make_optimizer(optimizer, params=self.parameters(),
+                                                        lr=lr, weight_decay=weight_decay)
 
         self.learn_method = learn_method
 
     @timed
     def update(self, datasets, xdot_func, **kwargs) -> dict:
-        output = self.learn_method(self, self.optimizer, datasets, xdot_func)
+        output = self.learn_method(self, self.optimizers, datasets, xdot_func)
         return output
 
 
@@ -109,10 +109,9 @@ class LearnerRobustCT(LearnerCT):
             )
 
         # overriden optimizer with all module parameters
-        if len(list(self.parameters())) > 0:
-            self.optimizer = make_optimizer(optimizer, params=self.parameters(), lr=lr, weight_decay=weight_decay)
-        else:
-            self.optimizer = None
+        if len(list(self.xsigma.parameters())) > 0:
+            self.optimizers["barrier"] = make_optimizer(optimizer, params=self.parameters(),
+                                                            lr=lr, weight_decay=weight_decay)
 
 
 def make_learner(

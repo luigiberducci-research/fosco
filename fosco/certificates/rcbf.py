@@ -271,7 +271,7 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
     def learn(
         self,
         learner: LearnerCT,
-        optimizer: Optimizer,
+        optimizers: dict[str, Optimizer],
         datasets: dict,
         f_torch: callable,
     ) -> dict[str, float | np.ndarray | dict]:
@@ -279,14 +279,15 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
         Updates the CBF model.
 
         :param learner: LearnerNN object
-        :param optimizer: torch optimizer
+        :param optimizer: dict of optimizers
         :param datasets: dictionary of (string,torch.Tensor) pairs
         :param f_torch: callable
         """
         # todo extend signature with **kwargs
 
-        if optimizer is None:
+        if not optimizers:
             return {}
+        assert "barrier" in optimizers, f"Missing optimizer 'barrier', got {optimizers}"
 
         condition_old = False
         i1 = datasets[XD].shape[0]
@@ -318,7 +319,7 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
 
         losses, accuracies = {}, {}
         for t in range(self.epochs):
-            optimizer.zero_grad()
+            optimizers["barrier"].zero_grad()
 
             # net gradient
             B = learner.net(state_samples)
@@ -387,7 +388,7 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
             condition_old = condition
 
             loss.backward()
-            optimizer.step()
+            optimizers["barrier"].step()
 
         logging.info(f"Epoch {t}: loss={loss}")
         logging.info(f"mean compensation: {sigma.mean().item()}")
@@ -483,18 +484,27 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
         init_loss = weight_init * (self.loss_relu(margin_init - B_i)).mean()
         # penalize B_u > 0
         unsafe_loss = weight_unsafe * (self.loss_relu(B_u + margin_unsafe)).mean()
-        # penalize dB_d - sigma_d + alpha * B_d < 0
+        # penalize when B_d > 0 and dB_d - sigma_d + alpha * B_d < 0
+        #  `min(B, -(dB - sigma + alpha))` > margin
+        #loss_cond = margin_lie - (Bdot_d - sigma_d + alpha * B_d)
+        loss_cond = torch.min(B_d, -(Bdot_d - sigma_d + alpha * B_d)) - margin_lie
         lie_loss = (
             weight_lie
-            * (self.loss_relu(margin_lie - (Bdot_d - sigma_d + alpha * B_d))).mean()
+            * (self.loss_relu(loss_cond)).mean()
         )
 
         # penalize sigma_dz < - (Bdotz_dz - Bdot_dz)
         # penalize sigma_dz + Bdotz_dz - Bdot_dz < 0
         # equivalent to relu(margin_robust - (sigma_dz + Bdotz_dz - Bdot_dz))
-        compensator_term = sigma_dz + Bdotz_dz - Bdot_dz
-        loss_robust = self.loss_relu(margin_robust - compensator_term)
-        robust_loss = weight_robust * (loss_robust).mean()
+        precondition = torch.min(
+            B_dz,   # todo: change to belt
+            Bdot_dz - sigma_dz + alpha * B_dz,
+        )
+        compensator_term = torch.min(
+            precondition,
+            -(sigma_dz + Bdotz_dz - Bdot_dz)
+        )
+        robust_loss = weight_robust * self.loss_relu(compensator_term + margin_robust).mean()
 
         # regularization losses
         # penalize high sigma and negative B (conservative)
@@ -502,14 +512,16 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
         loss_B_neg = self.loss_relu(-B_dz).mean()    # penalize B_dz < 0
         loss_conservative = weight_conservative_b * loss_B_neg + weight_conservative_s * loss_sigma_pos
 
-        loss = init_loss + unsafe_loss + lie_loss + robust_loss + loss_conservative
+
+        tot_loss = init_loss + unsafe_loss + lie_loss + robust_loss + loss_conservative
 
         losses = {
             "init_loss": init_loss.item(),
             "unsafe_loss": unsafe_loss.item(),
             "lie_loss": lie_loss.item(),
             "robust_loss": robust_loss.item(),
-            "tot_loss": loss.item(),
+            "conservative_loss": loss_conservative.item(),
+            "tot_loss": tot_loss.item(),
         }
 
         accuracy = {
@@ -523,4 +535,4 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
         logging.debug("Dataset Accuracy:")
         logging.debug("\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
 
-        return loss, losses, accuracy
+        return tot_loss, losses, accuracy

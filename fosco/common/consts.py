@@ -12,10 +12,8 @@ class DomainNames(Enum):
 
 
 class CertificateType(Enum):
-    CBF = auto()
-    RCBF = auto()
-    CBFgt = auto()  # ground truth CBF, only for evaluation of certain systems
-    RCBFgt = auto() # ground truth RCBF, only for evaluation of certain systems
+    CBF = "cbf"
+    RCBF = "rcbf"
 
     @classmethod
     def get_certificate_sets(
@@ -36,38 +34,38 @@ class CertificateType(Enum):
 
 
 class TimeDomain(Enum):
-    CONTINUOUS = auto()
-    DISCRETE = auto()
+    CONTINUOUS = "continuous"
+    DISCRETE = "discrete"
 
 
 class ActivationType(Enum):
-    IDENTITY = auto()
-    RELU = auto()
-    LINEAR = auto()
-    SQUARE = auto()
-    POLY_2 = auto()
-    RELU_SQUARE = auto()
-    REQU = auto()
-    POLY_3 = auto()
-    POLY_4 = auto()
-    POLY_5 = auto()
-    POLY_6 = auto()
-    POLY_7 = auto()
-    POLY_8 = auto()
-    EVEN_POLY_4 = auto()
-    EVEN_POLY_6 = auto()
-    EVEN_POLY_8 = auto()
-    EVEN_POLY_10 = auto()
-    RATIONAL = auto()
+    IDENTITY = "identity"
+    RELU = "relu"
+    LINEAR = "linear"
+    SQUARE = "square"
+    POLY_2 = "poly_2"
+    RELU_SQUARE = "relu_square"
+    REQU = "requ"
+    POLY_3 = "poly_3"
+    POLY_4 = "poly_4"
+    POLY_5 = "poly_5"
+    POLY_6 = "poly_6"
+    POLY_7 = "poly_7"
+    POLY_8 = "poly_8"
+    EVEN_POLY_4 = "even_poly_4"
+    EVEN_POLY_6 = "even_poly_6"
+    EVEN_POLY_8 = "even_poly_8"
+    EVEN_POLY_10 = "even_poly_10"
+    RATIONAL = "rational"
 
 
 class VerifierType(Enum):
-    Z3 = auto()
+    Z3 = "z3"
 
 
 class LossReLUType(Enum):
-    RELU = auto()
-    SOFTPLUS = auto()
+    RELU = "relu"
+    SOFTPLUS = "softplus"
 
     def __call__(self, x):
         if self == LossReLUType.RELU:

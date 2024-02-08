@@ -33,9 +33,7 @@ class MLPZ3Translator(Translator):
     Symbolic translator for feed-forward neural networks to z3 expressions.
     """
 
-    def __init__(self, rounding: int = 3, verbose: int = 0):
-        self.round = rounding
-
+    def __init__(self, verbose: int = 0):
         self._logger = logging.getLogger(__name__)
         self._logger.setLevel(LOGGING_LEVELS[verbose])
         self._logger.debug("Translator initialized")

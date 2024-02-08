@@ -1,4 +1,6 @@
 import logging
+from datetime import datetime
+
 import numpy as np
 import torch
 
@@ -52,7 +54,12 @@ class Cegis:
 
     def _initialise_logger(self) -> Logger:
         config = self.config.dict()
-        exp_name = f"{self.config.SYSTEM}_{self.config.CERTIFICATE}"
+
+        # make experiment name
+        datetime_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        cfg = self.config
+        exp_name = f"{self.f.id}_{cfg.CERTIFICATE.value}_{cfg.EXP_NAME}_Seed{cfg.SEED}_{datetime_str}"
+
         logger = make_logger(
             logger_type=self.config.LOGGER, config=config, experiment=exp_name
         )
@@ -90,7 +97,10 @@ class Cegis:
         verifier_instance = verifier_type(
             solver_vars=self.x,
             constraints_method=self.certificate.get_constraints,
-            verbose=self.verbose
+            rounding=self.config.ROUNDING,
+            solver_timeout=self.config.VERIFIER_TIMEOUT,
+            n_counterexamples=self.config.VERIFIER_N_CEX,
+            verbose=self.verbose,
         )
         return verifier_instance
 
@@ -174,7 +184,6 @@ class Cegis:
             certificate_type=self.config.CERTIFICATE,
             verifier_type=self.config.VERIFIER,
             time_domain=self.config.TIME_DOMAIN,
-            rounding=self.config.ROUNDING,
             verbose=self.verbose,
         )
 

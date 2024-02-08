@@ -58,7 +58,7 @@ def scatter_datasets(
 ) -> go.Figure:
     fig = go.Figure()
 
-    colors = ["red", "blue", "green", "purple"]
+    colors = ["blue", "red", "green", "purple"]
     for i, (name, data) in enumerate(datasets.items()):
         color = colors[i % len(colors)]
         fig = scatter_data(

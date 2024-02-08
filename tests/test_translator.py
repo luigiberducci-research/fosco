@@ -30,7 +30,7 @@ class TestTranslator(unittest.TestCase):
 
         nn = TorchMLP(input_size=n_vars, hidden_sizes=(), activation=(), output_size=1)
 
-        translator = MLPZ3Translator(rounding=-1)
+        translator = MLPZ3Translator()
         result_dict, elapsed_time = translator.translate(x_v_map={"v": x}, V_net=nn, xdot=xdot)
         expr_nn = result_dict["V_symbolic"]
         expr_nndot = result_dict["Vdot_symbolic"]
@@ -73,7 +73,7 @@ class TestTranslator(unittest.TestCase):
 
         xdot = np.array(x).reshape(-1, 1)
 
-        translator = MLPZ3Translator(rounding=-1)
+        translator = MLPZ3Translator()
         result_dict, elapsed_time = translator.translate(x_v_map={"v": x}, V_net=nn, xdot=xdot)
         expr_nn = result_dict["V_symbolic"]
         expr_nndot = result_dict["Vdot_symbolic"]
@@ -146,7 +146,7 @@ class TestTranslator(unittest.TestCase):
 
         xdot = np.array(x).reshape(-1, 1)
 
-        translator = MLPZ3Translator(rounding=-1)
+        translator = MLPZ3Translator()
         result_dict, elapsed_time = translator.translate(x_v_map={"v": x}, V_net=nn, xdot=xdot)
         expr_nn = result_dict["V_symbolic"]
         expr_nndot = result_dict["Vdot_symbolic"]
@@ -251,7 +251,7 @@ class TestTranslator(unittest.TestCase):
 
         xdot = np.array(x).reshape(-1, 1)
 
-        translator = MLPZ3Translator(rounding=-1)
+        translator = MLPZ3Translator()
         result_dict, elapsed_time = translator.translate(x_v_map={"v": x}, V_net=nn, xdot=xdot)
         expr_nn = result_dict["V_symbolic"]
         expr_nndot = result_dict["Vdot_symbolic"]
@@ -306,7 +306,7 @@ class TestTranslator(unittest.TestCase):
 
         xdot = np.array(x).reshape(-1, 1)
 
-        translator = MLPZ3Translator(rounding=-1)
+        translator = MLPZ3Translator()
         result_dict, elapsed_time = translator.translate(x_v_map={"v": x}, V_net=nn, xdot=xdot)
         expr_nn = result_dict["V_symbolic"]
         expr_nndot = result_dict["Vdot_symbolic"]

@@ -220,7 +220,7 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
     def learn(
             self,
             learner: LearnerNN,
-            optimizer: Optimizer,
+            optimizers: Optimizer,
             datasets: dict,
             f_torch: callable,
     ) -> dict[str, float | np.ndarray]:
@@ -234,7 +234,7 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
         """
         # todo extend signature with **kwargs
 
-        if optimizer is None:
+        if not optimizers:
             return {}
 
         condition_old = False
@@ -249,7 +249,7 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
 
         losses, accuracies, infos = {}, {}, {}
         for t in range(self.epochs):
-            optimizer.zero_grad()
+            optimizers["barrier"].zero_grad()
 
             # net gradient
             B = learner.net(state_samples)
@@ -294,7 +294,7 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
             condition_old = condition
 
             loss.backward()
-            optimizer.step()
+            optimizers["barrier"].step()
 
         return {
             "loss": losses,

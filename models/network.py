@@ -20,7 +20,6 @@ class TorchMLP(TorchSymDiffModel):
         activation: tuple[str | ActivationType, ...],
         output_size: int = 1,
         output_activation: str | ActivationType = "linear",
-        round: int = -1,
     ):
         super(TorchMLP, self).__init__()
         assert len(hidden_sizes) == len(
@@ -67,9 +66,6 @@ class TorchMLP(TorchSymDiffModel):
             self.output_size == self.layers[-1].out_features
         ), "output size does not match last layer size"
 
-        # for symbolic translation
-        self.round = round
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         y = x
         for idx, layer in enumerate(self.layers):
@@ -81,16 +77,13 @@ class TorchMLP(TorchSymDiffModel):
     def forward_smt(self, x: Iterable[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL]]:
         input_vars = np.array(x).reshape(-1, 1)
 
-        z, _ = network_until_last_layer(net=self, input_vars=input_vars, round=self.round)
+        z, _ = network_until_last_layer(net=self, input_vars=input_vars)
 
-        if self.round < 0:
-            last_layer = self.layers[-1].weight.data.numpy()
-        else:
-            last_layer = np.round(self.layers[-1].weight.data.numpy(), self.round)
-
+        last_layer = self.layers[-1].weight.data.numpy()
         z = last_layer @ z
         if self.layers[-1].bias is not None:
             z += self.layers[-1].bias.data.numpy()[:, None]
+
         assert z.shape == (1, 1), f"Wrong shape of z, expected (1, 1), got {z.shape}"
 
         # last activation
@@ -113,12 +106,10 @@ class TorchMLP(TorchSymDiffModel):
     def gradient_smt(self, x: Iterable[SYMBOL]) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL]]:
         input_vars = np.array(x).reshape(-1, 1)
 
-        z, jacobian = network_until_last_layer(net=self, input_vars=input_vars, round=self.round)
+        z, jacobian = network_until_last_layer(net=self, input_vars=input_vars)
 
-        if self.round < 0:
-            last_layer = self.layers[-1].weight.data.numpy()
-        else:
-            last_layer = np.round(self.layers[-1].weight.data.numpy(), self.round)
+        last_layer = self.layers[-1].weight.data.numpy()
+
 
         zhat = last_layer @ z
         if self.layers[-1].bias is not None:
@@ -193,18 +184,12 @@ def network_until_last_layer(
     jacobian = np.eye(net.input_size, net.input_size)
 
     for idx, layer in enumerate(net.layers[:-1]):
-        if round < 0:
-            w = layer.weight.data.numpy()
-            if layer.bias is not None:
-                b = layer.bias.data.numpy()[:, None]
-            else:
-                b = np.zeros((layer.out_features, 1))
-        elif round >= 0:
-            w = np.round(layer.weight.data.numpy(), self.round)
-            if layer.bias is not None:
-                b = np.round(layer.bias.data.numpy(), self.round)[:, None]
-            else:
-                b = np.zeros((layer.out_features, 1))
+        w = layer.weight.data.numpy()
+        if layer.bias is not None:
+            b = layer.bias.data.numpy()[:, None]
+        else:
+            b = np.zeros((layer.out_features, 1))
+
 
         zhat = w @ z + b
         z = activation_sym(net.acts[idx], zhat)

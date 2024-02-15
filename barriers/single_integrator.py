@@ -120,7 +120,7 @@ class SingleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
         - then we forward pass as
         And(sigma * z_bound, sigma ** 2 = dhdx[0] ** 2 + dhdx[1] ** 2)
         """
-        from fosco.verifier import VerifierZ3
+        from fosco.verifier.z3_verifier import VerifierZ3
 
         self._assert_forward_smt_input(x=x)
 

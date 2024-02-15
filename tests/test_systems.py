@@ -27,7 +27,7 @@ class TestControlAffineDynamicalSystem(unittest.TestCase):
 
     def test_single_integrator_z3(self):
         from systems.single_integrator import SingleIntegrator
-        from fosco.verifier import VerifierZ3
+        from fosco.verifier.z3_verifier import VerifierZ3
 
         x = VerifierZ3.new_vars(2, base="x")
         u = VerifierZ3.new_vars(2, base="u")
@@ -96,7 +96,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
     def test_noisy_single_integrator_z3(self):
         from systems.single_integrator import SingleIntegrator
         from systems.uncertainty.additive_bounded import AdditiveBounded
-        from fosco.verifier import VerifierZ3
+        from fosco.verifier.z3_verifier import VerifierZ3
 
         x = VerifierZ3.new_vars(2, base="x")
         u = VerifierZ3.new_vars(2, base="u")

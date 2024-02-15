@@ -4,7 +4,6 @@ import numpy as np
 
 from models.network import TorchMLP
 from fosco.translator import MLPZ3Translator, make_translator, RobustMLPZ3Translator
-from fosco.verifier import VerifierZ3
 
 
 def check_smt_equivalence(expr1, expr2):
@@ -19,7 +18,8 @@ def check_smt_equivalence(expr1, expr2):
 class TestTranslator(unittest.TestCase):
 
     def test_translator_linear_layer(self):
-        import z3
+        from fosco.verifier.z3_verifier import VerifierZ3
+        from fosco.verifier.types import Z3SYMBOL
 
         n_vars = 2
 
@@ -34,8 +34,8 @@ class TestTranslator(unittest.TestCase):
         result_dict, elapsed_time = translator.translate(x_v_map={"v": x}, V_net=nn, xdot=xdot)
         expr_nn = result_dict["V_symbolic"]
         expr_nndot = result_dict["Vdot_symbolic"]
-        self.assertTrue(isinstance(expr_nn, z3.ArithRef))
-        self.assertTrue(isinstance(expr_nndot, z3.ArithRef))
+        self.assertTrue(isinstance(expr_nn, Z3SYMBOL))
+        self.assertTrue(isinstance(expr_nndot, Z3SYMBOL))
 
         w0 = nn.W0.detach().numpy().flatten()
         b0 = nn.b0.detach().numpy().flatten()
@@ -60,10 +60,12 @@ class TestTranslator(unittest.TestCase):
         )
 
     def test_translator_two_layers(self):
-        import z3
+        from fosco.verifier.z3_verifier import VerifierZ3
+        from fosco.verifier.types import Z3SYMBOL
 
         n_vars = 2
 
+        z3_fns = VerifierZ3.solver_fncts()
         x = VerifierZ3.new_vars(n_vars, base="x")
         x = np.array(x).reshape(-1, 1)
 
@@ -77,8 +79,8 @@ class TestTranslator(unittest.TestCase):
         result_dict, elapsed_time = translator.translate(x_v_map={"v": x}, V_net=nn, xdot=xdot)
         expr_nn = result_dict["V_symbolic"]
         expr_nndot = result_dict["Vdot_symbolic"]
-        self.assertTrue(isinstance(expr_nn, z3.ArithRef))
-        self.assertTrue(isinstance(expr_nndot, z3.ArithRef))
+        self.assertTrue(isinstance(expr_nn, Z3SYMBOL))
+        self.assertTrue(isinstance(expr_nndot, Z3SYMBOL))
 
 
         w0 = nn.W0.detach().numpy()
@@ -86,7 +88,7 @@ class TestTranslator(unittest.TestCase):
         w1 = nn.W1.detach().numpy()
         b1 = nn.b1.detach().numpy()[:, None]
 
-        _If = z3.If
+        _If = z3_fns["If"]
         # compute symbolic hidden layer
         h1 = w0 @ x + b0
         z1 = np.zeros_like(h1)
@@ -109,16 +111,16 @@ class TestTranslator(unittest.TestCase):
         # create dzdh symbolic matrix of shape (2, 2)
         dz_dh = np.array(
             [
-                [z3.RealVal(0) for _ in range(dh_dx.shape[0])]
+                [z3_fns["RealVal"](0) for _ in range(dh_dx.shape[0])]
                 for _ in range(dh_dx.shape[0])
             ]
         )
         for i in range(dz_dh.shape[0]):
             for j in range(dz_dh.shape[1]):
                 if i == j:
-                    dz_dh[i, j] = _If(h1[i, 0] > 0, z3.RealVal(1), z3.RealVal(0))
+                    dz_dh[i, j] = _If(h1[i, 0] > 0, z3_fns["RealVal"](1), z3_fns["RealVal"](0))
                 else:
-                    dz_dh[i, j] = z3.RealVal(0)
+                    dz_dh[i, j] = z3_fns["RealVal"](0)
         grad_nn = dy_dz @ (dz_dh @ dh_dx)
 
         expected_expr_nndot = (grad_nn @ xdot)[0, 0]
@@ -130,10 +132,12 @@ class TestTranslator(unittest.TestCase):
         )
 
     def test_translator_three_layers(self):
-        import z3
+        from fosco.verifier.z3_verifier import VerifierZ3
+        from fosco.verifier.types import Z3SYMBOL
 
         n_vars = 2
 
+        z3_fns = VerifierZ3.solver_fncts()
         x = VerifierZ3.new_vars(n_vars, base="x")
         x = np.array(x).reshape(-1, 1)
 
@@ -150,8 +154,8 @@ class TestTranslator(unittest.TestCase):
         result_dict, elapsed_time = translator.translate(x_v_map={"v": x}, V_net=nn, xdot=xdot)
         expr_nn = result_dict["V_symbolic"]
         expr_nndot = result_dict["Vdot_symbolic"]
-        self.assertTrue(isinstance(expr_nn, z3.ArithRef))
-        self.assertTrue(isinstance(expr_nndot, z3.ArithRef))
+        self.assertTrue(isinstance(expr_nn, Z3SYMBOL))
+        self.assertTrue(isinstance(expr_nndot, Z3SYMBOL))
 
         w0 = nn.W0.detach().numpy()
         b0 = nn.b0.detach().numpy()[:, None]
@@ -160,7 +164,7 @@ class TestTranslator(unittest.TestCase):
         w2 = nn.W2.detach().numpy()
         b2 = nn.b2.detach().numpy()[:, None]
 
-        _If = z3.If
+        _If = z3_fns["If"]
         # compute symbolic hidden layer
         h1 = w0 @ x + b0
         o1 = np.zeros_like(h1)
@@ -187,30 +191,30 @@ class TestTranslator(unittest.TestCase):
         dh2_do1 = w1
         do2_dh2 = np.array(
             [
-                [z3.RealVal(0) for _ in range(dh2_do1.shape[0])]
+                [z3_fns["RealVal"](0) for _ in range(dh2_do1.shape[0])]
                 for _ in range(dh2_do1.shape[0])
             ]
         )
         for i in range(do2_dh2.shape[0]):
             for j in range(do2_dh2.shape[1]):
                 if i == j:
-                    do2_dh2[i, j] = _If(h2[i, 0] > 0, z3.RealVal(1), z3.RealVal(0))
+                    do2_dh2[i, j] = _If(h2[i, 0] > 0, z3_fns["RealVal"](1), z3_fns["RealVal"](0))
                 else:
-                    do2_dh2[i, j] = z3.RealVal(0)
+                    do2_dh2[i, j] = z3_fns["RealVal"](0)
 
         dh1_dx = w0
         do1_dh1 = np.array(
             [
-                [z3.RealVal(0) for _ in range(dh1_dx.shape[0])]
+                [z3_fns["RealVal"](0) for _ in range(dh1_dx.shape[0])]
                 for _ in range(dh1_dx.shape[0])
             ]
         )
         for i in range(do1_dh1.shape[0]):
             for j in range(do1_dh1.shape[1]):
                 if i == j:
-                    do1_dh1[i, j] = _If(h1[i, 0] > 0, z3.RealVal(1), z3.RealVal(0))
+                    do1_dh1[i, j] = _If(h1[i, 0] > 0, z3_fns["RealVal"](1), z3_fns["RealVal"](0))
                 else:
-                    do1_dh1[i, j] = z3.RealVal(0)
+                    do1_dh1[i, j] = z3_fns["RealVal"](0)
 
         for name, matrix in zip(
                 ["dy_do3", "do2_dh2", "dh2_do1", "do2_dh1", "dh1_dx"],
@@ -232,9 +236,11 @@ class TestTranslator(unittest.TestCase):
         """
         Test simbolic formula for a network with relu activation in the output layer.
         """
-        import z3
+        from fosco.verifier.z3_verifier import VerifierZ3
+        from fosco.verifier.types import Z3SYMBOL
 
-        _If = z3.If
+        z3_fns = VerifierZ3.solver_fncts()
+        _If = z3_fns["If"]
 
         n_vars = 2
 
@@ -255,8 +261,8 @@ class TestTranslator(unittest.TestCase):
         result_dict, elapsed_time = translator.translate(x_v_map={"v": x}, V_net=nn, xdot=xdot)
         expr_nn = result_dict["V_symbolic"]
         expr_nndot = result_dict["Vdot_symbolic"]
-        self.assertTrue(isinstance(expr_nn, z3.ArithRef))
-        self.assertTrue(isinstance(expr_nndot, z3.ArithRef))
+        self.assertTrue(isinstance(expr_nn, Z3SYMBOL))
+        self.assertTrue(isinstance(expr_nndot, Z3SYMBOL))
 
         w0 = nn.W0.detach().numpy()
         b0 = nn.b0.detach().numpy()[:, None]
@@ -274,7 +280,8 @@ class TestTranslator(unittest.TestCase):
         )
 
         # compute symbolic gradient dy/dx = dy/dz dz/dx
-        dy_dz = np.array([[_If(z1 > 0, z3.RealVal(1), z3.RealVal(0))]])
+        RealVal_ = z3_fns["RealVal"]
+        dy_dz = np.array([[_If(z1 > 0, RealVal_(1), RealVal_(0))]])
         dz_dx = w0
 
         grad_nn = dy_dz @ dz_dx
@@ -287,9 +294,11 @@ class TestTranslator(unittest.TestCase):
         )
 
     def test_translator_two_layers_relu_out(self):
-        import z3
+        from fosco.verifier.z3_verifier import VerifierZ3
+        from fosco.verifier.types import Z3SYMBOL
 
-        _If = z3.If
+        z3_fns = VerifierZ3.solver_fncts()
+        _If = z3_fns["If"]
 
         n_vars = 2
 
@@ -310,8 +319,8 @@ class TestTranslator(unittest.TestCase):
         result_dict, elapsed_time = translator.translate(x_v_map={"v": x}, V_net=nn, xdot=xdot)
         expr_nn = result_dict["V_symbolic"]
         expr_nndot = result_dict["Vdot_symbolic"]
-        self.assertTrue(isinstance(expr_nn, z3.ArithRef))
-        self.assertTrue(isinstance(expr_nndot, z3.ArithRef))
+        self.assertTrue(isinstance(expr_nn, Z3SYMBOL))
+        self.assertTrue(isinstance(expr_nndot, Z3SYMBOL))
 
         w1 = nn.W0.detach().numpy()
         b1 = nn.b0.detach().numpy()[:, None]
@@ -336,22 +345,23 @@ class TestTranslator(unittest.TestCase):
         )
 
         # compute symbolic gradient dy/dx = dy/dz dz/dx
-        dact_dy = np.array([[_If(z2 > 0, z3.RealVal(1), z3.RealVal(0))]])
+        RealVal_ = z3_fns["RealVal"]
+        dact_dy = np.array([[_If(z2 > 0, RealVal_(1), RealVal_(0))]])
         dy_dz = w2
         dh_dx = w1
         # create dzdh symbolic matrix of shape (2, 2)
         dz_dh = np.array(
             [
-                [z3.RealVal(0) for _ in range(dh_dx.shape[0])]
+                [RealVal_(0) for _ in range(dh_dx.shape[0])]
                 for _ in range(dh_dx.shape[0])
             ]
         )
         for i in range(dz_dh.shape[0]):
             for j in range(dz_dh.shape[1]):
                 if i == j:
-                    dz_dh[i, j] = _If(h1[i, 0] > 0, z3.RealVal(1), z3.RealVal(0))
+                    dz_dh[i, j] = _If(h1[i, 0] > 0, RealVal_(1), RealVal_(0))
                 else:
-                    dz_dh[i, j] = z3.RealVal(0)
+                    dz_dh[i, j] = RealVal_(0)
         grad_nn = dact_dy @ (dy_dz @ (dz_dh @ dh_dx))
 
         expected_expr_nndot = (grad_nn @ xdot)[0, 0]

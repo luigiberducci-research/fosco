@@ -4,9 +4,8 @@ from typing import Callable
 import z3
 
 from fosco.common.utils import contains_object
+from fosco.verifier.types import Z3SYMBOL
 from fosco.verifier.verifier import Verifier
-
-Z3SYMBOL = z3.ArithRef
 
 
 class VerifierZ3(Verifier):
@@ -95,7 +94,7 @@ class VerifierZ3(Verifier):
                 return float(model[x[0, 0]].approx(10).as_fraction())
 
     @staticmethod
-    def solver_fncts():
+    def solver_fncts() -> dict[str, Callable]:
         return {
             "And": z3.And,
             "Or": z3.Or,

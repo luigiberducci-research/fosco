@@ -30,7 +30,7 @@ class TestBarriers(unittest.TestCase):
                         f"expected shape (1000, {system.n_vars}), got {dhdx.shape}")
 
     def test_single_integrator_cbf_smt(self):
-        from fosco.verifier import VerifierZ3
+        from fosco.verifier.z3_verifier import VerifierZ3
         from fosco.verifier.z3_verifier import Z3SYMBOL
 
         system = make_system("SingleIntegrator")()
@@ -69,7 +69,7 @@ class TestBarriers(unittest.TestCase):
         self.assertTrue(not hasattr(sigma, "gradient_smt"), msg="compensator doesn't have gradient_smt method")
 
     def test_single_integrator_sigma_smt(self):
-        from fosco.verifier import VerifierZ3
+        from fosco.verifier.z3_verifier import VerifierZ3
         from fosco.verifier.z3_verifier import Z3SYMBOL
 
         system_fn = make_system("SingleIntegrator")

@@ -12,7 +12,7 @@ from fosco.common.domains import Set, Rectangle
 from fosco.common.consts import DomainNames
 from fosco.common.utils import _set_assertion
 from fosco.learner import LearnerNN
-from fosco.verifier.verifier import SYMBOL
+from fosco.verifier.types import SYMBOL
 from fosco.logger import LOGGING_LEVELS
 from systems import ControlAffineDynamics
 

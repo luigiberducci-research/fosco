@@ -1,19 +1,19 @@
 import logging
-from abc import abstractmethod
-from typing import Callable, Generator, Iterable, Type
+from abc import abstractmethod, ABC
+from typing import Callable, Generator, Iterable, Type, Any
 
 import torch
 import z3
 
 from fosco.common.timing import timed
 from fosco.logger import LOGGING_LEVELS
+from fosco.verifier.types import SYMBOL
 
 INF: float = 1e300
 
-SYMBOL = z3.ArithRef
 
 
-class Verifier:
+class Verifier(ABC):
     def __init__(
             self,
             constraints_method: Callable[..., Generator],
@@ -47,37 +47,54 @@ class Verifier:
         self._logger.debug("Translator initialized")
 
     @staticmethod
+    @abstractmethod
     def new_vars(n, base: str = "x") -> list[SYMBOL]:
         raise NotImplementedError("")
 
     @staticmethod
-    def solver_fncts():
+    @abstractmethod
+    def solver_fncts(self) -> dict[str, Callable]:
+        raise NotImplementedError("")
+
+
+    @staticmethod
+    @abstractmethod
+    def new_solver():
         raise NotImplementedError("")
 
     @staticmethod
-    def new_solver(self):
+    @abstractmethod
+    def is_sat(res) -> bool:
         raise NotImplementedError("")
 
     @staticmethod
-    def is_sat(self, res) -> bool:
+    @abstractmethod
+    def is_unsat(res) -> bool:
+        raise NotImplementedError("")
+
+    @abstractmethod
+    def _solver_solve(self, solver, fml) -> tuple[Any, bool]:
+        """
+        Returns the result and a boolean indicating if the verification timed out.
+
+        Args:
+            solver: solver
+            fml: formula to verify
+        """
         raise NotImplementedError("")
 
     @staticmethod
-    def is_unsat(self, res) -> bool:
-        raise NotImplementedError("")
-
-    def _solver_solve(self, solver, fml):
-        raise NotImplementedError("")
-
-    @staticmethod
+    @abstractmethod
     def _solver_model(self, solver, res):
         raise NotImplementedError("")
 
     @staticmethod
-    def _model_result(self, solver, model, var, idx):
+    @abstractmethod
+    def _model_result(solver, model, var, idx):
         raise NotImplementedError("")
 
     @staticmethod
+    @abstractmethod
     def replace_point(expr, ver_vars, point):
         raise NotImplementedError("")
 

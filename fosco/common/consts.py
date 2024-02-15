@@ -61,6 +61,7 @@ class ActivationType(Enum):
 
 class VerifierType(Enum):
     Z3 = "z3"
+    DREAL = "dreal"
 
 
 class LossReLUType(Enum):

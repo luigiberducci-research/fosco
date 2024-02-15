@@ -7,7 +7,7 @@ from torch import nn
 from fosco.common.activations import activation
 from fosco.common.activations_symbolic import activation_sym, activation_der_sym
 from fosco.common.consts import ActivationType
-from fosco.verifier import SYMBOL
+from fosco.verifier.verifier import SYMBOL
 from models.torchsym import TorchSymDiffModel
 
 

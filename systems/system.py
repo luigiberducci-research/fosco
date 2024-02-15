@@ -2,9 +2,9 @@ from abc import abstractmethod, ABC
 
 import numpy as np
 import torch
-import z3
 
 from fosco.common.utils import contains_object
+from fosco.verifier.verifier import SYMBOL
 
 SYSTEM_REGISTRY = {}
 
@@ -58,9 +58,9 @@ class ControlAffineDynamics(ABC):
     ) -> np.ndarray | torch.Tensor:
         if torch.is_tensor(v) or isinstance(v, np.ndarray):
             return self._f_torch(v, u)
-        elif contains_object(v, z3.ArithRef):
+        elif contains_object(v, SYMBOL):
             dvs = self.fx_smt(v) + self.gx_smt(v) @ u
-            return [z3.simplify(dv) for dv in dvs]
+            return dvs
         else:
             raise NotImplementedError(f"Unsupported type {type(v)}")
 
@@ -113,7 +113,7 @@ class UncertainControlAffineDynamics(ControlAffineDynamics):
     ) -> np.ndarray | torch.Tensor:
         if torch.is_tensor(v) or isinstance(v, np.ndarray):
             return self._f_torch(v=v, u=u, z=z, only_nominal=only_nominal)
-        elif contains_object(v, z3.ArithRef):
+        elif contains_object(v, SYMBOL):
             if only_nominal:
                 dvs = self._base_system.fx_smt(v) + self._base_system.gx_smt(v) @ u
             else:
@@ -123,7 +123,7 @@ class UncertainControlAffineDynamics(ControlAffineDynamics):
                     + self.fz_smt(v, z)
                     + self.gz_smt(v, z) @ u
                 )
-            return [z3.simplify(dv) for dv in dvs]
+            return dvs
         else:
             raise NotImplementedError(f"Unsupported type {type(v)}")
 

@@ -27,21 +27,20 @@ class TestControlAffineDynamicalSystem(unittest.TestCase):
 
     def test_single_integrator_z3(self):
         from systems.single_integrator import SingleIntegrator
+        from fosco.verifier import VerifierZ3
 
-        state_vars = ["x", "y"]
-        input_vars = ["vx", "vy"]
-        x = [z3.Real(var) for var in state_vars]
-        u = [z3.Real(var) for var in input_vars]
+        x = VerifierZ3.new_vars(2, base="x")
+        u = VerifierZ3.new_vars(2, base="u")
 
         f = SingleIntegrator()
 
         xdot = f.f(x, u)
 
         self.assertTrue(
-            str(xdot[0]) == input_vars[0], "expected xdot = vx, got {xdot[0]}"
+            check_smt_equivalence(xdot[0], u[0]), f"expected xdot = vx, got {xdot[0]}"
         )
         self.assertTrue(
-            str(xdot[1]) == input_vars[1], "expected ydot = vy, got {xdot[1]}"
+            check_smt_equivalence(xdot[1], u[1]), f"expected ydot = vy, got {xdot[1]}"
         )
 
 
@@ -97,25 +96,22 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
     def test_noisy_single_integrator_z3(self):
         from systems.single_integrator import SingleIntegrator
         from systems.uncertainty.additive_bounded import AdditiveBounded
+        from fosco.verifier import VerifierZ3
 
-        state_vars = ["x", "y"]
-        input_vars = ["vx", "vy"]
-        uncertain_vars = ["zx", "zy"]
-
-        x = [z3.Real(var) for var in state_vars]
-        u = [z3.Real(var) for var in input_vars]
-        z = [z3.Real(var) for var in uncertain_vars]
+        x = VerifierZ3.new_vars(2, base="x")
+        u = VerifierZ3.new_vars(2, base="u")
+        z = VerifierZ3.new_vars(2, base="z")
 
         f = AdditiveBounded(system=SingleIntegrator())
 
         xdot = f.f(x, u, z)
 
         self.assertTrue(
-            str(xdot[0]) == f"{input_vars[0]} + {uncertain_vars[0]}",
+            check_smt_equivalence(xdot[0], u[0] + z[0]),
             f"expected xdot = vx + zx, got {xdot[0]}",
         )
         self.assertTrue(
-            str(xdot[1]) == f"{input_vars[1]} + {uncertain_vars[1]}",
+            check_smt_equivalence(xdot[1], u[1] + z[1]),
             f"expected ydot = vy + zy, got {xdot[1]}",
         )
 
@@ -222,3 +218,33 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         self.assertTrue(isinstance(id2, str), f"expected id2 to be a string, got {type(id2)}")
         self.assertTrue(id1 != id2, f"expected id1 != id2, got {id1} == {id2}")
         self.assertTrue(id1 in id2, f"expected id1 in id2, got {id1} not in {id2}")
+
+    def _test_unicycle(self):
+
+        from systems import make_system
+
+        debug_plot = True
+
+        f = make_system(system_id="Unicycle")()
+        self.assertEqual(f.n_vars, 3)
+        self.assertEqual(f.n_controls, 2)
+
+        x = np.zeros((10, 3))
+        u = np.ones((10, 2))
+
+        T = 10.0
+        dt = 0.1
+        t = dt
+
+        xs = [x]
+        while t < T:
+            x = x + dt * f(x, u)
+            t += dt
+            xs.append(x)
+
+        if debug_plot:
+            import matplotlib.pyplot as plt
+
+            xs = np.array(xs)
+            plt.plot(xs[:, 0], xs[:, 1])
+            plt.show()

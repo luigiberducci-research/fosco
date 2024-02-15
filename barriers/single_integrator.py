@@ -2,9 +2,8 @@ from typing import Iterable
 
 import numpy as np
 import torch
-import z3
 
-from fosco.verifier import SYMBOL, FUNCTIONS, VerifierZ3
+from fosco.verifier.verifier import SYMBOL
 from models.torchsym import TorchSymDiffModel, TorchSymModel
 from systems import ControlAffineDynamics, UncertainControlAffineDynamics
 
@@ -121,8 +120,9 @@ class SingleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
         - then we forward pass as
         And(sigma * z_bound, sigma ** 2 = dhdx[0] ** 2 + dhdx[1] ** 2)
         """
+        from fosco.verifier import VerifierZ3
+
         self._assert_forward_smt_input(x=x)
-        _And = FUNCTIONS["And"]
 
         dhdx, dhdx_constraints = self._h.gradient_smt(x=x)
         norm = VerifierZ3.new_vars(n=1, base="norm")[0]

@@ -4,6 +4,7 @@ matplotlib
 plotly
 pandas	# required to plot images with plotly
 z3-solver
+dreal
 cvxpy
 gymnasium
 pyyaml

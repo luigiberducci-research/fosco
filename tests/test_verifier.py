@@ -2,7 +2,8 @@ import unittest
 
 
 from fosco.common.consts import VerifierType
-from fosco.verifier import make_verifier, Verifier, SYMBOL
+from fosco.verifier import make_verifier, Verifier
+from fosco.verifier.verifier import SYMBOL
 
 
 class TestVerifier(unittest.TestCase):

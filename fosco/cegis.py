@@ -144,10 +144,10 @@ class Cegis:
             xdotz = None
 
         self.tlogger.debug(
-            f"Nominal Dynamics: {'initialized' if xdot else 'not initialized'}"
+            f"Nominal Dynamics: {'initialized' if xdot is not None else 'not initialized'}"
         )
         self.tlogger.debug(
-            f"Uncertain Dynamics: {'initialized' if xdotz else 'not initialized'}"
+            f"Uncertain Dynamics: {'initialized' if xdotz is not None else 'not initialized'}"
         )
 
         return xdot, xdotz

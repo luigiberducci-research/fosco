@@ -23,6 +23,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install --upgrade pip
+        ./scripts/install_dreal.sh
         pip install -r requirements.txt
 
     - name: Run script

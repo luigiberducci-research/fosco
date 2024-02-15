@@ -56,7 +56,8 @@ class Unicycle(ControlAffineDynamics):
         else:
             cosx = torch.cos(x[:, 2, :])
             sinx = torch.sin(x[:, 2, :])
-            gx = torch.stack([cosx, sinx, torch.zeros_like(cosx), torch.zeros_like(sinx), torch.zeros_like(cosx), torch.ones_like(sinx)], dim=1)
+            gx = torch.tensor([[[cosx[i][0], 0], [sinx[i][0], 0], [0, 1]] for i in range(x.shape[0])])
+
 
 
         return gx

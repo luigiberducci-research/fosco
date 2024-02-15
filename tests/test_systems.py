@@ -217,7 +217,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         self.assertTrue(id1 != id2, f"expected id1 != id2, got {id1} == {id2}")
         self.assertTrue(id1 in id2, f"expected id1 in id2, got {id1} not in {id2}")
 
-    def test_unicycle(self):
+    def test_unicycle_numpy(self):
         from systems import make_system
 
         debug_plot = False
@@ -228,11 +228,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
 
         n = 10
         x = np.zeros((n, 3))
-        if n > 1:
-            u = np.array([[1.0, -1.0 + 2 * i/(n-1)] for i in range(n)])
-        else:
-            u = np.array([[1.0, 0.0]])
-
+        u = np.array([[1.0, -1.0 + 2 * i / (n - 1)] for i in range(n)])
 
         T = 2.0
         dt = 0.1
@@ -243,6 +239,52 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
             x = x + dt * f(x, u)
             t += dt
             xs.append(x)
+        xs = np.array(xs)
+
+        if debug_plot:
+            import matplotlib.pyplot as plt
+
+            plt.plot(xs[:, :, 0], xs[:, :, 1])
+            plt.show()
+
+        first_traj = xs[:, 0, :]
+        last_traj = xs[:, -1, :]
+        self.assertTrue(
+            np.allclose(first_traj[:, 0], last_traj[:, 0]),
+            f"expectd same trajectory for x coord, got {first_traj[:, 0]} and {last_traj[:, 0]}"
+        )
+        self.assertTrue(
+            np.allclose(first_traj[:, 1], -last_traj[:, 1]),
+            f"expectd mirrored trajectory for y coord, got {first_traj[:, 1]} and {last_traj[:, 1]}"
+        )
+        self.assertTrue(
+            np.allclose(first_traj[:, 2], -last_traj[:, 2]),
+            f"expectd mirrored trajectory for theta coord, got {first_traj[:, 1]} and {last_traj[:, 1]}"
+        )
+
+    def test_unicycle_torch(self):
+        from systems import make_system
+
+        debug_plot = False
+
+        f = make_system(system_id="Unicycle")()
+        self.assertEqual(f.n_vars, 3)
+        self.assertEqual(f.n_controls, 2)
+
+        n = 10
+        x = torch.zeros((n, 3))
+        u = np.array([[1.0, -1.0 + 2 * i / (n - 1)] for i in range(n)])
+
+        T = 2.0
+        dt = 0.1
+        t = dt
+
+        xs = [x]
+        while t < T:
+            x = x + dt * f(x, u)
+            t += dt
+            xs.append(x)
+        xs = torch.stack(xs)
 
         if debug_plot:
             import matplotlib.pyplot as plt
@@ -250,6 +292,22 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
             xs = np.array(xs)
             plt.plot(xs[:, :, 0], xs[:, :, 1])
             plt.show()
+
+        first_traj = xs[:, 0, :].double()
+        last_traj = xs[:, -1, :].double()
+        self.assertTrue(
+            torch.allclose(first_traj[:, 0], last_traj[:, 0]),
+            f"expectd same trajectory for x coord, got {first_traj[:, 0]} and {last_traj[:, 0]}"
+        )
+        self.assertTrue(
+            torch.allclose(first_traj[:, 1], -last_traj[:, 1]),
+            f"expectd mirrored trajectory for y coord, got {first_traj[:, 1]} and {last_traj[:, 1]}"
+        )
+        self.assertTrue(
+            torch.allclose(first_traj[:, 2], -last_traj[:, 2]),
+            f"expectd mirrored trajectory for theta coord, got {first_traj[:, 1]} and {last_traj[:, 1]}"
+        )
+
 
     def test_unicycle_symbolic(self):
         from systems import make_system
@@ -274,7 +332,3 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
             xdot[2] == u[1],
             f"expected xdot[2] == u[1], got {xdot[2]}"
         )
-
-
-
-

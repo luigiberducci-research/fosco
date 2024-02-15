@@ -71,37 +71,24 @@ class BarrierPolicy(nn.Module):
 
         Q = Variable(torch.eye(self.nCls))
         Q = Q.unsqueeze(0).expand(nBatch, self.nCls, self.nCls).to(self.device)
-
-        # system specific
-        px = x0[:, 0].reshape(-1, 1)
-        py = x0[:, 1].reshape(-1, 1)
+        px = x0[:, 0]
+        py = x0[:, 1]
+        theta = x0[:, 2]
+        v = x0[:, 3]
+        sin_theta = torch.sin(theta)
+        cos_theta = torch.cos(theta)
 
         barrier = (px - self.obs_x) ** 2 + (py - self.obs_y) ** 2 - self.R ** 2
-        assert barrier.shape == (nBatch, 1)
-        barrier_grad = torch.cat([2 * (px - self.obs_x), 2 * (py - self.obs_y)], dim=1)
-        assert barrier_grad.shape == (nBatch, self.nCls)
+        barrier_dot = 2 * (px - self.obs_x) * v * cos_theta + 2 * (py - self.obs_y) * v * sin_theta
+        Lf2b = 2 * v ** 2
+        LgLfbu1 = torch.reshape(-2 * (px - self.obs_x) * v * sin_theta + 2 * (py - self.obs_y) * v * cos_theta,
+                                (nBatch, 1))
+        LgLfbu2 = torch.reshape(2 * (px - self.obs_x) * cos_theta + 2 * (py - self.obs_y) * sin_theta, (nBatch, 1))
 
-        fx = torch.zeros(self.nCls).unsqueeze(0).expand(nBatch, 1, self.nCls).double().to(self.device)
-        assert fx.shape == (nBatch, 1, self.nCls)
-
-        gx = torch.eye(self.nCls).unsqueeze(0).expand(nBatch, self.nCls, self.nCls).double().to(self.device)
-        assert gx.shape == (nBatch, self.nCls, self.nCls)
-
-        # compute lie derivative of the barrier function
-        barrier = barrier.unsqueeze(1)
-        barrier_grad = barrier_grad.unsqueeze(1)
-        Lfbarrier = torch.bmm(barrier_grad, fx.view(nBatch, self.nCls, 1))
-        assert Lfbarrier.shape == (nBatch, 1, 1)
-
-        Lgbarrier = torch.bmm(barrier_grad, gx)
-        assert Lgbarrier.shape == (nBatch, 1, self.nCls)
-
-        #barrier_dot = 2 * (px - self.obs_x) * vx + 2 * (py - self.obs_y) * vy
-
-        G = -Lgbarrier
-        #G = torch.reshape(G, (nBatch, 1, self.nCls)).to(self.device)
-        h = Lfbarrier + x32[:, 0] * barrier
-
+        G = torch.cat([-LgLfbu1, -LgLfbu2], dim=1)
+        G = torch.reshape(G, (nBatch, 1, self.nCls)).to(self.device)
+        h = (torch.reshape(Lf2b + (x32[:, 0] + x32[:, 1]) * barrier_dot + (x32[:, 0] * x32[:, 1]) * barrier,
+                           (nBatch, 1))).to(self.device)
         e = Variable(torch.Tensor()).to(self.device)
 
         if self.training or sgn == 1:

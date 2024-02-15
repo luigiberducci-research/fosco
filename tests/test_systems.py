@@ -27,21 +27,20 @@ class TestControlAffineDynamicalSystem(unittest.TestCase):
 
     def test_single_integrator_z3(self):
         from systems.single_integrator import SingleIntegrator
+        from fosco.verifier.z3_verifier import VerifierZ3
 
-        state_vars = ["x", "y"]
-        input_vars = ["vx", "vy"]
-        x = [z3.Real(var) for var in state_vars]
-        u = [z3.Real(var) for var in input_vars]
+        x = VerifierZ3.new_vars(2, base="x")
+        u = VerifierZ3.new_vars(2, base="u")
 
         f = SingleIntegrator()
 
         xdot = f.f(x, u)
 
         self.assertTrue(
-            str(xdot[0]) == input_vars[0], "expected xdot = vx, got {xdot[0]}"
+            check_smt_equivalence(xdot[0], u[0]), f"expected xdot = vx, got {xdot[0]}"
         )
         self.assertTrue(
-            str(xdot[1]) == input_vars[1], "expected ydot = vy, got {xdot[1]}"
+            check_smt_equivalence(xdot[1], u[1]), f"expected ydot = vy, got {xdot[1]}"
         )
 
 
@@ -97,25 +96,22 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
     def test_noisy_single_integrator_z3(self):
         from systems.single_integrator import SingleIntegrator
         from systems.uncertainty.additive_bounded import AdditiveBounded
+        from fosco.verifier.z3_verifier import VerifierZ3
 
-        state_vars = ["x", "y"]
-        input_vars = ["vx", "vy"]
-        uncertain_vars = ["zx", "zy"]
-
-        x = [z3.Real(var) for var in state_vars]
-        u = [z3.Real(var) for var in input_vars]
-        z = [z3.Real(var) for var in uncertain_vars]
+        x = VerifierZ3.new_vars(2, base="x")
+        u = VerifierZ3.new_vars(2, base="u")
+        z = VerifierZ3.new_vars(2, base="z")
 
         f = AdditiveBounded(system=SingleIntegrator())
 
         xdot = f.f(x, u, z)
 
         self.assertTrue(
-            str(xdot[0]) == f"{input_vars[0]} + {uncertain_vars[0]}",
+            check_smt_equivalence(xdot[0], u[0] + z[0]),
             f"expected xdot = vx + zx, got {xdot[0]}",
         )
         self.assertTrue(
-            str(xdot[1]) == f"{input_vars[1]} + {uncertain_vars[1]}",
+            check_smt_equivalence(xdot[1], u[1] + z[1]),
             f"expected ydot = vy + zy, got {xdot[1]}",
         )
 
@@ -157,14 +153,11 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         """
         from systems.single_integrator import SingleIntegrator
         from systems.uncertainty.additive_bounded import AdditiveBounded
+        from fosco.verifier.z3_verifier import VerifierZ3
 
-        state_vars = ["x", "y"]
-        input_vars = ["vx", "vy"]
-        uncertain_vars = ["zx", "zy"]
-
-        x = [z3.Real(var) for var in state_vars]
-        u = [z3.Real(var) for var in input_vars]
-        z = [z3.Real(var) for var in uncertain_vars]
+        x = VerifierZ3.new_vars(2, base="x")
+        u = VerifierZ3.new_vars(2, base="u")
+        z = VerifierZ3.new_vars(2, base="z")
 
         f = SingleIntegrator()
         fz = AdditiveBounded(system=SingleIntegrator())
@@ -173,15 +166,16 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         xdotz = fz.f(x, u, z, only_nominal=True)
 
         self.assertTrue(
-            str(xdot[0]) == str(xdotz[0]), f"expected xdot = vx, got {xdotz[0]}",
+            check_smt_equivalence(xdot[0], xdotz[0]), f"expected xdot = vx, got {xdotz[0]}"
         )
         self.assertTrue(
-            str(xdot[1]) == str(xdotz[1]), f"expected ydot = vy, got {xdotz[1]}",
+            check_smt_equivalence(xdot[1], xdotz[1]), f"expected ydot = vy, got {xdotz[1]}"
         )
 
     def test_properties_and_methods(self):
         from systems.single_integrator import SingleIntegrator
         from systems.uncertainty.additive_bounded import AdditiveBounded
+        from fosco.verifier.z3_verifier import VerifierZ3
 
         f = SingleIntegrator()
         fz = AdditiveBounded(system=SingleIntegrator())
@@ -193,7 +187,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         self.assertTrue(torch.isclose(f.fx_torch(x), fz.fx_torch(x)).all())
         self.assertTrue(torch.isclose(f.gx_torch(x), fz.gx_torch(x)).all())
 
-        sx = z3.Reals("x y")
+        sx = VerifierZ3.new_vars(f.n_vars, base="x")
         # check equivalence for each term in the array of symbolic expressions, fx.shape = (n_vars,)
         self.assertTrue(
             all(
@@ -222,3 +216,65 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         self.assertTrue(isinstance(id2, str), f"expected id2 to be a string, got {type(id2)}")
         self.assertTrue(id1 != id2, f"expected id1 != id2, got {id1} == {id2}")
         self.assertTrue(id1 in id2, f"expected id1 in id2, got {id1} not in {id2}")
+
+    def test_unicycle(self):
+        from systems import make_system
+
+        debug_plot = False
+
+        f = make_system(system_id="Unicycle")()
+        self.assertEqual(f.n_vars, 3)
+        self.assertEqual(f.n_controls, 2)
+
+        n = 10
+        x = np.zeros((n, 3))
+        if n > 1:
+            u = np.array([[1.0, -1.0 + 2 * i/(n-1)] for i in range(n)])
+        else:
+            u = np.array([[1.0, 0.0]])
+
+
+        T = 2.0
+        dt = 0.1
+        t = dt
+
+        xs = [x]
+        while t < T:
+            x = x + dt * f(x, u)
+            t += dt
+            xs.append(x)
+
+        if debug_plot:
+            import matplotlib.pyplot as plt
+
+            xs = np.array(xs)
+            plt.plot(xs[:, :, 0], xs[:, :, 1])
+            plt.show()
+
+    def test_unicycle_symbolic(self):
+        from systems import make_system
+        from fosco.verifier.dreal_verifier import VerifierDR
+
+        f = make_system(system_id="Unicycle")()
+
+        fns = VerifierDR.solver_fncts()
+        x = VerifierDR.new_vars(f.n_vars, base="x")
+        u = VerifierDR.new_vars(f.n_controls, base="u")
+
+        xdot = f.f(x, u)
+        self.assertTrue(
+            xdot[0] == u[0] * fns["cos"](x[2]),
+            f"expected xdot[0] == u[0] * Cos(x[2]), got {xdot[0]}"
+        )
+        self.assertTrue(
+            xdot[1] == u[0] * fns["sin"](x[2]),
+            f"expected xdot[1] == u[0] * Sin(x[2]), got {xdot[1]}"
+        )
+        self.assertTrue(
+            xdot[2] == u[1],
+            f"expected xdot[2] == u[1], got {xdot[2]}"
+        )
+
+
+
+

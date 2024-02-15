@@ -6,8 +6,9 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import art3d
 
 from fosco import verifier
-from fosco.common.plotting import get_plot_colour
 from fosco.common.utils import round_init_data, square_init_data
+from fosco.verifier.utils import get_solver_fns
+from fosco.verifier.verifier import SYMBOL
 
 
 class Set:
@@ -16,7 +17,7 @@ class Set:
             vars = [f"x{i}" for i in range(self.dimension)]
         self.vars = vars
 
-    def generate_domain(self, x) -> verifier.SYMBOL:
+    def generate_domain(self, x) -> SYMBOL:
         raise NotImplementedError
 
     def generate_data(self, batch_size) -> torch.Tensor:
@@ -28,7 +29,7 @@ class Set:
         except TypeError:
             return self.__class__.__name__
 
-    def generate_complement(self, x) -> verifier.SYMBOL:
+    def generate_complement(self, x) -> SYMBOL:
         """Generates complement of the set as a symbolic formulas
 
         Args:
@@ -37,7 +38,8 @@ class Set:
         Returns:
             SMT variable: symbolic representation of complement of the rectangle
         """
-        f = verifier.FUNCTIONS(x)
+        raise NotImplementedError("access to fns to be fixed")
+        f = verifier.functions(x)
         return f["Not"](self.generate_domain(x))
 
     def _generate_data(self, batch_size) -> callable:
@@ -88,15 +90,15 @@ class Rectangle(Set):
         param x: data point x
         returns: symbolic formula for domain
         """
-        f = verifier.FUNCTIONS
         dim_selection = [i for i, vx in enumerate(x) if str(vx) in self.vars]
-        lower = f["And"](
+        fns = get_solver_fns(x=x)
+        lower = fns["And"](
             *[self.lower_bounds[i] <= x[v_id] for i, v_id in enumerate(dim_selection)]
         )
-        upper = f["And"](
+        upper = fns["And"](
             *[x[v_id] <= self.upper_bounds[i] for i, v_id in enumerate(dim_selection)]
         )
-        return f["And"](lower, upper)
+        return fns["And"](lower, upper)
 
     def generate_boundary(self, x):
         """Returns boundary of the rectangle
@@ -108,10 +110,10 @@ class Rectangle(Set):
             symbolic formula for boundary of the rectangle
         """
 
-        f = verifier.FUNCTIONS(x)
-        lower = f["Or"](*[self.lower_bounds[i] == x[i] for i in range(self.dimension)])
-        upper = f["Or"](*[x[i] == self.upper_bounds[i] for i in range(self.dimension)])
-        return f["Or"](lower, upper)
+        fns = get_solver_fns(x=x)
+        lower = fns["Or"](*[self.lower_bounds[i] == x[i] for i in range(self.dimension)])
+        upper = fns["Or"](*[x[i] == self.upper_bounds[i] for i in range(self.dimension)])
+        return fns["Or"](lower, upper)
 
     def generate_interior(self, x):
         """Returns interior of the rectangle
@@ -119,10 +121,10 @@ class Rectangle(Set):
         Args:
             x (List): symbolic data point
         """
-        f = verifier.FUNCTIONS(x)
-        lower = f["And"](*[self.lower_bounds[i] < x[i] for i in range(self.dimension)])
-        upper = f["And"](*[x[i] < self.upper_bounds[i] for i in range(self.dimension)])
-        return f["And"](lower, upper)
+        fns = get_solver_fns(x=x)
+        lower = fns["And"](*[self.lower_bounds[i] < x[i] for i in range(self.dimension)])
+        upper = fns["And"](*[x[i] < self.upper_bounds[i] for i in range(self.dimension)])
+        return fns["And"](lower, upper)
 
     def generate_data(self, batch_size):
         """

@@ -8,7 +8,7 @@ import z3
 from fosco.common.consts import VerifierType, TimeDomain, CertificateType
 from fosco.common.timing import timed
 from models.network import TorchMLP
-from fosco.verifier import SYMBOL
+from fosco.verifier.verifier import SYMBOL
 from fosco.logger import LOGGING_LEVELS
 
 

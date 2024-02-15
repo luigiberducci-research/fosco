@@ -141,3 +141,20 @@ class TestModel(unittest.TestCase):
         self.assertTrue(torch.allclose(y, y_init), f"expected {y_init}, got {y}")
 
 
+    def test_make_mlp(self):
+        from models.network import make_mlp
+
+        layers, acts = make_mlp(
+            input_size=2,
+            hidden_sizes=(4, 4),
+            hidden_activation=("relu", "relu"),
+            output_size=1,
+            output_activation="linear"
+        )
+
+        self.assertTrue(len(layers) == 3)
+        self.assertTrue(len(acts) == 3)
+        self.assertTrue(all([isinstance(l, torch.nn.Linear) for l in layers]))
+        self.assertTrue(all([isinstance(a, ActivationType) for a in acts]))
+        self.assertTrue(all([a == ActivationType.RELU for a in acts[:-1]]))
+        self.assertTrue(acts[-1] == ActivationType.LINEAR)

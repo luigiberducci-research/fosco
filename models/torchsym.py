@@ -4,7 +4,7 @@ from typing import Iterable
 import torch
 from torch import nn
 
-from fosco.verifier import SYMBOL
+from fosco.verifier.verifier import SYMBOL
 
 
 class TorchSymFn(nn.Module, ABC):

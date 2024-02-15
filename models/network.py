@@ -199,7 +199,7 @@ class TorchMLP(TorchSymDiffModel):
 
 
 def network_until_last_layer(
-        net: TorchMLP, input_vars: Iterable[SYMBOL], round: int = -1
+        net: TorchMLP, input_vars: Iterable[SYMBOL]
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Utility for symbolic forward pass excluding the last layer.

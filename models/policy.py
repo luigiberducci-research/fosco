@@ -7,7 +7,8 @@ from cvxopt import matrix, solvers
 
 
 class BarrierPolicy(nn.Module):
-    def __init__(self, nFeatures, nHidden1, nHidden21, nHidden22, nCls, mean, std, device, bn):
+    def __init__(self, nFeatures, nHidden1, nHidden21, nHidden22, nCls, mean, std, device, bn,
+                 obs_x=40, obs_y=15, R=6):
         super().__init__()
         self.nFeatures = nFeatures
         self.nHidden1 = nHidden1
@@ -20,9 +21,9 @@ class BarrierPolicy(nn.Module):
         self.device = device
 
         # system specific todo: remove
-        self.obs_x = 40  # obstacle location
-        self.obs_y = 15
-        self.R = 6  # obstacle size
+        self.obs_x = obs_x
+        self.obs_y = obs_y
+        self.R = R
         self.p1 = 0
         self.p2 = 0
 
@@ -32,11 +33,11 @@ class BarrierPolicy(nn.Module):
             self.bn21 = nn.BatchNorm1d(nHidden21)
             self.bn22 = nn.BatchNorm1d(nHidden22)
 
-        self.fc1 = nn.Linear(nFeatures, nHidden1).double()
-        self.fc21 = nn.Linear(nHidden1, nHidden21).double()
-        self.fc22 = nn.Linear(nHidden1, nHidden22).double()
-        self.fc31 = nn.Linear(nHidden21, nCls).double()
-        self.fc32 = nn.Linear(nHidden22, nCls).double()
+        self.fc1 = nn.Linear(nFeatures, nHidden1)
+        self.fc21 = nn.Linear(nHidden1, nHidden21)
+        self.fc22 = nn.Linear(nHidden1, nHidden22)
+        self.fc31 = nn.Linear(nHidden21, nCls)
+        self.fc32 = nn.Linear(nHidden22, nCls)
 
         # QP params.
         # from previous layers

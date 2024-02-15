@@ -9,6 +9,7 @@ from .system import (
 from .single_integrator import SingleIntegrator
 from .double_integrator import DoubleIntegrator
 from .unicycle_model import Unicycle
+from .unicycle_acc_model import UnicycleAcc
 
 
 

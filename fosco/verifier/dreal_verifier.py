@@ -24,15 +24,11 @@ class VerifierDR(Verifier):
             "And": dreal.And,
             "Or": dreal.Or,
             "If": dreal.if_then_else,
-            "Check": self.check_type,
+            "Check": lambda x: contains_object(x, dreal.Variable),
             "Not": dreal.Not,
             "False": dreal.Formula.FALSE(),
             "True": dreal.Formula.TRUE(),
         }
-
-    @staticmethod
-    def check_type(x) -> bool:
-        return contains_object(x, dreal.Variable)
 
     @staticmethod
     def new_solver():
@@ -56,7 +52,7 @@ class VerifierDR(Verifier):
     def _solver_solve(self, solver, fml):
         res = dreal.CheckSatisfiability(fml, 0.0001)
         if self.is_sat(res) and not self.within_bounds(res):
-            And_ = self.solver_fncts["And"]
+            And_ = self.solver_fncts()["And"]
             self._logger.info("Second chance bound used")
             new_bound = self.SECOND_CHANCE_BOUND
             fml = And_(fml, *(And_(x < new_bound, x > -new_bound) for x in self.xs))

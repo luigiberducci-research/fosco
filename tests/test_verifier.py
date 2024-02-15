@@ -54,7 +54,7 @@ class TestVerifier(unittest.TestCase):
             yield {"sat": C >= 0.0}
 
         def constraint_gen2(verif: Verifier, C: SYMBOL, sigma, dC: SYMBOL, *args):
-            And_ = verif.solver_fncts["And"]
+            And_ = verif.solver_fncts()["And"]
             yield {"unsat": And_(C >= 0.0, C < 0)}
 
         vars = verifier_fn.new_vars(n=1)

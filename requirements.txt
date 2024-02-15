@@ -5,6 +5,8 @@ plotly
 pandas	# required to plot images with plotly
 z3-solver
 cvxpy
+cvxopt
+qpth
 gymnasium
 pyyaml
 aim

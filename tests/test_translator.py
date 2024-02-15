@@ -37,11 +37,11 @@ class TestTranslator(unittest.TestCase):
         self.assertTrue(isinstance(expr_nn, z3.ArithRef))
         self.assertTrue(isinstance(expr_nndot, z3.ArithRef))
 
-        w1 = nn.W1.detach().numpy().flatten()
-        b1 = nn.b1.detach().numpy().flatten()
+        w0 = nn.W0.detach().numpy().flatten()
+        b0 = nn.b0.detach().numpy().flatten()
 
-        expected_expr_nn = w1 @ x + b1
-        grad_nn = w1
+        expected_expr_nn = w0 @ x + b0
+        grad_nn = w0
         expected_expr_nndot = grad_nn @ xdot
 
         expected_expr_nn = expected_expr_nn[0]
@@ -81,19 +81,19 @@ class TestTranslator(unittest.TestCase):
         self.assertTrue(isinstance(expr_nndot, z3.ArithRef))
 
 
+        w0 = nn.W0.detach().numpy()
+        b0 = nn.b0.detach().numpy()[:, None]
         w1 = nn.W1.detach().numpy()
         b1 = nn.b1.detach().numpy()[:, None]
-        w2 = nn.W2.detach().numpy()
-        b2 = nn.b2.detach().numpy()[:, None]
 
         _If = z3.If
         # compute symbolic hidden layer
-        h1 = w1 @ x + b1
+        h1 = w0 @ x + b0
         z1 = np.zeros_like(h1)
         for i in range(z1.shape[0]):
             z1[i, 0] = _If(h1[i, 0] > 0, h1[i, 0], 0)
         # compute symbolic output layer
-        z2 = w2 @ z1 + b2
+        z2 = w1 @ z1 + b1
 
         expected_expr_nn = z2[0, 0]
 
@@ -104,8 +104,8 @@ class TestTranslator(unittest.TestCase):
         )
 
         # compute symbolic gradient dy/dx = dy/dz dz/dx
-        dy_dz = w2
-        dh_dx = w1
+        dy_dz = w1
+        dh_dx = w0
         # create dzdh symbolic matrix of shape (2, 2)
         dz_dh = np.array(
             [
@@ -153,26 +153,26 @@ class TestTranslator(unittest.TestCase):
         self.assertTrue(isinstance(expr_nn, z3.ArithRef))
         self.assertTrue(isinstance(expr_nndot, z3.ArithRef))
 
+        w0 = nn.W0.detach().numpy()
+        b0 = nn.b0.detach().numpy()[:, None]
         w1 = nn.W1.detach().numpy()
         b1 = nn.b1.detach().numpy()[:, None]
         w2 = nn.W2.detach().numpy()
         b2 = nn.b2.detach().numpy()[:, None]
-        w3 = nn.W3.detach().numpy()
-        b3 = nn.b3.detach().numpy()[:, None]
 
         _If = z3.If
         # compute symbolic hidden layer
-        h1 = w1 @ x + b1
+        h1 = w0 @ x + b0
         o1 = np.zeros_like(h1)
         for i in range(o1.shape[0]):
             o1[i, 0] = _If(h1[i, 0] > 0, h1[i, 0], 0)
         # compute symbolic hidden layer
-        h2 = w2 @ o1 + b2
+        h2 = w1 @ o1 + b1
         o2 = np.zeros_like(h2)
         for i in range(o2.shape[0]):
             o2[i, 0] = _If(h2[i, 0] > 0, h2[i, 0], 0)
         # compute symbolic output layer
-        o3 = w3 @ o2 + b3
+        o3 = w2 @ o2 + b2
 
         expected_expr_nn = o3[0, 0]
 
@@ -183,8 +183,8 @@ class TestTranslator(unittest.TestCase):
         )
 
         # compute symbolic gradient dy/dx = dy/dh_i prod_{i} dh_i/dh_{i-1} dh_1/dx
-        dy_do2 = w3
-        dh2_do1 = w2
+        dy_do2 = w2
+        dh2_do1 = w1
         do2_dh2 = np.array(
             [
                 [z3.RealVal(0) for _ in range(dh2_do1.shape[0])]
@@ -198,7 +198,7 @@ class TestTranslator(unittest.TestCase):
                 else:
                     do2_dh2[i, j] = z3.RealVal(0)
 
-        dh1_dx = w1
+        dh1_dx = w0
         do1_dh1 = np.array(
             [
                 [z3.RealVal(0) for _ in range(dh1_dx.shape[0])]
@@ -258,11 +258,11 @@ class TestTranslator(unittest.TestCase):
         self.assertTrue(isinstance(expr_nn, z3.ArithRef))
         self.assertTrue(isinstance(expr_nndot, z3.ArithRef))
 
-        w1 = nn.W1.detach().numpy()
-        b1 = nn.b1.detach().numpy()[:, None]
+        w0 = nn.W0.detach().numpy()
+        b0 = nn.b0.detach().numpy()[:, None]
 
         # compute symbolic output layer
-        z1 = w1 @ x + b1
+        z1 = w0 @ x + b0
         z1 = _If(z1[0, 0] > 0, z1[0, 0], 0)  # add output layer with relu activation
 
         expected_expr_nn = z1
@@ -275,7 +275,7 @@ class TestTranslator(unittest.TestCase):
 
         # compute symbolic gradient dy/dx = dy/dz dz/dx
         dy_dz = np.array([[_If(z1 > 0, z3.RealVal(1), z3.RealVal(0))]])
-        dz_dx = w1
+        dz_dx = w0
 
         grad_nn = dy_dz @ dz_dx
         expected_expr_nndot = (grad_nn @ xdot)[0, 0]
@@ -313,10 +313,10 @@ class TestTranslator(unittest.TestCase):
         self.assertTrue(isinstance(expr_nn, z3.ArithRef))
         self.assertTrue(isinstance(expr_nndot, z3.ArithRef))
 
-        w1 = nn.W1.detach().numpy()
-        b1 = nn.b1.detach().numpy()[:, None]
-        w2 = nn.W2.detach().numpy()
-        b2 = nn.b2.detach().numpy()[:, None]
+        w1 = nn.W0.detach().numpy()
+        b1 = nn.b0.detach().numpy()[:, None]
+        w2 = nn.W1.detach().numpy()
+        b2 = nn.b1.detach().numpy()[:, None]
 
         # compute symbolic hidden layer
         h1 = w1 @ x + b1

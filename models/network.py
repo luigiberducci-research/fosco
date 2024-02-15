@@ -11,59 +11,88 @@ from fosco.verifier import SYMBOL
 from models.torchsym import TorchSymDiffModel
 
 
+def make_mlp(
+        input_size: int,
+        hidden_sizes: tuple[int, ...],
+        hidden_activation: tuple[str | ActivationType, ...],
+        output_size: int,
+        output_activation: str | ActivationType
+):
+    """
+    Make a multi-layer perceptron model.
+    Returns a list of layers and activations.
+    """
+    assert len(hidden_sizes) == len(
+        hidden_activation
+    ), "hidden sizes and activation must have the same length"
+
+    layers = []
+    acts = []
+    n_prev, k = input_size, 1
+    for n_hid, act in zip(hidden_sizes, hidden_activation):
+        layer = nn.Linear(n_prev, n_hid)
+        act_fn = ActivationType[act.upper()] if isinstance(act, str) else act
+        acts.append(act_fn)
+        layers.append(layer)
+        n_prev = n_hid
+        k = k + 1
+
+    layer = nn.Linear(n_prev, output_size)
+    layers.append(layer)
+
+    act = (
+        ActivationType[output_activation.upper()]
+        if isinstance(output_activation, str)
+        else output_activation
+    )
+    acts.append(act)
+
+    assert len(layers) == len(
+        acts
+    ), "layers and activations must have the same length"
+    assert (
+            output_size == layers[-1].out_features
+    ), "output size does not match last layer size"
+
+    return layers, acts
+
+
 class TorchMLP(TorchSymDiffModel):
 
     def __init__(
-        self,
-        input_size: int,
-        hidden_sizes: tuple[int, ...],
-        activation: tuple[str | ActivationType, ...],
-        output_size: int = 1,
-        output_activation: str | ActivationType = "linear",
+            self,
+            input_size: int,
+            hidden_sizes: tuple[int, ...],
+            activation: tuple[str | ActivationType, ...],
+            output_size: int = 1,
+            output_activation: str | ActivationType = "linear",
     ):
         super(TorchMLP, self).__init__()
         assert len(hidden_sizes) == len(
             activation
         ), "hidden sizes and activation must have the same length"
 
-        self.input_size = input_size
-        self.output_size = output_size
-        self.layers = []
+        self.input_size: int = input_size
+        self.output_size: int = output_size
 
-        # activations
-        self.acts = []
-        for act in activation:
-            act = ActivationType[act.upper()] if isinstance(act, str) else act
-            self.acts.append(act)
-
-        # hidden layers
-        n_prev, k = self.input_size, 1
-        for n_hid in hidden_sizes:
-            layer = nn.Linear(n_prev, n_hid)
-            self.register_parameter(f"W{k}", layer.weight)
-            self.register_parameter(f"b{k}", layer.bias)
-            self.layers.append(layer)
-            n_prev = n_hid
-            k = k + 1
-
-        # last layer
-        layer = nn.Linear(n_prev, self.output_size)
-        self.register_parameter(f"W{k}", layer.weight)
-        self.register_parameter(f"b{k}", layer.bias)
-        self.layers.append(layer)
-
-        act = (
-            ActivationType[output_activation.upper()]
-            if isinstance(output_activation, str)
-            else output_activation
+        self.layers, self.acts = make_mlp(
+            input_size=input_size,
+            hidden_sizes=hidden_sizes,
+            hidden_activation=activation,
+            output_size=output_size,
+            output_activation=output_activation,
         )
-        self.acts.append(act)
+
+        # register layers
+        for idx, layer in enumerate(self.layers):
+            self.register_parameter(f"W{idx}", layer.weight)
+            self.register_parameter(f"b{idx}", layer.bias)
 
         assert len(self.layers) == len(
             self.acts
         ), "layers and activations must have the same length"
         assert (
-            self.output_size == self.layers[-1].out_features
+                self.output_size == self.layers[-1].out_features
         ), "output size does not match last layer size"
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -109,7 +138,6 @@ class TorchMLP(TorchSymDiffModel):
         z, jacobian = network_until_last_layer(net=self, input_vars=input_vars)
 
         last_layer = self.layers[-1].weight.data.numpy()
-
 
         zhat = last_layer @ z
         if self.layers[-1].bias is not None:
@@ -189,7 +217,6 @@ def network_until_last_layer(
             b = layer.bias.data.numpy()[:, None]
         else:
             b = np.zeros((layer.out_features, 1))
-
 
         zhat = w @ z + b
         z = activation_sym(net.acts[idx], zhat)

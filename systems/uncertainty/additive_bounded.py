@@ -53,7 +53,7 @@ class AdditiveBounded(UncertaintyWrapper):
 
     @staticmethod
     def _assert_batched_input(
-            x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
+        x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
     ) -> None:
         assert (
             len(x.shape) == 3

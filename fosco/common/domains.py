@@ -111,8 +111,12 @@ class Rectangle(Set):
         """
 
         fns = get_solver_fns(x=x)
-        lower = fns["Or"](*[self.lower_bounds[i] == x[i] for i in range(self.dimension)])
-        upper = fns["Or"](*[x[i] == self.upper_bounds[i] for i in range(self.dimension)])
+        lower = fns["Or"](
+            *[self.lower_bounds[i] == x[i] for i in range(self.dimension)]
+        )
+        upper = fns["Or"](
+            *[x[i] == self.upper_bounds[i] for i in range(self.dimension)]
+        )
         return fns["Or"](lower, upper)
 
     def generate_interior(self, x):
@@ -122,8 +126,12 @@ class Rectangle(Set):
             x (List): symbolic data point
         """
         fns = get_solver_fns(x=x)
-        lower = fns["And"](*[self.lower_bounds[i] < x[i] for i in range(self.dimension)])
-        upper = fns["And"](*[x[i] < self.upper_bounds[i] for i in range(self.dimension)])
+        lower = fns["And"](
+            *[self.lower_bounds[i] < x[i] for i in range(self.dimension)]
+        )
+        upper = fns["And"](
+            *[x[i] < self.upper_bounds[i] for i in range(self.dimension)]
+        )
         return fns["And"](lower, upper)
 
     def generate_data(self, batch_size):
@@ -172,7 +180,14 @@ class Rectangle(Set):
 
 
 class Sphere(Set):
-    def __init__(self, centre, radius, vars: list[str] = None, dim_select=None, include_boundary: bool =True):
+    def __init__(
+        self,
+        centre,
+        radius,
+        vars: list[str] = None,
+        dim_select=None,
+        include_boundary: bool = True,
+    ):
         self.centre = centre
         self.radius = radius
         self.dimension = len(centre)
@@ -202,7 +217,6 @@ class Sphere(Set):
                 < self.radius ** 2
             )
         return domain
-
 
     def generate_data(self, batch_size):
         """

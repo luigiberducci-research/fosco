@@ -45,8 +45,7 @@ class VerifierDR(Verifier):
     def within_bounds(self, res) -> bool:
         left, right = -self.INFINITY, self.INFINITY
         return isinstance(res, dreal.Box) and all(
-            left < interval.mid() < right
-            for x, interval in res.items()
+            left < interval.mid() < right for x, interval in res.items()
         )
 
     def _solver_solve(self, solver, fml):
@@ -72,8 +71,12 @@ class VerifierDR(Verifier):
     @staticmethod
     def replace_point(expr, ver_vars, point):
         try:
-            replacements = {ver_vars[i, 0]: float(point[i, 0]) for i in range(len(ver_vars))}
+            replacements = {
+                ver_vars[i, 0]: float(point[i, 0]) for i in range(len(ver_vars))
+            }
         except TypeError:
-            replacements = {ver_vars[i]: float(point[i, 0]) for i in range(len(ver_vars))}
+            replacements = {
+                ver_vars[i]: float(point[i, 0]) for i in range(len(ver_vars))
+            }
 
         return expr.Substitute(replacements)

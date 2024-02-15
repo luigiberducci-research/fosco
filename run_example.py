@@ -35,7 +35,7 @@ def main(args):
         activations
     ), "Number of hidden layers must match number of activations"
     assert (
-            uncertainty_type is None or certificate_type == CertificateType.RCBF
+        uncertainty_type is None or certificate_type == CertificateType.RCBF
     ), "Uncertainty only supported for RCBF certificates"
 
     base_system = make_system(system_id=system_type)
@@ -94,10 +94,14 @@ def main(args):
         N_EPOCHS=n_epochs,
         OPTIMIZER=optimizer,
         LOSS_MARGINS={"init": 0.0, "unsafe": 0.0, "lie": 0.0, "robust": 0.0},
-        LOSS_WEIGHTS={"init": loss_init_weight, "unsafe": loss_unsafe_weight,
-                      "lie": loss_lie_weight, "robust": loss_robust_weight,
-                      "conservative_b": loss_conservative_b_weight,
-                      "conservative_sigma": loss_conservative_sigma_weight},
+        LOSS_WEIGHTS={
+            "init": loss_init_weight,
+            "unsafe": loss_unsafe_weight,
+            "lie": loss_lie_weight,
+            "robust": loss_robust_weight,
+            "conservative_b": loss_conservative_b_weight,
+            "conservative_sigma": loss_conservative_sigma_weight,
+        },
         LOSS_RELU=loss_act_type,
         LOSS_NETGRAD_WEIGHT=loss_netgrad_weight,
     )
@@ -118,7 +122,9 @@ if __name__ == "__main__":
     parser.add_argument("--exp-name", type=str, default="exp")
     parser.add_argument("--seed", type=int, default=None)
 
-    parser.add_argument("--system", type=str, default="SingleIntegrator", choices=systems)
+    parser.add_argument(
+        "--system", type=str, default="SingleIntegrator", choices=systems
+    )
     parser.add_argument("--uncertainty", type=str, default=None, choices=uncertainties)
 
     parser.add_argument("--certificate", type=str, default="cbf")

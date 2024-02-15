@@ -232,7 +232,9 @@ class Cegis:
             self.tlogger.debug("Consolidator")
             outputs, elapsed_time = self.consolidator.get(**state)
             state.update(outputs)
-            self.logger.log_scalar(tag="time_consolidator", value=elapsed_time, step=iter)
+            self.logger.log_scalar(
+                tag="time_consolidator", value=elapsed_time, step=iter
+            )
 
             # Logging
             # logging data distribution

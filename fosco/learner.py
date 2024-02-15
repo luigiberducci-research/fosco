@@ -32,15 +32,15 @@ class LearnerCT(LearnerNN):
         pass
 
     def __init__(
-            self,
-            state_size,
-            learn_method,
-            hidden_sizes: tuple[int, ...],
-            activation: tuple[ActivationType, ...],
-            optimizer: str | None,
-            lr: float,
-            weight_decay: float,
-            initial_models: dict[str, nn.Module] | None = None,
+        self,
+        state_size,
+        learn_method,
+        hidden_sizes: tuple[int, ...],
+        activation: tuple[ActivationType, ...],
+        optimizer: str | None,
+        lr: float,
+        weight_decay: float,
+        initial_models: dict[str, nn.Module] | None = None,
     ):
         super(LearnerCT, self).__init__()
 
@@ -57,8 +57,9 @@ class LearnerCT(LearnerNN):
 
         self.optimizers = {}
         if len(list(self.parameters())) > 0:
-            self.optimizers["barrier"] = make_optimizer(optimizer, params=self.parameters(),
-                                                        lr=lr, weight_decay=weight_decay)
+            self.optimizers["barrier"] = make_optimizer(
+                optimizer, params=self.parameters(), lr=lr, weight_decay=weight_decay
+            )
 
         self.learn_method = learn_method
 
@@ -75,15 +76,15 @@ class LearnerRobustCT(LearnerCT):
     """
 
     def __init__(
-            self,
-            state_size,
-            learn_method,
-            hidden_sizes: tuple[int, ...],
-            activation: tuple[ActivationType, ...],
-            optimizer: str | None,
-            lr: float,
-            weight_decay: float,
-            initial_models: dict[str, nn.Module] | None = None,
+        self,
+        state_size,
+        learn_method,
+        hidden_sizes: tuple[int, ...],
+        activation: tuple[ActivationType, ...],
+        optimizer: str | None,
+        lr: float,
+        weight_decay: float,
+        initial_models: dict[str, nn.Module] | None = None,
     ):
         super(LearnerRobustCT, self).__init__(
             state_size=state_size,
@@ -93,7 +94,7 @@ class LearnerRobustCT(LearnerCT):
             optimizer=optimizer,
             lr=lr,
             weight_decay=weight_decay,
-            initial_models=initial_models
+            initial_models=initial_models,
         )
 
         # compensator for additive state disturbances
@@ -110,8 +111,9 @@ class LearnerRobustCT(LearnerCT):
 
         # overriden optimizer with all module parameters
         if len(list(self.xsigma.parameters())) > 0:
-            self.optimizers["barrier"] = make_optimizer(optimizer, params=self.parameters(),
-                                                            lr=lr, weight_decay=weight_decay)
+            self.optimizers["barrier"] = make_optimizer(
+                optimizer, params=self.parameters(), lr=lr, weight_decay=weight_decay
+            )
 
 
 def make_learner(

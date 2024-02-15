@@ -108,7 +108,6 @@ class VerifierZ3(Verifier):
             "Check": lambda x: contains_object(x, z3.ArithRef),
             "RealVal": z3.RealVal,
             "Sqrt": z3.Sqrt,
-
         }
 
     def round_expr(self, e: Z3SYMBOL, rounding: int) -> Z3SYMBOL:

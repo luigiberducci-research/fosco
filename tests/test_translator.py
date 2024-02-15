@@ -16,7 +16,6 @@ def check_smt_equivalence(expr1, expr2):
 
 
 class TestTranslator(unittest.TestCase):
-
     def test_translator_linear_layer(self):
         from fosco.verifier.z3_verifier import VerifierZ3
         from fosco.verifier.types import Z3SYMBOL
@@ -25,13 +24,14 @@ class TestTranslator(unittest.TestCase):
 
         x = VerifierZ3.new_vars(n_vars, base="x")
         x = np.array(x).reshape(-1, 1)
-        xdot = np.array(x).reshape(-1, 1)   # dummy xdot = x
-
+        xdot = np.array(x).reshape(-1, 1)  # dummy xdot = x
 
         nn = TorchMLP(input_size=n_vars, hidden_sizes=(), activation=(), output_size=1)
 
         translator = MLPZ3Translator()
-        result_dict, elapsed_time = translator.translate(x_v_map={"v": x}, V_net=nn, xdot=xdot)
+        result_dict, elapsed_time = translator.translate(
+            x_v_map={"v": x}, V_net=nn, xdot=xdot
+        )
         expr_nn = result_dict["V_symbolic"]
         expr_nndot = result_dict["Vdot_symbolic"]
         self.assertTrue(isinstance(expr_nn, Z3SYMBOL))
@@ -76,12 +76,13 @@ class TestTranslator(unittest.TestCase):
         xdot = np.array(x).reshape(-1, 1)
 
         translator = MLPZ3Translator()
-        result_dict, elapsed_time = translator.translate(x_v_map={"v": x}, V_net=nn, xdot=xdot)
+        result_dict, elapsed_time = translator.translate(
+            x_v_map={"v": x}, V_net=nn, xdot=xdot
+        )
         expr_nn = result_dict["V_symbolic"]
         expr_nndot = result_dict["Vdot_symbolic"]
         self.assertTrue(isinstance(expr_nn, Z3SYMBOL))
         self.assertTrue(isinstance(expr_nndot, Z3SYMBOL))
-
 
         w0 = nn.W0.detach().numpy()
         b0 = nn.b0.detach().numpy()[:, None]
@@ -118,7 +119,9 @@ class TestTranslator(unittest.TestCase):
         for i in range(dz_dh.shape[0]):
             for j in range(dz_dh.shape[1]):
                 if i == j:
-                    dz_dh[i, j] = _If(h1[i, 0] > 0, z3_fns["RealVal"](1), z3_fns["RealVal"](0))
+                    dz_dh[i, j] = _If(
+                        h1[i, 0] > 0, z3_fns["RealVal"](1), z3_fns["RealVal"](0)
+                    )
                 else:
                     dz_dh[i, j] = z3_fns["RealVal"](0)
         grad_nn = dy_dz @ (dz_dh @ dh_dx)
@@ -151,7 +154,9 @@ class TestTranslator(unittest.TestCase):
         xdot = np.array(x).reshape(-1, 1)
 
         translator = MLPZ3Translator()
-        result_dict, elapsed_time = translator.translate(x_v_map={"v": x}, V_net=nn, xdot=xdot)
+        result_dict, elapsed_time = translator.translate(
+            x_v_map={"v": x}, V_net=nn, xdot=xdot
+        )
         expr_nn = result_dict["V_symbolic"]
         expr_nndot = result_dict["Vdot_symbolic"]
         self.assertTrue(isinstance(expr_nn, Z3SYMBOL))
@@ -198,7 +203,9 @@ class TestTranslator(unittest.TestCase):
         for i in range(do2_dh2.shape[0]):
             for j in range(do2_dh2.shape[1]):
                 if i == j:
-                    do2_dh2[i, j] = _If(h2[i, 0] > 0, z3_fns["RealVal"](1), z3_fns["RealVal"](0))
+                    do2_dh2[i, j] = _If(
+                        h2[i, 0] > 0, z3_fns["RealVal"](1), z3_fns["RealVal"](0)
+                    )
                 else:
                     do2_dh2[i, j] = z3_fns["RealVal"](0)
 
@@ -212,13 +219,15 @@ class TestTranslator(unittest.TestCase):
         for i in range(do1_dh1.shape[0]):
             for j in range(do1_dh1.shape[1]):
                 if i == j:
-                    do1_dh1[i, j] = _If(h1[i, 0] > 0, z3_fns["RealVal"](1), z3_fns["RealVal"](0))
+                    do1_dh1[i, j] = _If(
+                        h1[i, 0] > 0, z3_fns["RealVal"](1), z3_fns["RealVal"](0)
+                    )
                 else:
                     do1_dh1[i, j] = z3_fns["RealVal"](0)
 
         for name, matrix in zip(
-                ["dy_do3", "do2_dh2", "dh2_do1", "do2_dh1", "dh1_dx"],
-                [dy_do2, do2_dh2, dh2_do1, do1_dh1, dh1_dx],
+            ["dy_do3", "do2_dh2", "dh2_do1", "do2_dh1", "dh1_dx"],
+            [dy_do2, do2_dh2, dh2_do1, do1_dh1, dh1_dx],
         ):
             print(f"{name}:{matrix.shape}")
 
@@ -258,7 +267,9 @@ class TestTranslator(unittest.TestCase):
         xdot = np.array(x).reshape(-1, 1)
 
         translator = MLPZ3Translator()
-        result_dict, elapsed_time = translator.translate(x_v_map={"v": x}, V_net=nn, xdot=xdot)
+        result_dict, elapsed_time = translator.translate(
+            x_v_map={"v": x}, V_net=nn, xdot=xdot
+        )
         expr_nn = result_dict["V_symbolic"]
         expr_nndot = result_dict["Vdot_symbolic"]
         self.assertTrue(isinstance(expr_nn, Z3SYMBOL))
@@ -316,7 +327,9 @@ class TestTranslator(unittest.TestCase):
         xdot = np.array(x).reshape(-1, 1)
 
         translator = MLPZ3Translator()
-        result_dict, elapsed_time = translator.translate(x_v_map={"v": x}, V_net=nn, xdot=xdot)
+        result_dict, elapsed_time = translator.translate(
+            x_v_map={"v": x}, V_net=nn, xdot=xdot
+        )
         expr_nn = result_dict["V_symbolic"]
         expr_nndot = result_dict["Vdot_symbolic"]
         self.assertTrue(isinstance(expr_nn, Z3SYMBOL))

@@ -98,9 +98,7 @@ def certificate_lie(certificate, model, ctrl, ax, xrange, yrange):
     X, Y = np.meshgrid(x, y)
     XT = torch.tensor(X, dtype=torch.float32)
     YT = torch.tensor(Y, dtype=torch.float32)
-    ZT = certificate.gradient(
-        torch.cat((XT.reshape(-1, 1), YT.reshape(-1, 1)), dim=1)
-    )
+    ZT = certificate.gradient(torch.cat((XT.reshape(-1, 1), YT.reshape(-1, 1)), dim=1))
     Z = ZT.detach().numpy()
 
     obs = torch.stack([XT.ravel(), YT.ravel()]).T.float()

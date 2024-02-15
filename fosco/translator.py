@@ -40,11 +40,11 @@ class MLPZ3Translator(Translator):
 
     @timed
     def translate(
-            self,
-            x_v_map: dict[str, Iterable[SYMBOL]],
-            V_net: TorchMLP,
-            xdot: Iterable[SYMBOL],
-            **kwargs,
+        self,
+        x_v_map: dict[str, Iterable[SYMBOL]],
+        V_net: TorchMLP,
+        xdot: Iterable[SYMBOL],
+        **kwargs,
     ) -> dict:
         """
         Translate a network forward pass and gradients into a symbolic expression
@@ -91,13 +91,13 @@ class RobustMLPZ3Translator(MLPZ3Translator):
 
     @timed
     def translate(
-            self,
-            x_v_map: dict[str, Iterable[SYMBOL]],
-            V_net: TorchMLP,
-            sigma_net: TorchMLP,
-            xdot: Iterable[SYMBOL],
-            xdotz: Iterable[SYMBOL] = None,
-            **kwargs,
+        self,
+        x_v_map: dict[str, Iterable[SYMBOL]],
+        V_net: TorchMLP,
+        sigma_net: TorchMLP,
+        xdot: Iterable[SYMBOL],
+        xdotz: Iterable[SYMBOL] = None,
+        **kwargs,
     ):
         """
         Translate a network forward pass and gradients into a symbolic expression
@@ -149,10 +149,10 @@ class RobustMLPZ3Translator(MLPZ3Translator):
 
 
 def make_translator(
-        certificate_type: CertificateType,
-        verifier_type: VerifierType,
-        time_domain: TimeDomain,
-        **kwargs,
+    certificate_type: CertificateType,
+    verifier_type: VerifierType,
+    time_domain: TimeDomain,
+    **kwargs,
 ) -> Translator:
     """
     Factory function for translators.

@@ -11,6 +11,7 @@ from systems.system import (
 
 UNCERTAINTY_REGISTRY = {}
 
+
 def register(cls):
     """
     Decorator to register a system class in the systems registry.
@@ -20,7 +21,6 @@ def register(cls):
 
 
 class UncertaintyWrapper(UncertainControlAffineDynamics, ABC):
-
     def __init__(self, system: ControlAffineDynamics):
         super().__init__()
         self._base_system = system

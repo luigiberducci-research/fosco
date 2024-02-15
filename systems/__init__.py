@@ -11,7 +11,6 @@ from .double_integrator import DoubleIntegrator
 from .unicycle_model import Unicycle
 
 
-
 def make_system(system_id: str) -> Type[ControlAffineDynamics]:
     """
     Factory function for systems.
@@ -20,9 +19,6 @@ def make_system(system_id: str) -> Type[ControlAffineDynamics]:
         return system.SYSTEM_REGISTRY[system_id]
     else:
         raise NotImplementedError(f"System {system_id} not implemented")
-
-
-
 
 
 def make_domains(system_id: str) -> dict[str, Set]:
@@ -37,7 +33,11 @@ def make_domains(system_id: str) -> dict[str, Set]:
         ZD = domains.Sphere(vars=zvars, centre=(0.0, 0.0), radius=1.0)
         XI = domains.Rectangle(vars=xvars, lb=(-5.0, -5.0), ub=(-4.0, -4.0))
         XU = domains.Sphere(
-            vars=xvars, centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1], include_boundary=False
+            vars=xvars,
+            centre=[0.0, 0.0],
+            radius=1.0,
+            dim_select=[0, 1],
+            include_boundary=False,
         )
     elif system_id == "DoubleIntegrator":
         xvars = ["x0", "x1", "x2", "x3"]

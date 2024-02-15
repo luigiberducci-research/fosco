@@ -15,7 +15,9 @@ def main(args):
 
     system_fn = make_system(system_id=system_id)
     sets = {
-        k: s for k, s in make_domains(system_id=system_id).items() if k in ["lie", "input", "init", "unsafe"]
+        k: s
+        for k, s in make_domains(system_id=system_id).items()
+        if k in ["lie", "input", "init", "unsafe"]
     }
 
     # data generator
@@ -24,7 +26,7 @@ def main(args):
         "unsafe": lambda n: sets["unsafe"].generate_data(n),
         "lie": lambda n: torch.concatenate(
             [sets["lie"].generate_data(n), sets["input"].generate_data(n)], dim=1
-        )
+        ),
     }
 
     config = CegisConfig(
@@ -40,7 +42,7 @@ def main(args):
     result = cegis.solve()
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()

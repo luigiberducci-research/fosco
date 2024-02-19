@@ -28,6 +28,8 @@ class VerifierDR(Verifier):
             "Not": dreal.Not,
             "False": dreal.Formula.FALSE(),
             "True": dreal.Formula.TRUE(),
+            "Substitute": lambda expr, replacement: expr.Substitute(replacement[0], replacement[1]),
+            "RealVal": lambda real: real
         }
 
     @staticmethod

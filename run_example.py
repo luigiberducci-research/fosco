@@ -14,11 +14,14 @@ def main(args):
     system_type = args.system
     uncertainty_type = args.uncertainty
     certificate_type = CertificateType[args.certificate.upper()]
+    verifier_type = VerifierType[args.verifier.upper()]
     use_init_models = args.use_init_models
     activations = tuple([ActivationType[a.upper()] for a in args.activations])
     n_hidden_neurons = args.n_hiddens
     n_data_samples = args.n_data_samples
     optimizer = args.optimizer
+    learning_rate = args.lr
+    weight_decay = args.wd
     loss_act_type = LossReLUType[args.loss_act.upper()]
     loss_netgrad_weight = args.loss_netgrad_weight
     loss_init_weight = args.loss_init_weight
@@ -83,7 +86,7 @@ def main(args):
         CERTIFICATE=certificate_type,
         USE_INIT_MODELS=use_init_models,
         TIME_DOMAIN=TimeDomain.CONTINUOUS,
-        VERIFIER=VerifierType.Z3,
+        VERIFIER=verifier_type,
         VERIFIER_N_CEX=20,
         ACTIVATION=activations,
         N_HIDDEN_NEURONS=n_hidden_neurons,
@@ -93,6 +96,8 @@ def main(args):
         LOGGER=LoggerType.AIM,
         N_EPOCHS=n_epochs,
         OPTIMIZER=optimizer,
+        LEARNING_RATE=learning_rate,
+        WEIGHT_DECAY=weight_decay,
         LOSS_MARGINS={"init": 0.0, "unsafe": 0.0, "lie": 0.0, "robust": 0.0},
         LOSS_WEIGHTS={
             "init": loss_init_weight,
@@ -128,6 +133,7 @@ if __name__ == "__main__":
     parser.add_argument("--uncertainty", type=str, default=None, choices=uncertainties)
 
     parser.add_argument("--certificate", type=str, default="cbf")
+    parser.add_argument("--verifier", type=str, default="z3")
 
     parser.add_argument("--use-init-models", action="store_true")
     parser.add_argument(
@@ -138,6 +144,8 @@ if __name__ == "__main__":
     parser.add_argument("--max-iters", type=int, default=100)
     parser.add_argument("--n-epochs", type=int, default=1000)
     parser.add_argument("--optimizer", type=str, default=None)
+    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--wd", type=float, default=1e-4)
     parser.add_argument("--loss-act", type=str, default="softplus")
 
     parser.add_argument("--loss-netgrad-weight", type=float, default=0.0)

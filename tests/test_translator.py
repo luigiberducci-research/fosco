@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 
 from models.network import TorchMLP
-from fosco.translator import MLPZ3Translator, make_translator, RobustMLPZ3Translator
+from fosco.translator import MLPTranslator, make_translator, RobustMLPTranslator
 
 
 def check_smt_equivalence(expr1, expr2):
@@ -28,7 +28,7 @@ class TestTranslator(unittest.TestCase):
 
         nn = TorchMLP(input_size=n_vars, hidden_sizes=(), activation=(), output_size=1)
 
-        translator = MLPZ3Translator()
+        translator = MLPTranslator()
         result_dict, elapsed_time = translator.translate(
             x_v_map={"v": x}, V_net=nn, xdot=xdot
         )
@@ -75,7 +75,7 @@ class TestTranslator(unittest.TestCase):
 
         xdot = np.array(x).reshape(-1, 1)
 
-        translator = MLPZ3Translator()
+        translator = MLPTranslator()
         result_dict, elapsed_time = translator.translate(
             x_v_map={"v": x}, V_net=nn, xdot=xdot
         )
@@ -153,7 +153,7 @@ class TestTranslator(unittest.TestCase):
 
         xdot = np.array(x).reshape(-1, 1)
 
-        translator = MLPZ3Translator()
+        translator = MLPTranslator()
         result_dict, elapsed_time = translator.translate(
             x_v_map={"v": x}, V_net=nn, xdot=xdot
         )
@@ -266,7 +266,7 @@ class TestTranslator(unittest.TestCase):
 
         xdot = np.array(x).reshape(-1, 1)
 
-        translator = MLPZ3Translator()
+        translator = MLPTranslator()
         result_dict, elapsed_time = translator.translate(
             x_v_map={"v": x}, V_net=nn, xdot=xdot
         )
@@ -326,7 +326,7 @@ class TestTranslator(unittest.TestCase):
 
         xdot = np.array(x).reshape(-1, 1)
 
-        translator = MLPZ3Translator()
+        translator = MLPTranslator()
         result_dict, elapsed_time = translator.translate(
             x_v_map={"v": x}, V_net=nn, xdot=xdot
         )
@@ -394,14 +394,14 @@ class TestTranslator(unittest.TestCase):
             verifier_type=VerifierType.Z3,
             time_domain=TimeDomain.CONTINUOUS,
         )
-        self.assertTrue(isinstance(translator, MLPZ3Translator))
+        self.assertTrue(isinstance(translator, MLPTranslator))
 
         translator = make_translator(
             certificate_type=CertificateType.RCBF,
             verifier_type=VerifierType.Z3,
             time_domain=TimeDomain.CONTINUOUS,
         )
-        self.assertTrue(isinstance(translator, RobustMLPZ3Translator))
+        self.assertTrue(isinstance(translator, RobustMLPTranslator))
 
         self.assertRaises(
             NotImplementedError,

@@ -53,8 +53,8 @@ def plot_sphere(
     assert isinstance(domain, Sphere), "plot_sphere only works for spheres"
 
     i0, i1 = dim_select or (0, 1)
-    x0 = domain.centre[i0]
-    y0 = domain.centre[i1]
+    x0 = domain.center[i0]
+    y0 = domain.center[i1]
     radius = domain.radius
 
     resolution = 20  # lower resolution is faster but less accurate

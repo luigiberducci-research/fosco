@@ -6,8 +6,7 @@ pandas	# required to plot images with plotly
 z3-solver
 dreal
 cvxpy
-cvxopt
-qpth
+cvxpylayers
 gymnasium
 pyyaml
 aim

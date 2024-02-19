@@ -1,31 +1,60 @@
+from typing import Callable
+
+import numpy as np
 import torch
 from torch import nn
-from torch.autograd import Variable
 import torch.nn.functional as F
-from qpth.qp import QPFunction
-from cvxopt import matrix, solvers
+
+from cvxpylayers.torch import CvxpyLayer
+import cvxpy as cp
+
+from systems import ControlAffineDynamics
+
+
+def assert_input(x):
+    assert isinstance(x, torch.Tensor), f"Expected torch.Tensor, got {type(x)}"
+    assert len(x.shape) == 2, f"Expected (batch, dim) got {x.shape}"
+
+
+def assert_output(x, u):
+    assert isinstance(x, torch.Tensor), f"Expected torch.Tensor, got {type(x)}"
+    assert isinstance(u, torch.Tensor), f"Expected torch.Tensor, got {type(u)}"
+    assert len(x.shape) == len(u.shape), f"Expected same dimensions for x and u, got {x.shape} and {u.shape}"
+    assert x.shape[0] == u.shape[0], f"Expected return same batch as input, got {x.shape[0]} != {u.shape[0]}"
 
 
 class BarrierPolicy(nn.Module):
-    def __init__(self, nFeatures, nHidden1, nHidden21, nHidden22, nCls, mean, std, device, bn,
-                 obs_x=40, obs_y=15, R=6):
+    def __init__(
+        self,
+        system: ControlAffineDynamics,
+        barrier: Callable,
+        nHidden1=64,
+        nHidden21=32,
+        nHidden22=32,
+        mean=None,
+        std=None,
+        device=None,
+        bn=False,
+    ):
         super().__init__()
-        self.nFeatures = nFeatures
+        self.nFeatures = system.n_vars
         self.nHidden1 = nHidden1
         self.nHidden21 = nHidden21
         self.nHidden22 = nHidden22
         self.bn = bn
-        self.nCls = nCls
+        self.nCls = system.n_controls
+
+        mean = mean or np.zeros(self.nFeatures)
+        std = std or np.ones(self.nFeatures)
+
         self.mean = torch.from_numpy(mean).to(device)
         self.std = torch.from_numpy(std).to(device)
         self.device = device
 
         # system specific todo: remove
-        self.obs_x = obs_x
-        self.obs_y = obs_y
-        self.R = R
-        self.p1 = 0
-        self.p2 = 0
+        self.barrier = barrier
+        self.fx = system.fx_torch
+        self.gx = system.gx_torch
 
         # Normal BN/FC layers.
         if bn:
@@ -33,21 +62,23 @@ class BarrierPolicy(nn.Module):
             self.bn21 = nn.BatchNorm1d(nHidden21)
             self.bn22 = nn.BatchNorm1d(nHidden22)
 
-        self.fc1 = nn.Linear(nFeatures, nHidden1)
+        self.fc1 = nn.Linear(self.nFeatures, nHidden1)
         self.fc21 = nn.Linear(nHidden1, nHidden21)
         self.fc22 = nn.Linear(nHidden1, nHidden22)
-        self.fc31 = nn.Linear(nHidden21, nCls)
-        self.fc32 = nn.Linear(nHidden22, nCls)
+        self.fc31 = nn.Linear(nHidden21, self.nCls)
+        self.fc32 = nn.Linear(nHidden22, 1)
 
-        # QP params.
-        # from previous layers
+        self.umin = -torch.ones(self.nCls)
+        self.umax = torch.ones(self.nCls)
+        self._safety_layer = self._construct_cbf_problem()
 
-    def forward(self, x, sgn):
+    def forward(self, x):
+        assert_input(x)
         nBatch = x.size(0)
 
         # Normal FC network.
         x = x.view(nBatch, -1)
-        x0 = x * self.std + self.mean
+        x0 = (x * self.std + self.mean).float()
         x = F.relu(self.fc1(x))
         if self.bn:
             x = self.bn1(x)
@@ -59,56 +90,59 @@ class BarrierPolicy(nn.Module):
         if self.bn:
             x22 = self.bn22(x22)
 
-        x31 = self.fc31(x21)
+        px = self.fc31(x21)
         x32 = self.fc32(x22)
-        x32 = 4 * nn.Sigmoid()(x32)  # ensure CBF parameters are positive
+        alphax = 4 * nn.Sigmoid()(x32)  # ensure CBF parameters are positive
 
         # BarrierNet
-        x = self.dCBF(x0, x31, x32, sgn, nBatch)
+        hx = self.barrier(x0).view(nBatch, 1)
+        dhdx = self.barrier.gradient(x0)
+        dhdx = dhdx.view(nBatch, 1, self.nCls)
 
-        return x
+        fx = self.fx(x0.view(-1, self.nFeatures, 1))
+        gx = self.gx(x0.view(-1, self.nFeatures, 1))
 
-    def dCBF(self, x0, x31, x32, sgn, nBatch):
+        Lfhx = (dhdx @ fx).view(nBatch, 1)
+        Lghx = (dhdx @ gx).view(nBatch, self.nCls)
+        alphahx = (alphax * hx).view(nBatch, 1)
+        (u,) = self._safety_layer(
+            px,
+            Lfhx,
+            Lghx,
+            alphahx
+        )
 
-        Q = Variable(torch.eye(self.nCls))
-        Q = Q.unsqueeze(0).expand(nBatch, self.nCls, self.nCls).to(self.device)
-        px = x0[:, 0]
-        py = x0[:, 1]
-        theta = x0[:, 2]
-        v = x0[:, 3]
-        sin_theta = torch.sin(theta)
-        cos_theta = torch.cos(theta)
+        self.hx = hx
+        self.px = px
 
-        barrier = (px - self.obs_x) ** 2 + (py - self.obs_y) ** 2 - self.R ** 2
-        barrier_dot = 2 * (px - self.obs_x) * v * cos_theta + 2 * (py - self.obs_y) * v * sin_theta
-        Lf2b = 2 * v ** 2
-        LgLfbu1 = torch.reshape(-2 * (px - self.obs_x) * v * sin_theta + 2 * (py - self.obs_y) * v * cos_theta,
-                                (nBatch, 1))
-        LgLfbu2 = torch.reshape(2 * (px - self.obs_x) * cos_theta + 2 * (py - self.obs_y) * sin_theta, (nBatch, 1))
+        assert_output(x, u)
 
-        G = torch.cat([-LgLfbu1, -LgLfbu2], dim=1)
-        G = torch.reshape(G, (nBatch, 1, self.nCls)).to(self.device)
-        h = (torch.reshape(Lf2b + (x32[:, 0] + x32[:, 1]) * barrier_dot + (x32[:, 0] * x32[:, 1]) * barrier,
-                           (nBatch, 1))).to(self.device)
-        e = Variable(torch.Tensor()).to(self.device)
+        return u
 
-        if self.training or sgn == 1:
-            x = QPFunction(verbose=0)(Q.double(), x31.double(), G.double(), h.double(), e, e)
-        else:
-            self.p1 = x32[0, 0]
-            self.p2 = x32[0, 1]
-            x = solver(Q[0].double(), x31[0].double(), G[0].double(), h[0].double())
+    def _construct_cbf_problem(self) -> CvxpyLayer:
+        """
+        Constructs a CvxpyLayer to implement the CBF problem:
+            argmin_u u.T Q u + px.T u
+            s.t. dh(x,u) + alpha(h(x)) >= 0
+        """
+        Q = torch.eye(self.nCls)
+        px = cp.Parameter(self.nCls)
 
-        return x
+        Lfhx = cp.Parameter(1)
+        Lghx = cp.Parameter(self.nCls)
+        alphahx = cp.Parameter(1)
 
-def solver(Q, p, G, h):
-    mat_Q = matrix(Q.cpu().numpy())
-    mat_p = matrix(p.cpu().numpy())
-    mat_G = matrix(G.cpu().numpy())
-    mat_h = matrix(h.cpu().numpy())
+        u = cp.Variable(self.nCls)
 
-    solvers.options['show_progress'] = False
+        constraints = []
+        # input constraint: u in U
+        constraints += [u >= self.umin, u <= self.umax]
 
-    sol = solvers.qp(mat_Q, mat_p, mat_G, mat_h)
+        # constraint: hdot(x,u) + alpha(h(x)) >= 0
+        constraints += [Lfhx + Lghx @ u + alphahx >= 0.0]
 
-    return sol['x']
+        # objective: u.T Q u + p.T u
+        objective = 1 / 2 * cp.quad_form(u, Q) + px.T @ u
+        problem = cp.Problem(cp.Minimize(objective), constraints)
+
+        return CvxpyLayer(problem, variables=[u], parameters=[px, Lfhx, Lghx, alphahx])

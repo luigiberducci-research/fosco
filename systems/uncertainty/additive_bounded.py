@@ -29,6 +29,7 @@ class AdditiveBounded(UncertaintyWrapper):
         self._assert_batched_input(x, z)
         return z
 
+    # if z is a list, how come the returned is np or torch?
     def fz_smt(self, x: list, z: list) -> np.ndarray | torch.Tensor:
         self._assert_symbolic_input(x, z)
         return z

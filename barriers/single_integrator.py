@@ -240,21 +240,21 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
     def load(logdir: str):
         pass
 
-
-
+# system, verify (fail), compensator, verify (work)
+# create an example in /examples
+    
 class SingleIntegratorConvexHullUncertainty(TorchSymModel):
 
     def __init__(self, h: TorchSymDiffModel, system: UncertainControlAffineDynamics):
-        super().__init__()
+        super().__init__()  
         self._system = system
         self._h = h # CBF (we use its gradient)
-        self._safety_dist = 1.0 # todo this should be taken from system
         self._z_bound = 1.0 # todo this should be taken from system uncertainty
 
     def uncertain_phi(self, x: torch.Tensor) -> torch.Tensor:
         state_dim = self._system.n_vars
         # phi should be function from R^n to R^n where n is the system state dim
-        
+        # fix the phi, avoid many randomizations
         phi_1 = torch.rand(state_dim) * x
         phi_2 = torch.rand(state_dim) * x
         phi_3 = torch.rand(state_dim) * x
@@ -270,8 +270,79 @@ class SingleIntegratorConvexHullUncertainty(TorchSymModel):
         """
         self._assert_forward_input(x=x)
         dhdx = self._h.gradient(x=x)
-        all_phi = self.uncertain_phi(x=x)
-        sigma = torch.min(dhdx * all_phi)
+        self.all_phi = self.uncertain_phi(x=x)
+        sigma = torch.min(dhdx * self.all_phi)
+        self._assert_forward_output(x=sigma)
+        return sigma
+
+    def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL]]:
+        """
+        Problem: z3 is not able to cope with sqrt.
+
+        Solution: forward pass as conjunction of two constraints
+        - note that sigma = sqrt(dhdx[0] ** 2 + dhdx[1] ** 2) is equivalent to
+          sigma ** 2 = dhdx[0] ** 2 + dhdx[1] ** 2
+        - then we forward pass as
+        And(sigma * z_bound, sigma ** 2 = dhdx[0] ** 2 + dhdx[1] ** 2)
+        """
+        self._assert_forward_smt_input(x=x)
+        _And = FUNCTIONS["And"]
+
+        dhdx, dhdx_constraints = self._h.gradient_smt(x=x)
+        norm = VerifierZ3.new_vars(n=1, base="norm")[0]
+        norm_constraint = [
+            norm * norm == dhdx[0, 0] ** 2 + dhdx[0, 1] ** 2,
+            norm >= 0.0
+        ]
+        sigma = norm * self.all_phi # take the min, how to do it in z3
+
+        self._assert_forward_smt_output(x=sigma)
+        return sigma, dhdx_constraints + norm_constraint
+
+    def _assert_forward_input(self, x: torch.Tensor) -> None:
+        state_dim = self._system.n_vars
+        assert isinstance(x, torch.Tensor), f"expected batch input to be tensor, got {type(x)}"
+        assert len(x.shape) == 2, f"expected batch input (batch, {state_dim}), got {x.shape}"
+        assert x.shape[1] == state_dim, f"expected batch input (batch, {state_dim}), got {x.shape}"
+
+    def _assert_forward_output(self, x: torch.Tensor) -> None:
+        assert isinstance(x, torch.Tensor), f"expected batch output to be tensor, got {type(x)}"
+        assert len(x.shape) == 1, f"expected output of shape (batch,), got {x.shape}"
+
+    def _assert_forward_smt_input(self, x: Iterable[SYMBOL]) -> None:
+        state_dim = self._system.n_vars
+        assert all([isinstance(xi, SYMBOL) for xi in x]), f"expected symbolic input, got {x}"
+        assert len(x) == state_dim, f"expected {state_dim} state variables, got input of length {len(x)}"
+
+    def _assert_forward_smt_output(self, x: Iterable[SYMBOL]) -> None:
+        assert isinstance(x, SYMBOL), f"expected symbolic output, got {x}"
+
+
+    def save(self, outdir: str):
+        pass
+
+    @staticmethod
+    def load(logdir: str):
+        pass
+
+
+class SingleIntegratorPolytopeUncertainty(TorchSymModel):
+
+    def __init__(self, h: TorchSymDiffModel, system: UncertainControlAffineDynamics):
+        super().__init__()
+        self._system = system
+        self._h = h # CBF (we use its gradient)
+        self._safety_dist = 1.0 # todo this should be taken from system
+        self._phi_x_u = torch.tensor([])
+
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        sigma(x) = || h.gradient(x) || * z_bound
+        """
+        self._assert_forward_input(x=x)
+        dhdx = self._h.gradient(x=x)
+        sigma = torch.norm(dhdx, dim=-1) * self._z_bound
         self._assert_forward_output(x=sigma)
         return sigma
 

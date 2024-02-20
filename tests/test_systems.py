@@ -46,6 +46,7 @@ class TestControlAffineDynamicalSystem(unittest.TestCase):
 
 
 class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
+    # to test convex hull here
     def test_noisy_single_integrator(self):
         from systems.single_integrator import SingleIntegrator
         from systems.uncertainty.additive_bounded import AdditiveBounded
@@ -57,6 +58,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         T = 10.0
         dt = 0.1
 
+        # change f to convexhull
         f = AdditiveBounded(system=SingleIntegrator())
 
         t = dt

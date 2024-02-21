@@ -56,6 +56,7 @@ class SystemEnv(gymnasium.Env):
             termination_fn: TermFnType,
             reward_fn: RewardFnType,
             #generator: Optional[torch.Generator] = None,
+            return_np: bool = True,
     ):
         # todo: generator for seeding the environment
         # todo: device to run on gpu
@@ -68,7 +69,7 @@ class SystemEnv(gymnasium.Env):
         self.action_space = self.make_action_space(system=self.system)
 
         self._current_obs: torch.Tensor = None
-        self._return_as_np = True
+        self._return_as_np = return_np
 
     @staticmethod
     def make_observation_space(system: ControlAffineDynamics) -> gym.spaces.Space:
@@ -114,13 +115,15 @@ class SystemEnv(gymnasium.Env):
         # eventually convert to numpy array
         if self._return_as_np:
             obs_batch = self._current_obs.cpu().numpy().astype(np.float32)
+        else:
+            obs_batch = self._current_obs
 
         # if no batch mode, unpack the first and only state
         if batch_size == 1:
-            return self._current_obs[0], info
+            return obs_batch[0], info
 
         # otherwise, return batch of states
-        return self._current_obs, info
+        return obs_batch, info
 
     def step(
             self,

@@ -51,12 +51,12 @@ class SystemEnv(gymnasium.Env):
     """
 
     def __init__(
-            self,
-            system: ControlAffineDynamics,
-            termination_fn: TermFnType,
-            reward_fn: RewardFnType,
-            #generator: Optional[torch.Generator] = None,
-            return_np: bool = True,
+        self,
+        system: ControlAffineDynamics,
+        termination_fn: TermFnType,
+        reward_fn: RewardFnType,
+        # generator: Optional[torch.Generator] = None,
+        return_np: bool = True,
     ):
         # todo: generator for seeding the environment
         # todo: device to run on gpu
@@ -73,22 +73,26 @@ class SystemEnv(gymnasium.Env):
 
     @staticmethod
     def make_observation_space(system: ControlAffineDynamics) -> gym.spaces.Space:
-        assert isinstance(system.state_domain, Rectangle), "only rectangle domains are supported for observation space"
+        assert isinstance(
+            system.state_domain, Rectangle
+        ), "only rectangle domains are supported for observation space"
         state_domain: Rectangle = system.state_domain
         return gym.spaces.Box(
             low=np.array(state_domain.lower_bounds),
             high=np.array(state_domain.upper_bounds),
-            shape=(state_domain.dimension,)
+            shape=(state_domain.dimension,),
         )
 
     @staticmethod
     def make_action_space(system: ControlAffineDynamics) -> gym.spaces.Space:
-        assert isinstance(system.input_domain, Rectangle), "only rectangle domains are supported for observation space"
+        assert isinstance(
+            system.input_domain, Rectangle
+        ), "only rectangle domains are supported for observation space"
         input_domain: Rectangle = system.input_domain
         return gym.spaces.Box(
             low=np.array(input_domain.lower_bounds),
             high=np.array(input_domain.upper_bounds),
-            shape=(input_domain.dimension,)
+            shape=(input_domain.dimension,),
         )
 
     def reset(
@@ -126,8 +130,8 @@ class SystemEnv(gymnasium.Env):
         return obs_batch, info
 
     def step(
-            self,
-            actions: TensorType,
+        self,
+        actions: TensorType,
     ) -> Tuple[TensorType, TensorType, TensorType, TensorType, Dict]:
         # todo: add deterministic or stochastic mode
         """
@@ -145,21 +149,27 @@ class SystemEnv(gymnasium.Env):
             The done flag is computed using the termination_fn passed in the constructor.
         """
         # prepare action to batch
-        assert actions.ndim == 1 or actions.ndim == 2, "actions must be 1d or batch of 1d actions"
+        assert (
+            actions.ndim == 1 or actions.ndim == 2
+        ), "actions must be 1d or batch of 1d actions"
         if actions.ndim == 1:
             return_batch = False
             actions = actions[None]
         else:
             return_batch = True
         assert len(actions.shape) == 2  # batch, action_dim
-        assert actions.shape[0] == self._current_obs.shape[0], "actions must have the same batch size of the current state"
-        assert actions.shape[1] == self.system.input_domain.dimension, "actions must match the dimension of the input domain"
+        assert (
+            actions.shape[0] == self._current_obs.shape[0]
+        ), "actions must have the same batch size of the current state"
+        assert (
+            actions.shape[1] == self.system.input_domain.dimension
+        ), "actions must match the dimension of the input domain"
 
         # todo: do we want to differentiate through the dynamics or not?
         with torch.no_grad():
             # if actions is tensor, code assumes it's already on self.device
             if isinstance(actions, np.ndarray):
-                actions = torch.from_numpy(actions)#.to(self.device)
+                actions = torch.from_numpy(actions)  # .to(self.device)
 
             # step
             next_observs = self.system.f(v=self._current_obs, u=actions)
@@ -190,10 +200,10 @@ class SystemEnv(gymnasium.Env):
         pass
 
     def evaluate_action_sequences(
-            self,
-            action_sequences: torch.Tensor,
-            initial_state: np.ndarray,
-            num_particles: int,
+        self,
+        action_sequences: torch.Tensor,
+        initial_state: np.ndarray,
+        num_particles: int,
     ) -> torch.Tensor:
         """Evaluates a batch of action sequences on the model.
 

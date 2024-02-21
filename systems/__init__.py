@@ -19,4 +19,3 @@ def make_system(system_id: str) -> Type[ControlAffineDynamics]:
         return system.SYSTEM_REGISTRY[system_id]
     else:
         raise NotImplementedError(f"System {system_id} not implemented")
-

@@ -492,7 +492,8 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
         # penalize sigma_dz + Bdotz_dz - Bdot_dz < 0
         # equivalent to relu(margin_robust - (sigma_dz + Bdotz_dz - Bdot_dz))
         precondition = torch.min(
-            B_dz, Bdot_dz - sigma_dz + alpha * B_dz,  # todo: change to belt
+            B_dz,
+            Bdot_dz - sigma_dz + alpha * B_dz,  # todo: change to belt
         )
         compensator_term = torch.min(precondition, -(sigma_dz + Bdotz_dz - Bdot_dz))
         robust_loss = (

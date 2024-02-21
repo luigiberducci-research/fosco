@@ -78,7 +78,6 @@ class TestVerifier(unittest.TestCase):
             # must provide at least one n or var_names
             verifier_fn.new_vars(n=None, var_names=None)
 
-
     def test_simple_constraints_dreal(self):
         verifier_fn = make_verifier(type=VerifierType.DREAL)
 

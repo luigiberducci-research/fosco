@@ -16,8 +16,6 @@ class DoubleIntegrator(ControlAffineDynamics):
     dX/dt = [vx, vy]
     """
 
-
-
     @property
     def id(self) -> str:
         return self.__class__.__name__
@@ -32,19 +30,29 @@ class DoubleIntegrator(ControlAffineDynamics):
 
     @property
     def state_domain(self) -> Set:
-        return domains.Rectangle(vars=self.vars, lb=(-5.0,) * self.n_vars, ub=(5.0,) * self.n_vars)
+        return domains.Rectangle(
+            vars=self.vars, lb=(-5.0,) * self.n_vars, ub=(5.0,) * self.n_vars
+        )
 
     @property
     def input_domain(self) -> Set:
-        return domains.Rectangle(vars=self.controls, lb=(-5.0,) * self.n_controls, ub=(5.0,) * self.n_controls)
+        return domains.Rectangle(
+            vars=self.controls,
+            lb=(-5.0,) * self.n_controls,
+            ub=(5.0,) * self.n_controls,
+        )
 
     @property
     def init_domain(self) -> Set:
-        return domains.Rectangle(vars=self.vars, lb=(-5.0,) * self.n_vars, ub=(-4.0, -4.0, 5.0, 5.0))
+        return domains.Rectangle(
+            vars=self.vars, lb=(-5.0,) * self.n_vars, ub=(-4.0, -4.0, 5.0, 5.0)
+        )
 
     @property
     def unsafe_domain(self) -> Set:
-        return domains.Rectangle(vars=self.vars, lb=(-1.0, -1.0, -5.0, -5.0), ub=(1.0, 1.0, 5.0, 5.0))
+        return domains.Rectangle(
+            vars=self.vars, lb=(-1.0, -1.0, -5.0, -5.0), ub=(1.0, 1.0, 5.0, 5.0)
+        )
 
     def fx_torch(self, x: np.ndarray | torch.Tensor) -> np.ndarray | torch.Tensor:
         assert (

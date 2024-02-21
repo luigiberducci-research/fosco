@@ -209,12 +209,12 @@ class Sphere(Set):
         if self.include_boundary:
             domain = (
                 sum([(x[i] - self.centre[i]) ** 2 for i in range(self.dimension)])
-                <= self.radius ** 2
+                <= self.radius**2
             )
         else:
             domain = (
                 sum([(x[i] - self.centre[i]) ** 2 for i in range(self.dimension)])
-                < self.radius ** 2
+                < self.radius**2
             )
         return domain
 
@@ -223,7 +223,7 @@ class Sphere(Set):
         param batch_size: number of data points to generate
         returns: data points generated in relevant domain according to shape
         """
-        return round_init_data(self.centre, self.radius ** 2, batch_size)
+        return round_init_data(self.centre, self.radius**2, batch_size)
 
     def sample_border(self, batch_size):
         """
@@ -231,7 +231,7 @@ class Sphere(Set):
         returns: data points generated on the border of the set
         """
         return round_init_data(
-            self.centre, self.radius ** 2, batch_size, on_border=True
+            self.centre, self.radius**2, batch_size, on_border=True
         )
 
     def check_containment(self, x: np.ndarray | torch.Tensor) -> torch.Tensor:
@@ -239,7 +239,7 @@ class Sphere(Set):
             x = np.array([x[:, i] for i in self.dim_select])
         x = torch.from_numpy(x)
         c = torch.tensor(self.centre).reshape(1, -1)
-        return (x - c).norm(2, dim=-1) <= self.radius ** 2
+        return (x - c).norm(2, dim=-1) <= self.radius**2
 
     def check_containment_grad(self, x: torch.Tensor) -> torch.Tensor:
         # check containment and return a tensor with gradient
@@ -249,4 +249,4 @@ class Sphere(Set):
             c = [self.centre[i] for i in self.dim_select]
             c = torch.tensor(c).reshape(1, -1)
         # returns 0 if it IS contained, a positive number otherwise
-        return torch.relu((x - c).norm(2, dim=-1) - self.radius ** 2)
+        return torch.relu((x - c).norm(2, dim=-1) - self.radius**2)

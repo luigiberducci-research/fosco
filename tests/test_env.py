@@ -61,8 +61,10 @@ class TestEnv(unittest.TestCase):
         for system_id in ["SingleIntegrator", "DoubleIntegrator"]:
             system = make_system(system_id=system_id)()
             env = SystemEnv(
-                system=system, termination_fn=dummy_term_fn, reward_fn=dummy_reward_fn,
-                return_np = False
+                system=system,
+                termination_fn=dummy_term_fn,
+                reward_fn=dummy_reward_fn,
+                return_np=False,
             )
 
             obss, infos = env.reset(options={"batch_size": batch_size})

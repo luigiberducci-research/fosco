@@ -28,20 +28,34 @@ class SingleIntegrator(ControlAffineDynamics):
 
     @property
     def state_domain(self) -> Set:
-        return domains.Rectangle(vars=self.vars, lb=(-5.0,) * self.n_vars, ub=(5.0,) * self.n_vars)
+        return domains.Rectangle(
+            vars=self.vars, lb=(-5.0,) * self.n_vars, ub=(5.0,) * self.n_vars
+        )
 
     @property
     def input_domain(self) -> Set:
-        return domains.Rectangle(vars=self.controls, lb=(-5.0,) * self.n_controls, ub=(5.0,) * self.n_controls)
+        return domains.Rectangle(
+            vars=self.controls,
+            lb=(-5.0,) * self.n_controls,
+            ub=(5.0,) * self.n_controls,
+        )
 
     @property
     def init_domain(self) -> Set:
-        return domains.Rectangle(vars=self.vars, lb=(-5.0,) * self.n_vars, ub=(-4.0,) * self.n_vars)
+        return domains.Rectangle(
+            vars=self.vars, lb=(-5.0,) * self.n_vars, ub=(-4.0,) * self.n_vars
+        )
 
     @property
     def unsafe_domain(self) -> Set:
         # todo: do we need dim_select?
-        return domains.Sphere(vars=self.vars, centre=(0.0,) * self.n_vars, radius=1.0, dim_select=[0,1], include_boundary=False)
+        return domains.Sphere(
+            vars=self.vars,
+            centre=(0.0,) * self.n_vars,
+            radius=1.0,
+            dim_select=[0, 1],
+            include_boundary=False,
+        )
 
     def fx_torch(self, x: np.ndarray | torch.Tensor) -> np.ndarray | torch.Tensor:
         assert (

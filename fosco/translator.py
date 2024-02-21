@@ -156,7 +156,10 @@ def make_translator(
     """
     Factory function for translators.
     """
-    if time_domain == TimeDomain.CONTINUOUS and verifier_type in [VerifierType.Z3, VerifierType.DREAL]:
+    if time_domain == TimeDomain.CONTINUOUS and verifier_type in [
+        VerifierType.Z3,
+        VerifierType.DREAL,
+    ]:
         if certificate_type == CertificateType.RCBF:
             return RobustMLPTranslator(**kwargs)
         elif certificate_type == CertificateType.CBF:

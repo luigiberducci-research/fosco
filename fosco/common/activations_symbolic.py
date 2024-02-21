@@ -230,7 +230,12 @@ def even_poly4_sym(x):
         x[:h],
         x[h:],
     )
-    return np.vstack([np.power(x1, 2), np.power(x2, 4),])
+    return np.vstack(
+        [
+            np.power(x1, 2),
+            np.power(x2, 4),
+        ]
+    )
 
 
 def even_poly6_sym(x):
@@ -240,7 +245,13 @@ def even_poly6_sym(x):
         x[h : 2 * h],
         x[2 * h :],
     )
-    return np.vstack([np.power(x1, 2), np.power(x2, 4), np.power(x3, 6),])
+    return np.vstack(
+        [
+            np.power(x1, 2),
+            np.power(x2, 4),
+            np.power(x3, 6),
+        ]
+    )
 
 
 def even_poly8_sym(x):
@@ -252,7 +263,12 @@ def even_poly8_sym(x):
         x[3 * h :],
     )
     return np.vstack(
-        [np.power(x1, 2), np.power(x2, 4), np.power(x3, 6), np.power(x4, 8),]
+        [
+            np.power(x1, 2),
+            np.power(x2, 4),
+            np.power(x3, 6),
+            np.power(x4, 8),
+        ]
     )
 
 
@@ -277,7 +293,7 @@ def even_poly10_sym(x):
 
 
 def rational_sym(x):
-    return x / (1 + (x ** 2) ** 0.5)
+    return x / (1 + (x**2) ** 0.5)
 
 
 ##############################
@@ -440,7 +456,12 @@ def even_poly4_der_sym(x):
         x[:h],
         x[h:],
     )
-    return np.vstack([2 * x1, 4 * np.power(x2, 3),])
+    return np.vstack(
+        [
+            2 * x1,
+            4 * np.power(x2, 3),
+        ]
+    )
 
 
 def even_poly6_der_sym(x):
@@ -450,7 +471,13 @@ def even_poly6_der_sym(x):
         x[h : 2 * h],
         x[2 * h :],
     )
-    return np.vstack([2 * x1, 4 * np.power(x2, 3), 6 * np.power(x3, 5),])
+    return np.vstack(
+        [
+            2 * x1,
+            4 * np.power(x2, 3),
+            6 * np.power(x3, 5),
+        ]
+    )
 
 
 def even_poly8_der_sym(x):
@@ -462,7 +489,12 @@ def even_poly8_der_sym(x):
         x[3 * h :],
     )
     return np.vstack(
-        [2 * x1, 4 * np.power(x2, 3), 6 * np.power(x3, 5), 8 * np.power(x4, 7),]
+        [
+            2 * x1,
+            4 * np.power(x2, 3),
+            6 * np.power(x3, 5),
+            8 * np.power(x4, 7),
+        ]
     )
 
 
@@ -487,4 +519,4 @@ def even_poly10_der_sym(x):
 
 
 def rational_der_sym(x):
-    return 1 / (1 + x ** 2)
+    return 1 / (1 + x**2)

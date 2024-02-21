@@ -12,12 +12,15 @@ from fosco.consolidator import make_consolidator
 from fosco.common.consts import DomainName, CertificateType
 from fosco.learner import make_learner, LearnerNN
 from fosco.plotting.data import scatter_datasets
-from fosco.plotting.utils import plot_func_and_domains
+from fosco.plotting.utils import (
+    plot_func_and_domains,
+    lie_derivative_fn,
+    cbf_condition_fn,
+)
 from fosco.translator import make_translator
 from fosco.verifier import make_verifier
 from fosco.logger import make_logger, Logger, LOGGING_LEVELS
 from systems.system import UncertainControlAffineDynamics
-from systems.utils import lie_derivative_fn, cbf_condition_fn
 
 
 class Cegis:
@@ -107,10 +110,14 @@ class Cegis:
     def _initialise_domains(self):
         verifier_type = make_verifier(type=self.config.VERIFIER)
         x = verifier_type.new_vars(var_names=[f"x{i}" for i in range(self.f.n_vars)])
-        u = verifier_type.new_vars(var_names=[f"u{i}" for i in range(self.f.n_controls)])
+        u = verifier_type.new_vars(
+            var_names=[f"u{i}" for i in range(self.f.n_controls)]
+        )
 
         if isinstance(self.f, UncertainControlAffineDynamics):
-            z = verifier_type.new_vars(var_names=[f"z{i}" for i in range(self.f.n_uncertain)])
+            z = verifier_type.new_vars(
+                var_names=[f"z{i}" for i in range(self.f.n_uncertain)]
+            )
         else:
             z = None
 

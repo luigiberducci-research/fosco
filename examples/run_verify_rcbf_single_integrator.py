@@ -6,7 +6,7 @@ import torch
 from fosco.cegis import Cegis
 from fosco.common.consts import CertificateType
 from fosco.config import CegisConfig
-from systems import make_system, make_domains
+from systems import make_system
 from systems.uncertainty import add_uncertainty
 
 
@@ -17,7 +17,7 @@ def main(args):
 
     system_fn = make_system(system_id=system_id)
     system_fn = add_uncertainty(uncertainty_type=uncertainty_id, system_fn=system_fn)
-    sets = make_domains(system_id=system_id)
+    sets = system_fn().domains()
 
     # data generator
     data_gen = {

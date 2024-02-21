@@ -9,17 +9,17 @@ from torch.optim import Optimizer
 from fosco.certificates.cbf import ControlBarrierFunction, TrainableCBF
 from fosco.config import CegisConfig
 from fosco.common.domains import Set
-from fosco.common.consts import DomainNames
+from fosco.common.consts import DomainName
 from fosco.common.utils import _set_assertion
 from fosco.learner import LearnerCT
 from fosco.verifier.verifier import SYMBOL
 from systems import ControlAffineDynamics
 
-XD = DomainNames.XD.value
-XI = DomainNames.XI.value
-XU = DomainNames.XU.value
-UD = DomainNames.UD.value
-ZD = DomainNames.ZD.value
+XD = DomainName.XD.value
+XI = DomainName.XI.value
+XU = DomainName.XU.value
+UD = DomainName.UD.value
+ZD = DomainName.ZD.value
 
 
 class RobustControlBarrierFunction(ControlBarrierFunction):
@@ -218,7 +218,7 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
 
     @staticmethod
     def _assert_state(domains, data):
-        dn = DomainNames
+        dn = DomainName
         domain_labels = set(domains.keys())
         data_labels = set(data.keys())
         _set_assertion(

@@ -2,6 +2,7 @@ import dreal
 import numpy as np
 import torch
 
+from fosco.common.domains import Set
 from systems import ControlAffineDynamics
 from systems.system import register
 
@@ -21,14 +22,30 @@ class Unicycle(ControlAffineDynamics):
         return self.__class__.__name__
 
     @property
-    def n_vars(self) -> int:
+    def vars(self) -> list[str]:
         # x, y, theta
-        return 3
+        return ["x0", "x1", "x2"]
 
     @property
-    def n_controls(self) -> int:
+    def controls(self) -> list[str]:
         # v, w
-        return 2
+        return ["u0", "u1"]
+
+    @property
+    def state_domain(self) -> Set:
+        raise NotImplementedError("Unsafe domain not implemented yet for this system")
+
+    @property
+    def input_domain(self) -> Set:
+        raise NotImplementedError("Unsafe domain not implemented yet for this system")
+
+    @property
+    def init_domain(self) -> Set:
+        raise NotImplementedError("Unsafe domain not implemented yet for this system")
+
+    @property
+    def unsafe_domain(self) -> Set:
+        raise NotImplementedError("Unsafe domain not implemented yet for this system")
 
     def fx_torch(self, x) -> np.ndarray | torch.Tensor:
         assert (

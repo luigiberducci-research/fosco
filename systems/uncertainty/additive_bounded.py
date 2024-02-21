@@ -1,6 +1,9 @@
 import numpy as np
 import torch
 
+from fosco.common import domains
+from fosco.common.domains import Set
+from systems import ControlAffineDynamics
 from systems.uncertainty.uncertainty_wrapper import register
 from systems.uncertainty.uncertainty_wrapper import UncertaintyWrapper
 
@@ -15,13 +18,25 @@ class AdditiveBounded(UncertaintyWrapper):
     f(x) = f_base(x) + I Z + 0 Z u = f_base(x) + z
     """
 
+    def __init__(self, system: ControlAffineDynamics, radius: float = 1.0):
+        super().__init__(system=system)
+        self._radius = radius  # uncertainty radius
+
     @property
     def uncertainty_id(self) -> str:
         return self.__class__.__name__
 
     @property
-    def n_uncertain(self) -> int:
-        return self.n_vars
+    def uncertain_vars(self) -> list[str]:
+        return [f"z{i}" for i in range(self.n_vars)]
+
+    @property
+    def uncertainty_domain(self) -> Set:
+        return domains.Sphere(
+            vars=self.uncertain_vars,
+            centre=(0.0,) * self.n_uncertain,
+            radius=self._radius,
+        )
 
     def fz_torch(
         self, x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor

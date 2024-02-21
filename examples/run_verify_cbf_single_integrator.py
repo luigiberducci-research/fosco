@@ -6,7 +6,7 @@ import torch
 from fosco.cegis import Cegis
 from fosco.common.consts import CertificateType
 from fosco.config import CegisConfig
-from systems import make_system, make_domains
+from systems import make_system
 
 
 def main(args):
@@ -14,11 +14,7 @@ def main(args):
     verbose = 1
 
     system_fn = make_system(system_id=system_id)
-    sets = {
-        k: s
-        for k, s in make_domains(system_id=system_id).items()
-        if k in ["lie", "input", "init", "unsafe"]
-    }
+    sets = system_fn().domains
 
     # data generator
     data_gen = {

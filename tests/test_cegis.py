@@ -12,19 +12,22 @@ from fosco.common.consts import (
     ActivationType,
     VerifierType,
     CertificateType,
-    DomainNames,
+    DomainName,
 )
 from systems.single_integrator import SingleIntegrator
 
 
 class TestCEGIS(unittest.TestCase):
-    def _get_single_integrator_config(self) -> CegisConfig:
-        XD = Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
-        UD = Rectangle(vars=["u0", "u1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
-        XI = Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(-4.0, -4.0))
-        XU = Sphere(vars=["x0", "x1"], centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1])
+    @staticmethod
+    def _get_single_integrator_config() -> CegisConfig:
+        system = SingleIntegrator
 
-        dn = DomainNames
+        XD = system().state_domain
+        UD = system().input_domain
+        XI = system().init_domain
+        XU = system().unsafe_domain
+
+        dn = DomainName
         domains = {
             name: domain
             for name, domain in zip(
@@ -52,7 +55,10 @@ class TestCEGIS(unittest.TestCase):
             N_DATA=1000,
             LEARNING_RATE=1e-3,
             WEIGHT_DECAY=1e-4,
-            N_HIDDEN_NEURONS=(5, 5,),
+            N_HIDDEN_NEURONS=(
+                5,
+                5,
+            ),
             ACTIVATION=(ActivationType.RELU, ActivationType.LINEAR),
             SEED=0,
         )

@@ -4,7 +4,7 @@ import fosco.cegis
 from fosco.common.consts import ActivationType, LossReLUType
 from fosco.common.consts import CertificateType, TimeDomain, VerifierType
 from fosco.logger import LoggerType
-from systems import make_system, make_domains
+from systems import make_system
 from systems.uncertainty import add_uncertainty
 
 
@@ -43,12 +43,7 @@ def main(args):
 
     base_system = make_system(system_id=system_type)
     system = add_uncertainty(uncertainty_type=uncertainty_type, system_fn=base_system)
-    sets = make_domains(system_id=system_type)
-
-    if certificate_type == CertificateType.CBF:
-        sets = {
-            k: s for k, s in sets.items() if k in ["lie", "input", "init", "unsafe"]
-        }
+    sets = system().domains
 
     # data generator
     data_gen = {

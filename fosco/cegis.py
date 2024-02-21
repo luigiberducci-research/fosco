@@ -9,7 +9,7 @@ from fosco.certificates import make_certificate
 from fosco.common.domains import Rectangle
 from fosco.config import CegisConfig, CegisResult
 from fosco.consolidator import make_consolidator
-from fosco.common.consts import DomainNames, CertificateType
+from fosco.common.consts import DomainName, CertificateType
 from fosco.learner import make_learner, LearnerNN
 from fosco.plotting.data import scatter_datasets
 from fosco.plotting.utils import plot_func_and_domains
@@ -244,11 +244,11 @@ class Cegis:
             self.logger.log_image(tag="datasets", image=fig, step=iter)
 
             # logging learned functions
-            in_domain = self.config.DOMAINS[DomainNames.XD.value]
+            in_domain = self.config.DOMAINS[DomainName.XD.value]
             other_domains = {
                 k: v
                 for k, v in self.config.DOMAINS.items()
-                if k in [DomainNames.XI.value, DomainNames.XU.value]
+                if k in [DomainName.XI.value, DomainName.XU.value]
             }
             fig = plot_func_and_domains(
                 func=self.learner.net,
@@ -275,7 +275,7 @@ class Cegis:
                     context={"dimension": dim},
                 )
 
-            u_domain = self.config.DOMAINS[DomainNames.UD.value]
+            u_domain = self.config.DOMAINS[DomainName.UD.value]
             assert isinstance(
                 u_domain, Rectangle
             ), "only rectangular domains are supported for u"

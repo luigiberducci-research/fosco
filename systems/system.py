@@ -3,6 +3,7 @@ from abc import abstractmethod, ABC
 import numpy as np
 import torch
 
+from fosco.common.consts import DomainName
 from fosco.common.domains import Set
 from fosco.common.utils import contains_object
 from fosco.verifier.verifier import SYMBOL
@@ -30,18 +31,50 @@ class ControlAffineDynamics(ABC):
 
     @property
     @abstractmethod
-    def n_vars(self) -> int:
+    def vars(self) -> list[str]:
         raise NotImplementedError()
 
     @property
     @abstractmethod
-    def n_controls(self) -> int:
+    def controls(self) -> list[str]:
         raise NotImplementedError()
 
-    #@property
-    #@abstractmethod
-    #def domains(self) -> dict[str, Set]:
-    #    raise NotImplementedError()
+    @property
+    @abstractmethod
+    def state_domain(self) -> Set:
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def input_domain(self) -> Set:
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def init_domain(self) -> Set:
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def unsafe_domain(self) -> Set:
+        raise NotImplementedError()
+
+    @property
+    def domains(self) -> dict[str, Set]:
+        return {
+            DomainName.XD.value: self.state_domain,
+            DomainName.UD.value: self.input_domain,
+            DomainName.XI.value: self.init_domain,
+            DomainName.XU.value: self.unsafe_domain,
+        }
+
+    @property
+    def n_vars(self) -> int:
+        return len(self.vars)
+
+    @property
+    def n_controls(self) -> int:
+        return len(self.controls)
 
     @abstractmethod
     def fx_torch(self, x) -> np.ndarray | torch.Tensor:
@@ -90,8 +123,23 @@ class UncertainControlAffineDynamics(ControlAffineDynamics):
 
     @property
     @abstractmethod
-    def n_uncertain(self) -> int:
+    def uncertain_vars(self) -> list[str]:
         raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def uncertainty_domain(self) -> Set:
+        raise NotImplementedError()
+
+    @property
+    def n_uncertain(self) -> int:
+        return len(self.uncertain_vars)
+
+    @property
+    def domains(self) -> dict[str, Set]:
+        domains = super().domains
+        domains[DomainName.ZD.value] = self.uncertainty_domain
+        return domains
 
     @abstractmethod
     def fz_torch(self, x, z) -> np.ndarray | torch.Tensor:

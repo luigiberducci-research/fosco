@@ -3,6 +3,7 @@ from abc import abstractmethod, ABC
 import numpy as np
 import torch
 
+from fosco.common.domains import Set
 from fosco.common.utils import contains_object
 from fosco.verifier.verifier import SYMBOL
 
@@ -36,6 +37,11 @@ class ControlAffineDynamics(ABC):
     @abstractmethod
     def n_controls(self) -> int:
         raise NotImplementedError()
+
+    #@property
+    #@abstractmethod
+    #def domains(self) -> dict[str, Set]:
+    #    raise NotImplementedError()
 
     @abstractmethod
     def fx_torch(self, x) -> np.ndarray | torch.Tensor:

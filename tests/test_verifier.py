@@ -63,6 +63,22 @@ class TestVerifier(unittest.TestCase):
             f"expected no counterexample, got {results2['cex']['unsat']}",
         )
 
+    def test_new_vars_exceptions(self):
+        verifier_fn = make_verifier(type=VerifierType.Z3)
+
+        with self.assertRaises(AssertionError):
+            # cannot provide both n and var_names
+            verifier_fn.new_vars(n=3, var_names=["x1", "x2"])
+
+        with self.assertRaises(AssertionError):
+            # cannot provide duplicate variables
+            verifier_fn.new_vars(var_names=["x1", "x2", "x1"])
+
+        with self.assertRaises(AssertionError):
+            # must provide at least one n or var_names
+            verifier_fn.new_vars(n=None, var_names=None)
+
+
     def test_simple_constraints_dreal(self):
         verifier_fn = make_verifier(type=VerifierType.DREAL)
 

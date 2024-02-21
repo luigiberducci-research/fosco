@@ -47,7 +47,11 @@ class Verifier(ABC):
 
     @staticmethod
     @abstractmethod
-    def new_vars(n, base: str = "x") -> list[SYMBOL]:
+    def new_vars(n: int | None, var_names: list[str] | None, base: str = "x") -> list[SYMBOL]:
+        """
+        Returns a list of symbolic variables.
+        It either creates `n` variables with prefix `base`, or creates one variable for each `var_names`.
+        """
         raise NotImplementedError("")
 
     @staticmethod

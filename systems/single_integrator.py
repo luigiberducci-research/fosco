@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 
+from fosco.common.domains import Set
 from systems import ControlAffineDynamics
 from systems.system import register
 
@@ -23,6 +24,10 @@ class SingleIntegrator(ControlAffineDynamics):
     @property
     def n_controls(self) -> int:
         return 2
+
+    @property
+    def domains(self) -> dict[str, Set]:
+        pass
 
     def fx_torch(self, x: np.ndarray | torch.Tensor) -> np.ndarray | torch.Tensor:
         assert (

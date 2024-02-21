@@ -105,13 +105,12 @@ class Cegis:
         return verifier_instance
 
     def _initialise_domains(self):
-        # todo: create domains based on input instead of hardcoding x, u
         verifier_type = make_verifier(type=self.config.VERIFIER)
-        x = verifier_type.new_vars(self.f.n_vars, base="x")
-        u = verifier_type.new_vars(self.f.n_controls, base="u")
+        x = verifier_type.new_vars(var_names=[f"x{i}" for i in range(self.f.n_vars)])
+        u = verifier_type.new_vars(var_names=[f"u{i}" for i in range(self.f.n_controls)])
 
         if isinstance(self.f, UncertainControlAffineDynamics):
-            z = verifier_type.new_vars(self.f.n_uncertain, base="z")
+            z = verifier_type.new_vars(var_names=[f"z{i}" for i in range(self.f.n_uncertain)])
         else:
             z = None
 

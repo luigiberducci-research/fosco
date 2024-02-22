@@ -21,7 +21,8 @@ class PPOTrainer(RLTrainer):
         self.device = device or torch.device("cpu")
         self.args = args
 
-        obs_space = envs.single_observation_space if hasattr(envs, "single_observation_space") else envs.observation_space
+        obs_space = envs.single_observation_space if hasattr(envs,
+                                                             "single_observation_space") else envs.observation_space
         act_space = envs.single_action_space if hasattr(envs, "single_action_space") else envs.action_space
         input_size = np.array(obs_space.shape).prod()
         output_size = np.array(act_space.shape).prod()
@@ -29,6 +30,7 @@ class PPOTrainer(RLTrainer):
 
         self.optimizer = optim.Adam(self.agent.parameters(), lr=self.args.learning_rate, eps=1e-5)
         self.iteration = 0
+
     def train(self, obs, logprobs, actions, rewards, dones, next_obs, next_done, values) -> dict[str, float]:
         self.iteration += 1
 
@@ -120,7 +122,6 @@ class PPOTrainer(RLTrainer):
             "losses/explained_variance": explained_var,
         }
 
-
     def _advantage_estimation(self, obs, actions, rewards, dones, next_obs, next_done, values):
         # bootstrap value if not done
         with torch.no_grad():
@@ -135,10 +136,11 @@ class PPOTrainer(RLTrainer):
                     nextnonterminal = 1.0 - dones[t + 1]
                     nextvalues = values[t + 1]
                 delta = rewards[t] + self.args.gamma * nextvalues * nextnonterminal - values[t]
-                advantages[t] = lastgaelam = delta + self.args.gamma * self.args.gae_lambda * nextnonterminal * lastgaelam
+                advantages[
+                    t] = lastgaelam = delta + self.args.gamma * self.args.gae_lambda * nextnonterminal * lastgaelam
             returns = advantages + values
 
         return advantages, returns
 
-    def get_agent(self) -> ActorCriticAgent:
+    def get_actor(self) -> ActorCriticAgent:
         return self.agent

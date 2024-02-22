@@ -154,7 +154,8 @@ if __name__ == "__main__":
 
     # env setup
     envs = gym.vector.SyncVectorEnv(
-        [make_env(env_id=args.env_id, seed=args.seed, idx=i, capture_video=args.capture_video, run_name=run_name, gamma=args.gamma) for i in range(args.num_envs)]
+        [make_env(env_id=args.env_id, seed=args.seed, idx=i, capture_video=args.capture_video, run_name=run_name,
+                  gamma=args.gamma) for i in range(args.num_envs)]
     )
     assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
 
@@ -176,7 +177,7 @@ if __name__ == "__main__":
     next_done = torch.zeros(args.num_envs).to(device)
 
     for iteration in range(1, args.num_iterations + 1):
-        agent = trainer.get_agent()
+        agent = trainer.get_actor()
 
         for step in range(0, args.num_steps):
             global_step += args.num_envs
@@ -216,7 +217,7 @@ if __name__ == "__main__":
         )
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
-        for k,v in train_infos.items():
+        for k, v in train_infos.items():
             writer.add_scalar(k, v, global_step)
         print("SPS:", int(global_step / (time.time() - start_time)))
         writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)

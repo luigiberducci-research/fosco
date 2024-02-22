@@ -4,7 +4,6 @@ import numpy as np
 import torch
 from gymnasium.utils.env_checker import check_env
 
-from fosco.common.domains import Rectangle, Sphere
 from systems import make_system
 from systems.system_env import SystemEnv
 
@@ -26,6 +25,7 @@ class TestEnv(unittest.TestCase):
                 system=system,
                 termination_fn=dummy_term_fn,
                 reward_fn=dummy_reward_fn,
+                max_steps=100,
             )
 
             check_env(env, skip_render_check=True)
@@ -36,7 +36,7 @@ class TestEnv(unittest.TestCase):
         for system_id in ["SingleIntegrator", "DoubleIntegrator"]:
             system = make_system(system_id=system_id)()
             env = SystemEnv(
-                system=system, termination_fn=dummy_term_fn, reward_fn=dummy_reward_fn
+                system=system, termination_fn=dummy_term_fn, reward_fn=dummy_reward_fn, max_steps=100
             )
 
             obss, infos = env.reset(options={"batch_size": batch_size})
@@ -65,6 +65,7 @@ class TestEnv(unittest.TestCase):
                 system=system,
                 termination_fn=dummy_term_fn,
                 reward_fn=dummy_reward_fn,
+                max_steps=100,
                 return_np=False,
             )
 
@@ -95,7 +96,7 @@ class TestEnv(unittest.TestCase):
         for system_id in ["SingleIntegrator", "DoubleIntegrator"]:
             system = make_system(system_id=system_id)()
             env = SystemEnv(
-                system=system, termination_fn=dummy_term_fn, reward_fn=dummy_reward_fn
+                system=system, termination_fn=dummy_term_fn, reward_fn=dummy_reward_fn, max_steps=100
             )
 
             for i in range(batch_size):
@@ -122,7 +123,7 @@ class TestEnv(unittest.TestCase):
         for system_id in ["SingleIntegrator", "DoubleIntegrator"]:
             system = make_system(system_id=system_id)()
             env = SystemEnv(
-                system=system, termination_fn=dummy_term_fn, reward_fn=dummy_reward_fn
+                system=system, termination_fn=dummy_term_fn, reward_fn=dummy_reward_fn, max_steps=100
             )
 
             obs1, _ = env.reset(seed=seed, options={"batch_size": 100})

@@ -55,20 +55,28 @@ class SystemEnv(gymnasium.Env):
         system: ControlAffineDynamics,
         termination_fn: TermFnType,
         reward_fn: RewardFnType,
-        # generator: Optional[torch.Generator] = None,
+        max_steps: int,
+        dt: float = 0.1,
         return_np: bool = True,
     ):
         # todo: generator for seeding the environment
         # todo: device to run on gpu
         # todo: propagation method for uncertain dynamical systems (basic: unif random)
+        assert max_steps and isinstance(max_steps, int), f"max_steps must be a positive integer, got {max_steps}"
+        assert dt and isinstance(dt, float), f"dt must be a positive float, got {dt}"
+
         self.system = system
         self.termination_fn = termination_fn
         self.reward_fn = reward_fn
+        self.max_steps = max_steps
+        self.dt = dt
+        self.time_limit = self.max_steps * self.dt
 
         self.observation_space = self.make_observation_space(system=self.system)
         self.action_space = self.make_action_space(system=self.system)
 
         self._current_obs: torch.Tensor = None
+        self._current_time: torch.Tensor = None
         self._return_as_np = return_np
 
     @staticmethod
@@ -116,6 +124,7 @@ class SystemEnv(gymnasium.Env):
 
         # generate batch of tensor states
         self._current_obs = init_domain.generate_data(batch_size=batch_size)
+        self._current_time = torch.zeros(batch_size, dtype=torch.float32)
         info = {}
 
         # eventually convert to numpy array
@@ -150,6 +159,9 @@ class SystemEnv(gymnasium.Env):
             (tuple): contains the predicted next observation, reward, termination, truncation flags and metadata.
             The done flag is computed using the termination_fn passed in the constructor.
         """
+        assert self._current_obs is not None, "current observation is None. Please call reset() first."
+        assert self._current_time is not None, "current time is None. Please call reset() first."
+
         # prepare action to batch
         assert (
             actions.ndim == 1 or actions.ndim == 2
@@ -174,14 +186,21 @@ class SystemEnv(gymnasium.Env):
                 actions = torch.from_numpy(actions)  # .to(self.device)
 
             # step
-            next_observs = self.system.f(v=self._current_obs, u=actions)
+            dxdt = self.system.f(v=self._current_obs, u=actions)
+            next_observs = self._current_obs + self.dt * dxdt
+            next_time = self._current_time + self.dt
+
+            # rewards and terminations
             rewards = self.reward_fn(actions, next_observs)
+            timeouts = self._current_time > self.time_limit
             terminations = self.termination_fn(actions, next_observs)
+            terminations |= timeouts
             truncations = torch.zeros_like(terminations, dtype=torch.bool)
             infos = {}
 
             # update state
             self._current_obs = next_observs
+            self._current_time += self.dt
 
             # eventually convert to np
             if self._return_as_np:

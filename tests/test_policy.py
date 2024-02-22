@@ -14,7 +14,7 @@ from systems.system_env import SystemEnv
 class TestPolicy(unittest.TestCase):
 
     def test_barrier_policy_2d_single_integrator(self):
-        debug_plot = True
+        debug_plot = False
         device = torch.device("cpu")
         seed = np.random.randint(0, 1000)
         print(f"seed: {seed}")
@@ -85,7 +85,7 @@ class TestPolicy(unittest.TestCase):
         self.assertTrue(np.all(np.array(safety) > -tol), f"got {safety}")
 
     def test_barrier_policy_2d_single_integrator_gpu(self):
-        debug_plot = True
+        debug_plot = False
         device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
         seed = np.random.randint(0, 1000)
         print(f"seed: {seed}")

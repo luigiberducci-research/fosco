@@ -185,7 +185,7 @@ class SystemEnv(gymnasium.Env):
         with torch.no_grad():
             # if actions is tensor, code assumes it's already on self.device
             if isinstance(actions, np.ndarray):
-                actions = torch.from_numpy(actions).to(self.device)
+                actions = torch.from_numpy(actions).to(self._device)
 
             # step
             dxdt = self.system.f(v=self._current_obs, u=actions)

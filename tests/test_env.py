@@ -27,6 +27,7 @@ class TestEnv(unittest.TestCase):
                 termination_fn=dummy_term_fn,
                 reward_fn=dummy_reward_fn,
             )
+
             check_env(env, skip_render_check=True)
 
     def test_numpy_batch_step(self):
@@ -67,17 +68,17 @@ class TestEnv(unittest.TestCase):
                 return_np=False,
             )
 
-            obss, infos = env.reset(options={"batch_size": batch_size})
+            obss, infos = env.reset(options={"batch_size": batch_size, "return_as_np": False})
             actions = np.stack([env.action_space.sample() for _ in range(batch_size)])
             next_obss, rewards, terminations, truncations, infos = env.step(actions)
 
             self.assertTrue(
                 isinstance(obss, torch.Tensor),
-                f"next_obss is not a numpy array, got {type(next_obss)}",
+                f"next_obss is not a torch tensor, got {type(next_obss)}",
             )
             self.assertTrue(
                 isinstance(next_obss, torch.Tensor),
-                f"next_obss is not a numpy array, got {type(next_obss)}",
+                f"next_obss is not a torch tensor, got {type(next_obss)}",
             )
             self.assertTrue(
                 len(obss.shape) == len(actions.shape) == len(next_obss.shape),
@@ -114,3 +115,17 @@ class TestEnv(unittest.TestCase):
                 len(obss.shape) == len(actions.shape) == len(next_obss.shape) == 1,
                 "mismatch batch sizes",
             )
+
+    def test_reproducibility(self):
+        seed = np.random.randint(0, 1000)
+
+        for system_id in ["SingleIntegrator", "DoubleIntegrator"]:
+            system = make_system(system_id=system_id)()
+            env = SystemEnv(
+                system=system, termination_fn=dummy_term_fn, reward_fn=dummy_reward_fn
+            )
+
+            obs1, _ = env.reset(seed=seed, options={"batch_size": 100})
+            obs2, _ = env.reset(seed=seed, options={"batch_size": 100})
+
+            self.assertTrue(np.allclose(obs1, obs2), f"reset does not return same obs, got {obs1} and {obs2}")

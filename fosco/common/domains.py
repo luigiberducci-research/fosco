@@ -2,8 +2,6 @@ from functools import partial
 
 import numpy as np
 import torch
-from matplotlib import pyplot as plt
-from mpl_toolkits.mplot3d import art3d
 
 from fosco import verifier
 from fosco.common.utils import round_init_data, square_init_data

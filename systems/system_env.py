@@ -100,17 +100,19 @@ class SystemEnv(gymnasium.Env):
         seed: int | None = None,
         options: dict[str, Any] | None = None,
     ) -> tuple[TensorType, dict[str, Any]]:
-        super().reset(seed=seed)
+        if seed:
+            super().reset(seed=seed)
+            torch.manual_seed(seed)
 
-        # todo: seed for reproducibility
-        # todo: initial state batch in options
-        # todo: return_as_np in options
+        default_options = {
+            "batch_size": 1,
+            "return_as_np": True,
+        }
+        default_options.update(options or {})
+
         init_domain = self.system.init_domain
-
-        if options and "batch_size" in options:
-            batch_size = options["batch_size"]
-        else:
-            batch_size = 1
+        batch_size = default_options["batch_size"]
+        self._return_as_np = default_options["return_as_np"]
 
         # generate batch of tensor states
         self._current_obs = init_domain.generate_data(batch_size=batch_size)

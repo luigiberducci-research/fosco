@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from models.policy import BarrierPolicy
+from models.cbf_agent import BarrierPolicy
 from systems import make_system
 
 

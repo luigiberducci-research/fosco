@@ -3,7 +3,7 @@ import torch
 from matplotlib import pyplot as plt
 
 from barriers import make_barrier
-from models.policy import BarrierPolicy
+from models.cbf_agent import BarrierPolicy
 from systems import make_system
 
 import cvxpy as cp

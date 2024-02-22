@@ -6,7 +6,7 @@ from scipy.integrate import odeint
 from torch.autograd import Variable
 
 from barriers import make_barrier
-from models.policy import BarrierPolicy
+from models.cbf_agent import BarrierPolicy
 from systems import make_system
 from systems.system_env import SystemEnv
 

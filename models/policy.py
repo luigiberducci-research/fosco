@@ -47,11 +47,11 @@ class BarrierPolicy(nn.Module):
         mean = mean or np.zeros(self.nFeatures)
         std = std or np.ones(self.nFeatures)
 
-        self.mean = torch.from_numpy(mean).to(device)
-        self.std = torch.from_numpy(std).to(device)
-        self.device = device
+        self.device = device or torch.device("cpu")
+        self.mean = torch.from_numpy(mean).to(self.device)
+        self.std = torch.from_numpy(std).to(self.device)
 
-        # system specific todo: remove
+        # system specific
         self.barrier = barrier
         self.fx = system.fx_torch
         self.gx = system.gx_torch

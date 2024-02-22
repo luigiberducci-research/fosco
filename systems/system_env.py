@@ -53,11 +53,12 @@ class SystemEnv(gymnasium.Env):
     def __init__(
         self,
         system: ControlAffineDynamics,
-        termination_fn: TermFnType,
-        reward_fn: RewardFnType,
         max_steps: int,
-        dt: float = 0.1,
-        return_np: bool = True,
+        dt: Optional[float] = 0.1,
+        termination_fn: Optional[TermFnType] = None,
+        reward_fn: Optional[RewardFnType] = None,
+        return_np: Optional[bool] = True,
+        device: Optional[torch.device] = None,
     ):
         # todo: generator for seeding the environment
         # todo: device to run on gpu
@@ -66,15 +67,16 @@ class SystemEnv(gymnasium.Env):
         assert dt and isinstance(dt, float), f"dt must be a positive float, got {dt}"
 
         self.system = system
-        self.termination_fn = termination_fn
-        self.reward_fn = reward_fn
         self.max_steps = max_steps
         self.dt = dt
+        self.termination_fn = termination_fn or (lambda obs, act: torch.zeros(obs.shape[0], dtype=torch.bool))
+        self.reward_fn = reward_fn or (lambda obs, act: torch.zeros(obs.shape[0], dtype=torch.float32))
         self.time_limit = self.max_steps * self.dt
 
         self.observation_space = self.make_observation_space(system=self.system)
         self.action_space = self.make_action_space(system=self.system)
 
+        self._device = device or torch.device("cpu")
         self._current_obs: torch.Tensor = None
         self._current_time: torch.Tensor = None
         self._return_as_np = return_np
@@ -123,8 +125,8 @@ class SystemEnv(gymnasium.Env):
         self._return_as_np = default_options["return_as_np"]
 
         # generate batch of tensor states
-        self._current_obs = init_domain.generate_data(batch_size=batch_size)
-        self._current_time = torch.zeros(batch_size, dtype=torch.float32)
+        self._current_obs = init_domain.generate_data(batch_size=batch_size).to(self._device)
+        self._current_time = torch.zeros(batch_size, dtype=torch.float32).to(self._device)
         info = {}
 
         # eventually convert to numpy array
@@ -183,7 +185,7 @@ class SystemEnv(gymnasium.Env):
         with torch.no_grad():
             # if actions is tensor, code assumes it's already on self.device
             if isinstance(actions, np.ndarray):
-                actions = torch.from_numpy(actions)  # .to(self.device)
+                actions = torch.from_numpy(actions).to(self.device)
 
             # step
             dxdt = self.system.f(v=self._current_obs, u=actions)
@@ -192,8 +194,8 @@ class SystemEnv(gymnasium.Env):
 
             # rewards and terminations
             rewards = self.reward_fn(actions, next_observs)
-            timeouts = self._current_time > self.time_limit
-            terminations = self.termination_fn(actions, next_observs)
+            timeouts = next_time > self.time_limit
+            terminations = self.termination_fn(actions, next_observs).to(self._device)
             terminations |= timeouts
             truncations = torch.zeros_like(terminations, dtype=torch.bool)
             infos = {}

@@ -81,6 +81,7 @@ class SingleIntegrator(ControlAffineDynamics):
             gx = np.eye(x.shape[1])[None].repeat(x.shape[0], axis=0)
         else:
             gx = torch.eye(x.shape[1])[None].repeat((x.shape[0], 1, 1))
+            gx = gx.to(x.device)
         return gx
 
     def gx_smt(self, x: list) -> np.ndarray | torch.Tensor:

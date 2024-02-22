@@ -1,14 +1,17 @@
-torch
-numpy
 matplotlib
 plotly
 pandas	# required to plot images with plotly
-z3-solver
-dreal
-cvxpy
-cvxpylayers
 pyyaml
 aim
+numpy
+# for learner
+torch
+# for verification
+z3-solver
+dreal
+# for convex-opt controller
+cvxpy
+cvxpylayers
 # for rl algorithms
 gymnasium[mujoco]
 stable-baselines3

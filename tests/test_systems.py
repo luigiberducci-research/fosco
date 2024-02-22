@@ -2,7 +2,6 @@ import unittest
 
 import numpy as np
 import torch
-import z3
 
 from tests.test_translator import check_smt_equivalence
 

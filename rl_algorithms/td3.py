@@ -83,9 +83,14 @@ def evaluate(
         exploration_noise: float = 0.1,
 ):
     envs = gym.vector.SyncVectorEnv([make_env(env_id, 0, 0, capture_video, run_name)])
-    actor = Model[0](envs).to(device)
-    qf1 = Model[1](envs).to(device)
-    qf2 = Model[1](envs).to(device)
+
+    obs_space = envs.single_observation_space if hasattr(envs, "single_observation_space") else envs.observation_space
+    act_space = envs.single_action_space if hasattr(envs, "single_action_space") else envs.action_space
+
+    actor = Model[0](observation_space=obs_space, action_space=act_space).to(device)
+    qf1 = Model[1](observation_space=obs_space, action_space=act_space).to(device)
+    qf2 = Model[1](observation_space=obs_space, action_space=act_space).to(device)
+
     actor_params, qf1_params, qf2_params = torch.load(model_path, map_location=device)
     actor.load_state_dict(actor_params)
     actor.eval()
@@ -158,12 +163,12 @@ poetry run pip install "stable_baselines3==2.0.0a1"
                                               capture_video=args.capture_video, run_name=run_name, gamma=args.gamma)])
     assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
 
-    actor = DDPGActor(envs).to(device)
-    qf1 = QNetwork(envs).to(device)
-    qf2 = QNetwork(envs).to(device)
-    qf1_target = QNetwork(envs).to(device)
-    qf2_target = QNetwork(envs).to(device)
-    target_actor = DDPGActor(envs).to(device)
+    actor = DDPGActor(observation_space=envs.single_observation_space, action_space=envs.single_action_space).to(device)
+    qf1 = QNetwork(observation_space=envs.single_observation_space, action_space=envs.single_action_space).to(device)
+    qf2 = QNetwork(observation_space=envs.single_observation_space, action_space=envs.single_action_space).to(device)
+    qf1_target = QNetwork(observation_space=envs.single_observation_space, action_space=envs.single_action_space).to(device)
+    qf2_target = QNetwork(observation_space=envs.single_observation_space, action_space=envs.single_action_space).to(device)
+    target_actor = DDPGActor(observation_space=envs.single_observation_space, action_space=envs.single_action_space).to(device)
     target_actor.load_state_dict(actor.state_dict())
     qf1_target.load_state_dict(qf1.state_dict())
     qf2_target.load_state_dict(qf2.state_dict())

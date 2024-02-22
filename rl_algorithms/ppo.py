@@ -214,6 +214,7 @@ if __name__ == "__main__":
             next_obs=next_obs,
             next_done=next_done,
             values=values,
+            global_step=global_step,
         )
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes

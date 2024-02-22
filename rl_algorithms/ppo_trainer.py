@@ -31,7 +31,18 @@ class PPOTrainer(RLTrainer):
         self.optimizer = optim.Adam(self.agent.parameters(), lr=self.args.learning_rate, eps=1e-5)
         self.iteration = 0
 
-    def train(self, obs, logprobs, actions, rewards, dones, next_obs, next_done, values) -> dict[str, float]:
+    def train(
+            self,
+            obs: torch.Tensor,
+            actions: torch.Tensor,
+            rewards: torch.Tensor,
+            dones: torch.Tensor,
+            next_obs: torch.Tensor,
+            next_done: Optional[torch.Tensor] = None,
+            values: Optional[torch.Tensor] = None,
+            logprobs: Optional[torch.Tensor] = None,
+            global_step: Optional[int] = None
+    ) -> dict[str, float]:
         self.iteration += 1
 
         # Annealing the rate if instructed to do so.

@@ -16,6 +16,7 @@ from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
 
 from models.td3_agent import DDPGActor, QNetwork
+from rl_algorithms.td3_trainer import TD3Trainer
 from rl_algorithms.utils import make_env
 
 
@@ -163,17 +164,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
                                               capture_video=args.capture_video, run_name=run_name, gamma=args.gamma)])
     assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
 
-    actor = DDPGActor(observation_space=envs.single_observation_space, action_space=envs.single_action_space).to(device)
-    qf1 = QNetwork(observation_space=envs.single_observation_space, action_space=envs.single_action_space).to(device)
-    qf2 = QNetwork(observation_space=envs.single_observation_space, action_space=envs.single_action_space).to(device)
-    qf1_target = QNetwork(observation_space=envs.single_observation_space, action_space=envs.single_action_space).to(device)
-    qf2_target = QNetwork(observation_space=envs.single_observation_space, action_space=envs.single_action_space).to(device)
-    target_actor = DDPGActor(observation_space=envs.single_observation_space, action_space=envs.single_action_space).to(device)
-    target_actor.load_state_dict(actor.state_dict())
-    qf1_target.load_state_dict(qf1.state_dict())
-    qf2_target.load_state_dict(qf2.state_dict())
-    q_optimizer = optim.Adam(list(qf1.parameters()) + list(qf2.parameters()), lr=args.learning_rate)
-    actor_optimizer = optim.Adam(list(actor.parameters()), lr=args.learning_rate)
+    trainer = TD3Trainer(envs=envs, args=args, device=device)
 
     envs.single_observation_space.dtype = np.float32
     rb = ReplayBuffer(
@@ -188,6 +179,8 @@ poetry run pip install "stable_baselines3==2.0.0a1"
     # TRY NOT TO MODIFY: start the game
     obs, _ = envs.reset(seed=args.seed)
     for global_step in range(args.total_timesteps):
+        actor = trainer.get_actor()
+
         # ALGO LOGIC: put action logic here
         if global_step < args.learning_starts:
             actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
@@ -219,60 +212,26 @@ poetry run pip install "stable_baselines3==2.0.0a1"
         obs = next_obs
 
         # ALGO LOGIC: training.
-        if global_step > args.learning_starts:
-            data = rb.sample(args.batch_size)
-            with torch.no_grad():
-                clipped_noise = (torch.randn_like(data.actions, device=device) * args.policy_noise).clamp(
-                    -args.noise_clip, args.noise_clip
-                ) * target_actor.action_scale
-
-                next_state_actions = (target_actor(data.next_observations) + clipped_noise).clamp(
-                    envs.single_action_space.low[0], envs.single_action_space.high[0]
-                )
-                qf1_next_target = qf1_target(data.next_observations, next_state_actions)
-                qf2_next_target = qf2_target(data.next_observations, next_state_actions)
-                min_qf_next_target = torch.min(qf1_next_target, qf2_next_target)
-                next_q_value = data.rewards.flatten() + (1 - data.dones.flatten()) * args.gamma * (
-                    min_qf_next_target).view(-1)
-
-            qf1_a_values = qf1(data.observations, data.actions).view(-1)
-            qf2_a_values = qf2(data.observations, data.actions).view(-1)
-            qf1_loss = F.mse_loss(qf1_a_values, next_q_value)
-            qf2_loss = F.mse_loss(qf2_a_values, next_q_value)
-            qf_loss = qf1_loss + qf2_loss
-
-            # optimize the model
-            q_optimizer.zero_grad()
-            qf_loss.backward()
-            q_optimizer.step()
-
-            if global_step % args.policy_frequency == 0:
-                actor_loss = -qf1(data.observations, actor(data.observations)).mean()
-                actor_optimizer.zero_grad()
-                actor_loss.backward()
-                actor_optimizer.step()
-
-                # update the target network
-                for param, target_param in zip(actor.parameters(), target_actor.parameters()):
-                    target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
-                for param, target_param in zip(qf1.parameters(), qf1_target.parameters()):
-                    target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
-                for param, target_param in zip(qf2.parameters(), qf2_target.parameters()):
-                    target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
+        if global_step >= args.learning_starts:
+            data = rb.sample(trainer.args.batch_size)
+            train_infos = trainer.train(
+                obs=data.observations,
+                actions=data.actions,
+                rewards=data.rewards,
+                dones=data.dones,
+                next_obs=data.next_observations,
+                global_step=global_step,
+            )
 
             if global_step % 100 == 0:
-                writer.add_scalar("losses/qf1_values", qf1_a_values.mean().item(), global_step)
-                writer.add_scalar("losses/qf2_values", qf2_a_values.mean().item(), global_step)
-                writer.add_scalar("losses/qf1_loss", qf1_loss.item(), global_step)
-                writer.add_scalar("losses/qf2_loss", qf2_loss.item(), global_step)
-                writer.add_scalar("losses/qf_loss", qf_loss.item() / 2.0, global_step)
-                writer.add_scalar("losses/actor_loss", actor_loss.item(), global_step)
+                for key, value in train_infos.items():
+                    writer.add_scalar(key, value, global_step)
                 print("SPS:", int(global_step / (time.time() - start_time)))
                 writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
     if args.save_model:
         model_path = f"runs/{run_name}/{args.exp_name}.cleanrl_model"
-        torch.save((actor.state_dict(), qf1.state_dict(), qf2.state_dict()), model_path)
+        torch.save((actor.state_dict(), trainer.qf1.state_dict(), trainer.qf2.state_dict()), model_path)
         print(f"model saved to {model_path}")
 
         episodic_returns = evaluate(

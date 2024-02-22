@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Optional
 
 import torch
 
@@ -8,13 +9,14 @@ class RLTrainer(ABC):
     def train(
             self,
             obs: torch.Tensor,
-            logprobs: torch.Tensor,
             actions: torch.Tensor,
             rewards: torch.Tensor,
             dones: torch.Tensor,
             next_obs: torch.Tensor,
-            next_done: torch.Tensor,
-            values: torch.Tensor
+            next_done: Optional[torch.Tensor] = None,
+            values: Optional[torch.Tensor] = None,
+            logprobs: Optional[torch.Tensor] = None,
+            global_step: Optional[int] = None,
     ) -> dict[str, float]:
         pass
 

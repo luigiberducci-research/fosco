@@ -2,8 +2,6 @@ from functools import partial
 
 import numpy as np
 import torch
-from matplotlib import pyplot as plt
-from mpl_toolkits.mplot3d import art3d
 
 from fosco import verifier
 from fosco.common.utils import round_init_data, square_init_data
@@ -111,8 +109,12 @@ class Rectangle(Set):
         """
 
         fns = get_solver_fns(x=x)
-        lower = fns["Or"](*[self.lower_bounds[i] == x[i] for i in range(self.dimension)])
-        upper = fns["Or"](*[x[i] == self.upper_bounds[i] for i in range(self.dimension)])
+        lower = fns["Or"](
+            *[self.lower_bounds[i] == x[i] for i in range(self.dimension)]
+        )
+        upper = fns["Or"](
+            *[x[i] == self.upper_bounds[i] for i in range(self.dimension)]
+        )
         return fns["Or"](lower, upper)
 
     def generate_interior(self, x):
@@ -122,8 +124,12 @@ class Rectangle(Set):
             x (List): symbolic data point
         """
         fns = get_solver_fns(x=x)
-        lower = fns["And"](*[self.lower_bounds[i] < x[i] for i in range(self.dimension)])
-        upper = fns["And"](*[x[i] < self.upper_bounds[i] for i in range(self.dimension)])
+        lower = fns["And"](
+            *[self.lower_bounds[i] < x[i] for i in range(self.dimension)]
+        )
+        upper = fns["And"](
+            *[x[i] < self.upper_bounds[i] for i in range(self.dimension)]
+        )
         return fns["And"](lower, upper)
 
     def generate_data(self, batch_size):
@@ -172,8 +178,15 @@ class Rectangle(Set):
 
 
 class Sphere(Set):
-    def __init__(self, centre, radius, vars: list[str] = None, dim_select=None, include_boundary: bool =True):
-        self.center = centre
+    def __init__(
+        self,
+        centre,
+        radius,
+        vars: list[str] = None,
+        dim_select=None,
+        include_boundary: bool = True,
+    ):
+        self.centre = centre
         self.radius = radius
         self.dimension = len(centre)
         self.include_boundary = include_boundary
@@ -181,7 +194,7 @@ class Sphere(Set):
         self.dim_select = dim_select
 
     def __repr__(self) -> str:
-        return f"Sphere{self.center, self.radius}"
+        return f"Sphere{self.centre, self.radius}"
 
     def generate_domain(self, x):
         """
@@ -193,23 +206,22 @@ class Sphere(Set):
 
         if self.include_boundary:
             domain = (
-                sum([(x[i] - self.center[i]) ** 2 for i in range(self.dimension)])
-                <= self.radius ** 2
+                sum([(x[i] - self.centre[i]) ** 2 for i in range(self.dimension)])
+                <= self.radius**2
             )
         else:
             domain = (
-                sum([(x[i] - self.center[i]) ** 2 for i in range(self.dimension)])
-                < self.radius ** 2
+                sum([(x[i] - self.centre[i]) ** 2 for i in range(self.dimension)])
+                < self.radius**2
             )
         return domain
-
 
     def generate_data(self, batch_size):
         """
         param batch_size: number of data points to generate
         returns: data points generated in relevant domain according to shape
         """
-        return round_init_data(self.center, self.radius ** 2, batch_size)
+        return round_init_data(self.centre, self.radius**2, batch_size)
 
     def sample_border(self, batch_size):
         """
@@ -217,22 +229,22 @@ class Sphere(Set):
         returns: data points generated on the border of the set
         """
         return round_init_data(
-            self.center, self.radius ** 2, batch_size, on_border=True
+            self.centre, self.radius**2, batch_size, on_border=True
         )
 
     def check_containment(self, x: np.ndarray | torch.Tensor) -> torch.Tensor:
         if self.dim_select:
             x = np.array([x[:, i] for i in self.dim_select])
         x = torch.from_numpy(x)
-        c = torch.tensor(self.center).reshape(1, -1)
-        return (x - c).norm(2, dim=-1) <= self.radius ** 2
+        c = torch.tensor(self.centre).reshape(1, -1)
+        return (x - c).norm(2, dim=-1) <= self.radius**2
 
     def check_containment_grad(self, x: torch.Tensor) -> torch.Tensor:
         # check containment and return a tensor with gradient
-        c = torch.tensor(self.center).reshape(1, -1)
+        c = torch.tensor(self.centre).reshape(1, -1)
         if self.dim_select:
             x = x[:, :, self.dim_select]
-            c = [self.center[i] for i in self.dim_select]
+            c = [self.centre[i] for i in self.dim_select]
             c = torch.tensor(c).reshape(1, -1)
         # returns 0 if it IS contained, a positive number otherwise
-        return torch.relu((x - c).norm(2, dim=-1) - self.radius ** 2)
+        return torch.relu((x - c).norm(2, dim=-1) - self.radius**2)

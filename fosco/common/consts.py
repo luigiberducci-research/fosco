@@ -3,7 +3,7 @@ from enum import Enum, auto
 import torch
 
 
-class DomainNames(Enum):
+class DomainName(Enum):
     XD = "lie"
     XU = "unsafe"
     XI = "init"
@@ -18,8 +18,8 @@ class CertificateType(Enum):
     @classmethod
     def get_certificate_sets(
         cls, certificate_type
-    ) -> tuple[list[DomainNames], list[DomainNames]]:
-        dn = DomainNames
+    ) -> tuple[list[DomainName], list[DomainName]]:
+        dn = DomainName
         if certificate_type == CertificateType.CBF:
             domains = [dn.XD, dn.UD, dn.XI, dn.XU]
             data = [dn.XD, dn.UD, dn.XI, dn.XU]

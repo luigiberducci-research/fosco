@@ -9,17 +9,17 @@ from torch.optim import Optimizer
 from fosco.certificates.cbf import ControlBarrierFunction, TrainableCBF
 from fosco.config import CegisConfig
 from fosco.common.domains import Set
-from fosco.common.consts import DomainNames
+from fosco.common.consts import DomainName
 from fosco.common.utils import _set_assertion
 from fosco.learner import LearnerCT
 from fosco.verifier.verifier import SYMBOL
 from systems import ControlAffineDynamics
 
-XD = DomainNames.XD.value
-XI = DomainNames.XI.value
-XU = DomainNames.XU.value
-UD = DomainNames.UD.value
-ZD = DomainNames.ZD.value
+XD = DomainName.XD.value
+XI = DomainName.XI.value
+XU = DomainName.XU.value
+UD = DomainName.UD.value
+ZD = DomainName.ZD.value
 
 
 class RobustControlBarrierFunction(ControlBarrierFunction):
@@ -170,7 +170,6 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
 
         return lie_constr
 
-
     def _robust_constraint_smt(
         self,
         verifier,
@@ -193,7 +192,6 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
         """
         _And = verifier.solver_fncts()["And"]
 
-
         # precondition: we are in the belt of the barrier
         belt_constr = _And(B > 0, B < 0.5)
         for c in B_constr:
@@ -207,7 +205,7 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
         pre_constr = _And(belt_constr, feas_constr)
 
         # sigma is not compensating enough
-        robust_constr = _And(pre_constr, sigma < - (Bdotz - Bdot))
+        robust_constr = _And(pre_constr, sigma < -(Bdotz - Bdot))
         for c in Bdotz_constr + Bdot_constr + sigma_constr:
             robust_constr = _And(robust_constr, c)
 
@@ -220,7 +218,7 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
 
     @staticmethod
     def _assert_state(domains, data):
-        dn = DomainNames
+        dn = DomainName
         domain_labels = set(domains.keys())
         data_labels = set(data.keys())
         _set_assertion(
@@ -486,32 +484,29 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
         unsafe_loss = weight_unsafe * (self.loss_relu(B_u + margin_unsafe)).mean()
         # penalize when B_d > 0 and dB_d - sigma_d + alpha * B_d < 0
         #  `min(B, -(dB - sigma + alpha))` > margin
-        #loss_cond = margin_lie - (Bdot_d - sigma_d + alpha * B_d)
+        # loss_cond = margin_lie - (Bdot_d - sigma_d + alpha * B_d)
         loss_cond = torch.min(B_d, -(Bdot_d - sigma_d + alpha * B_d)) - margin_lie
-        lie_loss = (
-            weight_lie
-            * (self.loss_relu(loss_cond)).mean()
-        )
+        lie_loss = weight_lie * (self.loss_relu(loss_cond)).mean()
 
         # penalize sigma_dz < - (Bdotz_dz - Bdot_dz)
         # penalize sigma_dz + Bdotz_dz - Bdot_dz < 0
         # equivalent to relu(margin_robust - (sigma_dz + Bdotz_dz - Bdot_dz))
         precondition = torch.min(
-            B_dz,   # todo: change to belt
-            Bdot_dz - sigma_dz + alpha * B_dz,
+            B_dz,
+            Bdot_dz - sigma_dz + alpha * B_dz,  # todo: change to belt
         )
-        compensator_term = torch.min(
-            precondition,
-            -(sigma_dz + Bdotz_dz - Bdot_dz)
+        compensator_term = torch.min(precondition, -(sigma_dz + Bdotz_dz - Bdot_dz))
+        robust_loss = (
+            weight_robust * self.loss_relu(compensator_term + margin_robust).mean()
         )
-        robust_loss = weight_robust * self.loss_relu(compensator_term + margin_robust).mean()
 
         # regularization losses
         # penalize high sigma and negative B (conservative)
-        loss_sigma_pos = self.loss_relu(sigma_dz).mean()    # penalize sigma_dz > 0
-        loss_B_neg = self.loss_relu(-B_dz).mean()    # penalize B_dz < 0
-        loss_conservative = weight_conservative_b * loss_B_neg + weight_conservative_s * loss_sigma_pos
-
+        loss_sigma_pos = self.loss_relu(sigma_dz).mean()  # penalize sigma_dz > 0
+        loss_B_neg = self.loss_relu(-B_dz).mean()  # penalize B_dz < 0
+        loss_conservative = (
+            weight_conservative_b * loss_B_neg + weight_conservative_s * loss_sigma_pos
+        )
 
         tot_loss = init_loss + unsafe_loss + lie_loss + robust_loss + loss_conservative
 

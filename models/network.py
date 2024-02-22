@@ -12,11 +12,11 @@ from models.torchsym import TorchSymDiffModel
 
 
 def make_mlp(
-        input_size: int,
-        hidden_sizes: tuple[int, ...],
-        hidden_activation: tuple[str | ActivationType, ...],
-        output_size: int,
-        output_activation: str | ActivationType
+    input_size: int,
+    hidden_sizes: tuple[int, ...],
+    hidden_activation: tuple[str | ActivationType, ...],
+    output_size: int,
+    output_activation: str | ActivationType,
 ):
     """
     Make a multi-layer perceptron model.
@@ -47,25 +47,22 @@ def make_mlp(
     )
     acts.append(act)
 
-    assert len(layers) == len(
-        acts
-    ), "layers and activations must have the same length"
+    assert len(layers) == len(acts), "layers and activations must have the same length"
     assert (
-            output_size == layers[-1].out_features
+        output_size == layers[-1].out_features
     ), "output size does not match last layer size"
 
     return layers, acts
 
 
 class TorchMLP(TorchSymDiffModel):
-
     def __init__(
-            self,
-            input_size: int,
-            hidden_sizes: tuple[int, ...],
-            activation: tuple[str | ActivationType, ...],
-            output_size: int = 1,
-            output_activation: str | ActivationType = "linear",
+        self,
+        input_size: int,
+        hidden_sizes: tuple[int, ...],
+        activation: tuple[str | ActivationType, ...],
+        output_size: int = 1,
+        output_activation: str | ActivationType = "linear",
     ):
         super(TorchMLP, self).__init__()
         assert len(hidden_sizes) == len(
@@ -92,7 +89,7 @@ class TorchMLP(TorchSymDiffModel):
             self.acts
         ), "layers and activations must have the same length"
         assert (
-                self.output_size == self.layers[-1].out_features
+            self.output_size == self.layers[-1].out_features
         ), "output size does not match last layer size"
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -132,7 +129,9 @@ class TorchMLP(TorchSymDiffModel):
         )[0]
         return dydx
 
-    def gradient_smt(self, x: Iterable[SYMBOL]) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL]]:
+    def gradient_smt(
+        self, x: Iterable[SYMBOL]
+    ) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL]]:
         input_vars = np.array(x).reshape(-1, 1)
 
         z, jacobian = network_until_last_layer(net=self, input_vars=input_vars)
@@ -199,7 +198,7 @@ class TorchMLP(TorchSymDiffModel):
 
 
 def network_until_last_layer(
-        net: TorchMLP, input_vars: Iterable[SYMBOL]
+    net: TorchMLP, input_vars: Iterable[SYMBOL]
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Utility for symbolic forward pass excluding the last layer.

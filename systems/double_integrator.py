@@ -1,6 +1,10 @@
 import numpy as np
 import torch
 
+from fosco.common import domains
+from fosco.common.consts import DomainName
+from fosco.common.domains import Set
+
 from systems import ControlAffineDynamics
 from systems.system import register
 
@@ -17,12 +21,38 @@ class DoubleIntegrator(ControlAffineDynamics):
         return self.__class__.__name__
 
     @property
-    def n_vars(self) -> int:
-        return 4
+    def vars(self) -> list[str]:
+        return ["x0", "x1", "x2", "x3"]
 
     @property
-    def n_controls(self) -> int:
-        return 2
+    def controls(self) -> list[str]:
+        return ["u0", "u1"]
+
+    @property
+    def state_domain(self) -> Set:
+        return domains.Rectangle(
+            vars=self.vars, lb=(-5.0,) * self.n_vars, ub=(5.0,) * self.n_vars
+        )
+
+    @property
+    def input_domain(self) -> Set:
+        return domains.Rectangle(
+            vars=self.controls,
+            lb=(-5.0,) * self.n_controls,
+            ub=(5.0,) * self.n_controls,
+        )
+
+    @property
+    def init_domain(self) -> Set:
+        return domains.Rectangle(
+            vars=self.vars, lb=(-5.0,) * self.n_vars, ub=(-4.0, -4.0, 5.0, 5.0)
+        )
+
+    @property
+    def unsafe_domain(self) -> Set:
+        return domains.Rectangle(
+            vars=self.vars, lb=(-1.0, -1.0, -5.0, -5.0), ub=(1.0, 1.0, 5.0, 5.0)
+        )
 
     def fx_torch(self, x: np.ndarray | torch.Tensor) -> np.ndarray | torch.Tensor:
         assert (

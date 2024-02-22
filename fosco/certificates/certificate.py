@@ -28,6 +28,7 @@ class Certificate(ABC):
         # update this to return a dictionary of tuples (spec, domain)
         raise NotImplementedError
 
+
 class TrainableCertificate(Certificate):
     """
     Abstract class for certificates that can be trained.

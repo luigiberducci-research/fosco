@@ -27,18 +27,18 @@ class TorchSymFn(nn.Module, ABC):
 
 
 class TorchSymDiffFn(TorchSymFn, ABC):
-
     @abstractmethod
     def gradient(self, x: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
 
     @abstractmethod
-    def gradient_smt(self, x: Iterable[SYMBOL]) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL]]:
+    def gradient_smt(
+        self, x: Iterable[SYMBOL]
+    ) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL]]:
         raise NotImplementedError
 
 
 class TorchSymModel(TorchSymFn, ABC):
-
     @abstractmethod
     def save(self, outdir: str):
         raise NotImplementedError
@@ -50,7 +50,6 @@ class TorchSymModel(TorchSymFn, ABC):
 
 
 class TorchSymDiffModel(TorchSymDiffFn, ABC):
-
     @abstractmethod
     def save(self, outdir: str):
         raise NotImplementedError

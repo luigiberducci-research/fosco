@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 from typing import Iterable
 
 import numpy as np
-import z3
 
 from fosco.common.consts import VerifierType, TimeDomain, CertificateType
 from fosco.common.timing import timed
@@ -28,9 +27,9 @@ class Translator(ABC):
         raise NotImplementedError
 
 
-class MLPZ3Translator(Translator):
+class MLPTranslator(Translator):
     """
-    Symbolic translator for feed-forward neural networks to z3 expressions.
+    Translate a network forward pass and gradients into a symbolic expression.
     """
 
     def __init__(self, verbose: int = 0):
@@ -40,11 +39,11 @@ class MLPZ3Translator(Translator):
 
     @timed
     def translate(
-            self,
-            x_v_map: dict[str, Iterable[SYMBOL]],
-            V_net: TorchMLP,
-            xdot: Iterable[SYMBOL],
-            **kwargs,
+        self,
+        x_v_map: dict[str, Iterable[SYMBOL]],
+        V_net: TorchMLP,
+        xdot: Iterable[SYMBOL],
+        **kwargs,
     ) -> dict:
         """
         Translate a network forward pass and gradients into a symbolic expression
@@ -70,11 +69,11 @@ class MLPZ3Translator(Translator):
         Vdot_symbolic = (Vgrad_symbolic @ xdot)[0, 0]
 
         assert isinstance(
-            V_symbolic, z3.ArithRef
-        ), f"Expected V_symbolic to be z3.ArithRef, got {type(V_symbolic)}"
+            V_symbolic, SYMBOL
+        ), f"Expected V_symbolic to be {SYMBOL}, got {type(V_symbolic)}"
         assert isinstance(
-            Vdot_symbolic, z3.ArithRef
-        ), f"Expected Vdot_symbolic to be z3.ArithRef, got {type(Vdot_symbolic)}"
+            Vdot_symbolic, SYMBOL
+        ), f"Expected Vdot_symbolic to be {SYMBOL}, got {type(Vdot_symbolic)}"
 
         return {
             "V_symbolic": V_symbolic,
@@ -84,20 +83,20 @@ class MLPZ3Translator(Translator):
         }
 
 
-class RobustMLPZ3Translator(MLPZ3Translator):
+class RobustMLPTranslator(MLPTranslator):
     """
-    Symbolic translator for robust model to z3 expressions.
+    Translator for robust model to symbolic expressions.
     """
 
     @timed
     def translate(
-            self,
-            x_v_map: dict[str, Iterable[SYMBOL]],
-            V_net: TorchMLP,
-            sigma_net: TorchMLP,
-            xdot: Iterable[SYMBOL],
-            xdotz: Iterable[SYMBOL] = None,
-            **kwargs,
+        self,
+        x_v_map: dict[str, Iterable[SYMBOL]],
+        V_net: TorchMLP,
+        sigma_net: TorchMLP,
+        xdot: Iterable[SYMBOL],
+        xdotz: Iterable[SYMBOL] = None,
+        **kwargs,
     ):
         """
         Translate a network forward pass and gradients into a symbolic expression
@@ -130,11 +129,11 @@ class RobustMLPZ3Translator(MLPZ3Translator):
         Vdotz_symbolic = (Vgrad_symbolic @ xdotz)[0, 0]
 
         assert isinstance(
-            sigma_symbolic, z3.ArithRef
-        ), f"Expected V_symbolic to be z3.ArithRef, got {type(sigma_symbolic)}"
+            sigma_symbolic, SYMBOL
+        ), f"Expected V_symbolic to be {SYMBOL}, got {type(sigma_symbolic)}"
         assert isinstance(
-            Vdotz_symbolic, z3.ArithRef
-        ), f"Expected Vdot_symbolic to be z3.ArithRef, got {type(Vdotz_symbolic)}"
+            Vdotz_symbolic, SYMBOL
+        ), f"Expected Vdot_symbolic to be {SYMBOL}, got {type(Vdotz_symbolic)}"
 
         symbolic_dict.update(
             {
@@ -149,19 +148,22 @@ class RobustMLPZ3Translator(MLPZ3Translator):
 
 
 def make_translator(
-        certificate_type: CertificateType,
-        verifier_type: VerifierType,
-        time_domain: TimeDomain,
-        **kwargs,
+    certificate_type: CertificateType,
+    verifier_type: VerifierType,
+    time_domain: TimeDomain,
+    **kwargs,
 ) -> Translator:
     """
     Factory function for translators.
     """
-    if verifier_type == VerifierType.Z3 and time_domain == TimeDomain.CONTINUOUS:
+    if time_domain == TimeDomain.CONTINUOUS and verifier_type in [
+        VerifierType.Z3,
+        VerifierType.DREAL,
+    ]:
         if certificate_type == CertificateType.RCBF:
-            return RobustMLPZ3Translator(**kwargs)
+            return RobustMLPTranslator(**kwargs)
         elif certificate_type == CertificateType.CBF:
-            return MLPZ3Translator(**kwargs)
+            return MLPTranslator(**kwargs)
         else:
             raise NotImplementedError(
                 f"Translator for certificate={certificate_type} and time={time_domain} not implemented"

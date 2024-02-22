@@ -38,7 +38,7 @@ class CBFSafetyFilter:
         # hard cbf constraint
         constraints += [self.Lfhx + self.Lghx @ self.u + self.alpha_hx + self.d >= 0]
 
-        objective = cp.Minimize(cp.norm(self.u) + 1e4 * self.d ** 2)
+        objective = cp.Minimize(cp.norm(self.u) + 1e4 * self.d**2)
         self.prob = cp.Problem(objective, constraints)
 
     def __call__(

@@ -166,10 +166,12 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         xdotz = fz.f(x, u, z, only_nominal=True)
 
         self.assertTrue(
-            check_smt_equivalence(xdot[0], xdotz[0]), f"expected xdot = vx, got {xdotz[0]}"
+            check_smt_equivalence(xdot[0], xdotz[0]),
+            f"expected xdot = vx, got {xdotz[0]}",
         )
         self.assertTrue(
-            check_smt_equivalence(xdot[1], xdotz[1]), f"expected ydot = vy, got {xdotz[1]}"
+            check_smt_equivalence(xdot[1], xdotz[1]),
+            f"expected ydot = vy, got {xdotz[1]}",
         )
 
     def test_properties_and_methods(self):
@@ -212,8 +214,12 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         id1 = f.id
         id2 = fz.id
 
-        self.assertTrue(isinstance(id1, str), f"expected id1 to be a string, got {type(id1)}")
-        self.assertTrue(isinstance(id2, str), f"expected id2 to be a string, got {type(id2)}")
+        self.assertTrue(
+            isinstance(id1, str), f"expected id1 to be a string, got {type(id1)}"
+        )
+        self.assertTrue(
+            isinstance(id2, str), f"expected id2 to be a string, got {type(id2)}"
+        )
         self.assertTrue(id1 != id2, f"expected id1 != id2, got {id1} == {id2}")
         self.assertTrue(id1 in id2, f"expected id1 in id2, got {id1} not in {id2}")
 
@@ -229,6 +235,11 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         n = 10
         x = np.zeros((n, 3))
         u = np.array([[1.0, -1.0 + 2 * i / (n - 1)] for i in range(n)])
+
+        if n > 1:
+            u = np.array([[1.0, -1.0 + 2 * i / (n - 1)] for i in range(n)])
+        else:
+            u = np.array([[1.0, 0.0]])
 
         T = 2.0
         dt = 0.1
@@ -322,12 +333,13 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         xdot = f.f(x, u)
         self.assertTrue(
             xdot[0] == u[0] * fns["cos"](x[2]),
-            f"expected xdot[0] == u[0] * Cos(x[2]), got {xdot[0]}"
+            f"expected xdot[0] == u[0] * Cos(x[2]), got {xdot[0]}",
         )
         self.assertTrue(
             xdot[1] == u[0] * fns["sin"](x[2]),
-            f"expected xdot[1] == u[0] * Sin(x[2]), got {xdot[1]}"
+            f"expected xdot[1] == u[0] * Sin(x[2]), got {xdot[1]}",
         )
+        self.assertTrue(xdot[2] == u[1], f"expected xdot[2] == u[1], got {xdot[2]}")
         self.assertTrue(
             xdot[2] == u[1],
             f"expected xdot[2] == u[1], got {xdot[2]}"

@@ -9,17 +9,17 @@ from torch.optim import Optimizer
 from fosco.config import CegisConfig
 from fosco.certificates.certificate import Certificate, TrainableCertificate
 from fosco.common.domains import Set, Rectangle
-from fosco.common.consts import DomainNames
+from fosco.common.consts import DomainName
 from fosco.common.utils import _set_assertion
 from fosco.learner import LearnerNN
 from fosco.verifier.types import SYMBOL
 from fosco.logger import LOGGING_LEVELS
 from systems import ControlAffineDynamics
 
-XD = DomainNames.XD.value
-XI = DomainNames.XI.value
-XU = DomainNames.XU.value
-UD = DomainNames.UD.value
+XD = DomainName.XD.value
+XI = DomainName.XI.value
+XU = DomainName.XU.value
+UD = DomainName.UD.value
 
 
 class ControlBarrierFunction(Certificate):
@@ -35,12 +35,12 @@ class ControlBarrierFunction(Certificate):
     """
 
     def __init__(
-            self,
-            system: ControlAffineDynamics,
-            vars: dict[str, list],
-            domains: dict[str, Set],
-            config: CegisConfig,
-            verbose: int = 0,
+        self,
+        system: ControlAffineDynamics,
+        vars: dict[str, list],
+        domains: dict[str, Set],
+        config: CegisConfig,
+        verbose: int = 0,
     ) -> None:
         # todo rename vars to x, u
         assert all(
@@ -65,7 +65,9 @@ class ControlBarrierFunction(Certificate):
         self._logger.setLevel(LOGGING_LEVELS[verbose])
         self._logger.debug("CBF initialized")
 
-    def get_constraints(self, verifier, B, B_constr, sigma, sigma_constr, Bdot, Bdot_constr, *args) -> Generator:
+    def get_constraints(
+        self, verifier, B, B_constr, sigma, sigma_constr, Bdot, Bdot_constr, *args
+    ) -> Generator:
         """
         :param verifier: verifier object
         :param B: symbolic formula of the CBF
@@ -77,26 +79,36 @@ class ControlBarrierFunction(Certificate):
 
         # Bx >= 0 if x \in initial
         # counterexample: B < 0 and x \in initial
-        initial_constr = self._init_constraint_smt(verifier=verifier, B=B, B_constr=B_constr)
+        initial_constr = self._init_constraint_smt(
+            verifier=verifier, B=B, B_constr=B_constr
+        )
 
         # Bx < 0 if x \in unsafe
         # counterexample: B >= 0 and x \in unsafe
-        unsafe_constr = self._unsafe_constraint_smt(verifier=verifier, B=B, B_constr=B_constr)
+        unsafe_constr = self._unsafe_constraint_smt(
+            verifier=verifier, B=B, B_constr=B_constr
+        )
 
         # feasibility condition
         # exists u Bdot + alpha * Bx >= 0 if x \in domain
         # counterexample: x \in domain s.t. forall u Bdot + alpha * Bx < 0
         alpha = lambda x: x  # todo make it part of the cbf and pass it in input
-        feasible_constr = self._feasibility_constraint_smt(verifier=verifier, B=B, B_constr=B_constr, Bdot=Bdot,
-                                                              Bdot_constr=Bdot_constr, alpha=alpha)
+        feasible_constr = self._feasibility_constraint_smt(
+            verifier=verifier,
+            B=B,
+            B_constr=B_constr,
+            Bdot=Bdot,
+            Bdot_constr=Bdot_constr,
+            alpha=alpha,
+        )
 
         logging.debug(f"initial_constr: {initial_constr}")
         logging.debug(f"unsafe_constr: {unsafe_constr}")
         logging.debug(f"lie_constr: {feasible_constr}")
 
         for cs in (
-                {XI: (initial_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
-                {XD: (feasible_constr, self.x_vars + self.u_vars)},
+            {XI: (initial_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
+            {XD: (feasible_constr, self.x_vars + self.u_vars)},
         ):
             yield cs
 
@@ -111,8 +123,12 @@ class ControlBarrierFunction(Certificate):
         initial_constr = B < 0
         for c in B_constr:
             initial_constr = _And(initial_constr, c)
-        initial_constr = _And(initial_constr, self.initial_domain)  # add initial domain constraints
-        inital_constr = _And(initial_constr, self.x_domain)  # add state domain constraints (redundant)
+        initial_constr = _And(
+            initial_constr, self.initial_domain
+        )  # add initial domain constraints
+        inital_constr = _And(
+            initial_constr, self.x_domain
+        )  # add state domain constraints (redundant)
 
         return inital_constr
 
@@ -132,7 +148,9 @@ class ControlBarrierFunction(Certificate):
         unsafe_constr = _And(unsafe_constr, self.x_domain)
         return unsafe_constr
 
-    def _feasibility_constraint_smt(self, verifier, B, B_constr, Bdot, Bdot_constr, alpha) -> SYMBOL:
+    def _feasibility_constraint_smt(
+        self, verifier, B, B_constr, Bdot, Bdot_constr, alpha
+    ) -> SYMBOL:
         """
         Feasibility constraint
 
@@ -163,7 +181,7 @@ class ControlBarrierFunction(Certificate):
 
     @staticmethod
     def _assert_state(domains, data):
-        dn = DomainNames
+        dn = DomainName
         domain_labels = set(domains.keys())
         data_labels = set(data.keys())
         _set_assertion(
@@ -177,17 +195,17 @@ class ControlBarrierFunction(Certificate):
 
 
 class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
-
     def __init__(
-            self,
-            system: ControlAffineDynamics,
-            vars: dict[str, list],
-            domains: dict[str, Set],
-            config: CegisConfig,
-            verbose: int = 0,
+        self,
+        system: ControlAffineDynamics,
+        vars: dict[str, list],
+        domains: dict[str, Set],
+        config: CegisConfig,
+        verbose: int = 0,
     ):
-        super(TrainableCBF, self).__init__(system=system, vars=vars, domains=domains,
-                                           config=config, verbose=verbose)
+        super(TrainableCBF, self).__init__(
+            system=system, vars=vars, domains=domains, config=config, verbose=verbose
+        )
 
         # loss parameters
         self.loss_relu = config.LOSS_RELU
@@ -218,11 +236,11 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
         self.loss_netgrad_weight = config.LOSS_NETGRAD_WEIGHT
 
     def learn(
-            self,
-            learner: LearnerNN,
-            optimizers: Optimizer,
-            datasets: dict,
-            f_torch: callable,
+        self,
+        learner: LearnerNN,
+        optimizers: Optimizer,
+        datasets: dict,
+        f_torch: callable,
     ) -> dict[str, float | np.ndarray]:
         """
         Updates the CBF model.
@@ -245,7 +263,7 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
         state_samples = torch.cat(
             [datasets[label][:, : self.n_vars] for label in label_order]
         )
-        U_d = datasets[XD][:, self.n_vars: self.n_vars + self.n_controls]
+        U_d = datasets[XD][:, self.n_vars : self.n_vars + self.n_controls]
 
         losses, accuracies, infos = {}, {}, {}
         for t in range(self.epochs):
@@ -256,12 +274,12 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
             gradB = learner.net.gradient(state_samples)
 
             B_d = B[:i1, 0]
-            B_i = B[i1: i1 + i2, 0]
-            B_u = B[i1 + i2:, 0]
+            B_i = B[i1 : i1 + i2, 0]
+            B_u = B[i1 + i2 :, 0]
 
             # compute lie derivative
             assert (
-                    B_d.shape[0] == U_d.shape[0]
+                B_d.shape[0] == U_d.shape[0]
             ), f"expected pairs of state,input data. Got {B_d.shape[0]} and {U_d.shape[0]}"
             X_d = state_samples[:i1]
             gradB_d = gradB[:i1]
@@ -303,12 +321,12 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
         }
 
     def compute_loss(
-            self,
-            B_i: torch.Tensor,
-            B_u: torch.Tensor,
-            B_d: torch.Tensor,
-            Bdot_d: torch.Tensor,
-            alpha: torch.Tensor | float,
+        self,
+        B_i: torch.Tensor,
+        B_u: torch.Tensor,
+        B_d: torch.Tensor,
+        Bdot_d: torch.Tensor,
+        alpha: torch.Tensor | float,
     ) -> tuple[torch.Tensor, dict, dict]:
         # todo make this private
         """Computes loss function for CBF and its accuracy w.r.t. the batch of data.
@@ -324,7 +342,7 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
             tuple[torch.Tensor, float]: loss and accuracy
         """
         assert (
-                Bdot_d is None or B_d.shape == Bdot_d.shape
+            Bdot_d is None or B_d.shape == Bdot_d.shape
         ), f"B_d and Bdot_d must have the same shape, got {B_d.shape} and {Bdot_d.shape}"
         assert isinstance(
             self.loss_margins, dict
@@ -355,7 +373,7 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
         unsafe_loss = weight_unsafe * (self.loss_relu(B_u + margin_unsafe)).mean()
         # penalize dB_d + alpha * B_d < 0
         lie_loss = (
-                weight_lie * (self.loss_relu(margin_lie - (Bdot_d + alpha * B_d))).mean()
+            weight_lie * (self.loss_relu(margin_lie - (Bdot_d + alpha * B_d))).mean()
         )
 
         loss = init_loss + unsafe_loss + lie_loss

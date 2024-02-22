@@ -12,16 +12,15 @@ from fosco.verifier.types import SYMBOL
 INF: float = 1e300
 
 
-
 class Verifier(ABC):
     def __init__(
-            self,
-            constraints_method: Callable[..., Generator],
-            solver_vars: list[SYMBOL],
-            solver_timeout: int,
-            n_counterexamples: int,
-            rounding: int = -1,
-            verbose: int = 0
+        self,
+        constraints_method: Callable[..., Generator],
+        solver_vars: list[SYMBOL],
+        solver_timeout: int,
+        n_counterexamples: int,
+        rounding: int = -1,
+        verbose: int = 0,
     ):
         super().__init__()
         self.xs = solver_vars
@@ -48,14 +47,19 @@ class Verifier(ABC):
 
     @staticmethod
     @abstractmethod
-    def new_vars(n, base: str = "x") -> list[SYMBOL]:
+    def new_vars(
+        n: int | None, var_names: list[str] | None, base: str = "x"
+    ) -> list[SYMBOL]:
+        """
+        Returns a list of symbolic variables.
+        It either creates `n` variables with prefix `base`, or creates one variable for each `var_names`.
+        """
         raise NotImplementedError("")
 
     @staticmethod
     @abstractmethod
     def solver_fncts(self) -> dict[str, Callable]:
         raise NotImplementedError("")
-
 
     @staticmethod
     @abstractmethod
@@ -100,16 +104,16 @@ class Verifier(ABC):
 
     @timed
     def verify(
-            self,
-            V_symbolic: SYMBOL,
-            V_symbolic_constr: Iterable[SYMBOL],
-            sigma_symbolic: SYMBOL | None,
-            sigma_symbolic_constr: Iterable[SYMBOL],
-            Vdot_symbolic: SYMBOL,
-            Vdot_symbolic_constr: Iterable[SYMBOL],
-            Vdotz_symbolic: SYMBOL | None,
-            Vdotz_symbolic_constr: Iterable[SYMBOL],
-            **kwargs,
+        self,
+        V_symbolic: SYMBOL,
+        V_symbolic_constr: Iterable[SYMBOL],
+        sigma_symbolic: SYMBOL | None,
+        sigma_symbolic_constr: Iterable[SYMBOL],
+        Vdot_symbolic: SYMBOL,
+        Vdot_symbolic_constr: Iterable[SYMBOL],
+        Vdotz_symbolic: SYMBOL | None,
+        Vdotz_symbolic_constr: Iterable[SYMBOL],
+        **kwargs,
     ):
         """
         :param V_symbolic: z3 expr of function V
@@ -124,10 +128,14 @@ class Verifier(ABC):
         # todo: different verifier may require different inputs -> clean call constraints_method
         fmls = self.constraints_method(
             self,
-            V_symbolic, V_symbolic_constr,
-            sigma_symbolic, sigma_symbolic_constr,
-            Vdot_symbolic, Vdot_symbolic_constr,
-            Vdotz_symbolic, Vdotz_symbolic_constr,
+            V_symbolic,
+            V_symbolic_constr,
+            sigma_symbolic,
+            sigma_symbolic_constr,
+            Vdot_symbolic,
+            Vdot_symbolic_constr,
+            Vdotz_symbolic,
+            Vdotz_symbolic_constr,
         )
         results = {}
         solvers = {}
@@ -166,11 +174,15 @@ class Verifier(ABC):
                     original_point = self.compute_model(
                         vars=solver_vars[label], solver=solvers[label], res=res
                     )
-                    self._logger.info(f"{label}: Counterexample Found: {solver_vars[label]} = {original_point}")
+                    self._logger.info(
+                        f"{label}: Counterexample Found: {solver_vars[label]} = {original_point}"
+                    )
 
                     # debug
-                    for sym_name, sym in zip(["V", "Sigma", "Vdot", "Vdotz"],
-                                             [V_symbolic, sigma_symbolic, Vdot_symbolic, Vdotz_symbolic]):
+                    for sym_name, sym in zip(
+                        ["V", "Sigma", "Vdot", "Vdotz"],
+                        [V_symbolic, sigma_symbolic, Vdot_symbolic, Vdotz_symbolic],
+                    ):
                         if sym is None:
                             continue
                         replaced = self.replace_point(

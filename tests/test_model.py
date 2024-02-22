@@ -4,17 +4,18 @@ import unittest
 import torch
 import z3
 
-from fosco.common.consts import ActivationType
-from systems import make_domains
+from fosco.common.consts import ActivationType, DomainName
 
 
 class TestModel(unittest.TestCase):
-
     def test_torchsym_model(self):
         from models.network import TorchMLP
 
         model = TorchMLP(
-            input_size=2, hidden_sizes=(4, 4), activation=("relu", "relu"), output_size=1
+            input_size=2,
+            hidden_sizes=(4, 4),
+            activation=("relu", "relu"),
+            output_size=1,
         )
 
         # numerical
@@ -32,13 +33,11 @@ class TestModel(unittest.TestCase):
 
         self.assertTrue(isinstance(y_sym, z3.ArithRef))
         self.assertTrue(all([isinstance(c, z3.BoolRef) for c in y_constr]))
-        self.assertTrue(all([isinstance(dydx, z3.ArithRef) for dydx in dydx_sym[0]]), f"dydx_sym: {dydx_sym}")
+        self.assertTrue(
+            all([isinstance(dydx, z3.ArithRef) for dydx in dydx_sym[0]]),
+            f"dydx_sym: {dydx_sym}",
+        )
         self.assertTrue(all([isinstance(c, z3.BoolRef) for c in dydx_constr]))
-
-
-
-
-
 
     def test_save_mlp_model(self):
         from models.network import TorchMLP
@@ -111,15 +110,21 @@ class TestModel(unittest.TestCase):
         barrier_dict = make_barrier(system=system_fn())
         init_barrier = barrier_dict["barrier"]
 
-        sets = {
-            k: s for k, s in make_domains(system_id=system_type).items() if k in ["lie", "input", "init", "unsafe"]
-        }
+        sets = system_fn().domains
+        assert all(
+            [dn.value in sets for dn in [DomainName.XI, DomainName.XU, DomainName.XD]]
+        )
+
         data_gen = {
-            "init": lambda n: sets["init"].generate_data(n),
-            "unsafe": lambda n: sets["unsafe"].generate_data(n),
-            "lie": lambda n: torch.concatenate(
-                [sets["lie"].generate_data(n), sets["input"].generate_data(n)], dim=1
-            )
+            DomainName.XI.value: lambda n: sets[DomainName.XI.value].generate_data(n),
+            DomainName.XU.value: lambda n: sets[DomainName.XU.value].generate_data(n),
+            DomainName.XD.value: lambda n: torch.concatenate(
+                [
+                    sets[DomainName.XD.value].generate_data(n),
+                    sets[DomainName.UD.value].generate_data(n),
+                ],
+                dim=1,
+            ),
         }
 
         cfg = CegisConfig(
@@ -132,14 +137,15 @@ class TestModel(unittest.TestCase):
 
         cegis = Cegis(config=cfg, verbose=2)
 
-        self.assertTrue(isinstance(cegis.learner.net, type(init_barrier)), "type mismatch")
+        self.assertTrue(
+            isinstance(cegis.learner.net, type(init_barrier)), "type mismatch"
+        )
 
         # numerical check on in-out
         x = torch.randn(10, 2)
         y = cegis.learner.net(x)
         y_init = init_barrier(x)
         self.assertTrue(torch.allclose(y, y_init), f"expected {y_init}, got {y}")
-
 
     def test_make_mlp(self):
         from models.network import make_mlp
@@ -149,7 +155,7 @@ class TestModel(unittest.TestCase):
             hidden_sizes=(4, 4),
             hidden_activation=("relu", "relu"),
             output_size=1,
-            output_activation="linear"
+            output_activation="linear",
         )
 
         self.assertTrue(len(layers) == 3)

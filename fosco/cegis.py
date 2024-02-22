@@ -9,15 +9,18 @@ from fosco.certificates import make_certificate
 from fosco.common.domains import Rectangle
 from fosco.config import CegisConfig, CegisResult
 from fosco.consolidator import make_consolidator
-from fosco.common.consts import DomainNames, CertificateType
+from fosco.common.consts import DomainName, CertificateType
 from fosco.learner import make_learner, LearnerNN
 from fosco.plotting.data import scatter_datasets
-from fosco.plotting.utils import plot_func_and_domains
+from fosco.plotting.utils import (
+    plot_func_and_domains,
+    lie_derivative_fn,
+    cbf_condition_fn,
+)
 from fosco.translator import make_translator
 from fosco.verifier import make_verifier
 from fosco.logger import make_logger, Logger, LOGGING_LEVELS
 from systems.system import UncertainControlAffineDynamics
-from systems.utils import lie_derivative_fn, cbf_condition_fn
 
 
 class Cegis:
@@ -105,13 +108,16 @@ class Cegis:
         return verifier_instance
 
     def _initialise_domains(self):
-        # todo: create domains based on input instead of hardcoding x, u
         verifier_type = make_verifier(type=self.config.VERIFIER)
-        x = verifier_type.new_vars(self.f.n_vars, base="x")
-        u = verifier_type.new_vars(self.f.n_controls, base="u")
+        x = verifier_type.new_vars(var_names=[f"x{i}" for i in range(self.f.n_vars)])
+        u = verifier_type.new_vars(
+            var_names=[f"u{i}" for i in range(self.f.n_controls)]
+        )
 
         if isinstance(self.f, UncertainControlAffineDynamics):
-            z = verifier_type.new_vars(self.f.n_uncertain, base="z")
+            z = verifier_type.new_vars(
+                var_names=[f"z{i}" for i in range(self.f.n_uncertain)]
+            )
         else:
             z = None
 
@@ -232,7 +238,9 @@ class Cegis:
             self.tlogger.debug("Consolidator")
             outputs, elapsed_time = self.consolidator.get(**state)
             state.update(outputs)
-            self.logger.log_scalar(tag="time_consolidator", value=elapsed_time, step=iter)
+            self.logger.log_scalar(
+                tag="time_consolidator", value=elapsed_time, step=iter
+            )
 
             # Logging
             # logging data distribution
@@ -243,11 +251,11 @@ class Cegis:
             self.logger.log_image(tag="datasets", image=fig, step=iter)
 
             # logging learned functions
-            in_domain = self.config.DOMAINS[DomainNames.XD.value]
+            in_domain = self.config.DOMAINS[DomainName.XD.value]
             other_domains = {
                 k: v
                 for k, v in self.config.DOMAINS.items()
-                if k in [DomainNames.XI.value, DomainNames.XU.value]
+                if k in [DomainName.XI.value, DomainName.XU.value]
             }
             fig = plot_func_and_domains(
                 func=self.learner.net,
@@ -274,7 +282,7 @@ class Cegis:
                     context={"dimension": dim},
                 )
 
-            u_domain = self.config.DOMAINS[DomainNames.UD.value]
+            u_domain = self.config.DOMAINS[DomainName.UD.value]
             assert isinstance(
                 u_domain, Rectangle
             ), "only rectangular domains are supported for u"

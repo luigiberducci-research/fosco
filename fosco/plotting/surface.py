@@ -48,8 +48,8 @@ def plot_surface(
         )
 
     # top view with y-axis pointing up
-    #maxz = max(min(np.max(z), 5.0), 0.0)
-    #fig.update_layout(scene_camera=dict(eye=dict(x=0, y=0, z=maxz)))
+    # maxz = max(min(np.max(z), 5.0), 0.0)
+    # fig.update_layout(scene_camera=dict(eye=dict(x=0, y=0, z=maxz)))
 
     return fig
 

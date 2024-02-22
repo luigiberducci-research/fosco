@@ -4,14 +4,27 @@ from typing import Callable
 import z3
 
 from fosco.common.utils import contains_object
-from fosco.verifier.types import Z3SYMBOL
+from fosco.verifier.types import Z3SYMBOL, SYMBOL
 from fosco.verifier.verifier import Verifier
 
 
 class VerifierZ3(Verifier):
     @staticmethod
-    def new_vars(n, base="x") -> list[Z3SYMBOL]:
-        return [z3.Real(base + str(i)) for i in range(n)]
+    def new_vars(
+        n: int | None = None, var_names: list[str] | None = None, base: str = "x"
+    ) -> list[SYMBOL]:
+        assert (
+            n is not None or var_names is not None
+        ), "Must provide either n or var_names"
+        assert n is None or var_names is None, f"Cannot provide both n and var_names"
+        assert var_names is None or len(var_names) == len(
+            set(var_names)
+        ), "var_names must contain unique identifiers"
+
+        if var_names:
+            return [z3.Real(var) for var in var_names]
+        else:
+            return [z3.Real(base + str(i)) for i in range(n)]
 
     def new_solver(self):
         return z3.Solver()
@@ -108,7 +121,6 @@ class VerifierZ3(Verifier):
             "Check": lambda x: contains_object(x, z3.ArithRef),
             "RealVal": z3.RealVal,
             "Sqrt": z3.Sqrt,
-
         }
 
     def round_expr(self, e: Z3SYMBOL, rounding: int) -> Z3SYMBOL:

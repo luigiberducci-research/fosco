@@ -15,6 +15,9 @@ import tyro
 from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
 
+from models.td3_agent import DDPGActor, QNetwork
+from rl_algorithms.utils import make_env
+
 
 @dataclass
 class Args:
@@ -68,67 +71,16 @@ class Args:
     """noise clip parameter of the Target Policy Smoothing Regularization"""
 
 
-def make_env(env_id, seed, idx, capture_video, run_name):
-    def thunk():
-        if capture_video and idx == 0:
-            env = gym.make(env_id, render_mode="rgb_array")
-            env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
-        else:
-            env = gym.make(env_id)
-        env = gym.wrappers.RecordEpisodeStatistics(env)
-        env.action_space.seed(seed)
-        return env
-
-    return thunk
-
-
-# ALGO LOGIC: initialize agent here:
-class QNetwork(nn.Module):
-    def __init__(self, env):
-        super().__init__()
-        self.fc1 = nn.Linear(np.array(env.single_observation_space.shape).prod() + np.prod(env.single_action_space.shape), 256)
-        self.fc2 = nn.Linear(256, 256)
-        self.fc3 = nn.Linear(256, 1)
-
-    def forward(self, x, a):
-        x = torch.cat([x, a], 1)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
-
-
-class Actor(nn.Module):
-    def __init__(self, env):
-        super().__init__()
-        self.fc1 = nn.Linear(np.array(env.single_observation_space.shape).prod(), 256)
-        self.fc2 = nn.Linear(256, 256)
-        self.fc_mu = nn.Linear(256, np.prod(env.single_action_space.shape))
-        # action rescaling
-        self.register_buffer(
-            "action_scale", torch.tensor((env.action_space.high - env.action_space.low) / 2.0, dtype=torch.float32)
-        )
-        self.register_buffer(
-            "action_bias", torch.tensor((env.action_space.high + env.action_space.low) / 2.0, dtype=torch.float32)
-        )
-
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = torch.tanh(self.fc_mu(x))
-        return x * self.action_scale + self.action_bias
-
-
 def evaluate(
-    model_path: str,
-    make_env: Callable,
-    env_id: str,
-    eval_episodes: int,
-    run_name: str,
-    Model: nn.Module,
-    device: torch.device = torch.device("cpu"),
-    capture_video: bool = True,
-    exploration_noise: float = 0.1,
+        model_path: str,
+        make_env: Callable,
+        env_id: str,
+        eval_episodes: int,
+        run_name: str,
+        Model: nn.Module,
+        device: torch.device = torch.device("cpu"),
+        capture_video: bool = True,
+        exploration_noise: float = 0.1,
 ):
     envs = gym.vector.SyncVectorEnv([make_env(env_id, 0, 0, capture_video, run_name)])
     actor = Model[0](envs).to(device)
@@ -161,9 +113,6 @@ def evaluate(
         obs = next_obs
 
     return episodic_returns
-
-
-
 
 
 if __name__ == "__main__":
@@ -205,15 +154,16 @@ poetry run pip install "stable_baselines3==2.0.0a1"
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
     # env setup
-    envs = gym.vector.SyncVectorEnv([make_env(args.env_id, args.seed, 0, args.capture_video, run_name)])
+    envs = gym.vector.SyncVectorEnv([make_env(env_id=args.env_id, seed=args.seed, idx=0,
+                                              capture_video=args.capture_video, run_name=run_name, gamma=args.gamma)])
     assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
 
-    actor = Actor(envs).to(device)
+    actor = DDPGActor(envs).to(device)
     qf1 = QNetwork(envs).to(device)
     qf2 = QNetwork(envs).to(device)
     qf1_target = QNetwork(envs).to(device)
     qf2_target = QNetwork(envs).to(device)
-    target_actor = Actor(envs).to(device)
+    target_actor = DDPGActor(envs).to(device)
     target_actor.load_state_dict(actor.state_dict())
     qf1_target.load_state_dict(qf1.state_dict())
     qf2_target.load_state_dict(qf2.state_dict())
@@ -277,7 +227,8 @@ poetry run pip install "stable_baselines3==2.0.0a1"
                 qf1_next_target = qf1_target(data.next_observations, next_state_actions)
                 qf2_next_target = qf2_target(data.next_observations, next_state_actions)
                 min_qf_next_target = torch.min(qf1_next_target, qf2_next_target)
-                next_q_value = data.rewards.flatten() + (1 - data.dones.flatten()) * args.gamma * (min_qf_next_target).view(-1)
+                next_q_value = data.rewards.flatten() + (1 - data.dones.flatten()) * args.gamma * (
+                    min_qf_next_target).view(-1)
 
             qf1_a_values = qf1(data.observations, data.actions).view(-1)
             qf2_a_values = qf2(data.observations, data.actions).view(-1)
@@ -325,15 +276,12 @@ poetry run pip install "stable_baselines3==2.0.0a1"
             args.env_id,
             eval_episodes=10,
             run_name=f"{run_name}-eval",
-            Model=(Actor, QNetwork),
+            Model=(DDPGActor, QNetwork),
             device=device,
             exploration_noise=args.exploration_noise,
         )
         for idx, episodic_return in enumerate(episodic_returns):
             writer.add_scalar("eval/episodic_return", episodic_return, idx)
 
-
     envs.close()
     writer.close()
-
-

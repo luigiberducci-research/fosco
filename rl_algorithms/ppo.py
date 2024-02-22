@@ -45,7 +45,7 @@ class Args:
     # Algorithm specific arguments
     env_id: str = "Hopper-v4"
     """the id of the environment"""
-    total_timesteps: int = 1000000
+    total_timesteps: int = 50000
     """total timesteps of the experiments"""
     learning_rate: float = 3e-4
     """the learning rate of the optimizer"""
@@ -99,7 +99,9 @@ def evaluate(
         gamma: float = 0.99,
 ):
     envs = gym.vector.SyncVectorEnv([make_env(env_id, 0, capture_video, run_name, gamma)])
-    agent = Model(envs).to(device)
+    input_size = np.array(envs.single_observation_space.shape).prod()
+    output_size = np.array(envs.single_action_space.shape).prod()
+    agent = Model(input_size=input_size, output_size=output_size).to(device)
     agent.load_state_dict(torch.load(model_path, map_location=device))
     agent.eval()
 
@@ -157,7 +159,9 @@ if __name__ == "__main__":
     )
     assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
 
-    agent = ActorCriticAgent(envs).to(device)
+    input_size = np.array(envs.single_observation_space.shape).prod()
+    output_size = np.array(envs.single_action_space.shape).prod()
+    agent = ActorCriticAgent(input_size=input_size, output_size=output_size).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 
     # ALGO Logic: Storage setup
@@ -316,6 +320,7 @@ if __name__ == "__main__":
             device=device,
             gamma=args.gamma,
         )
+        print(f"eval episodic returns: {np.mean(episodic_returns)} +/- {np.std(episodic_returns)}")
         for idx, episodic_return in enumerate(episodic_returns):
             writer.add_scalar("eval/episodic_return", episodic_return, idx)
 

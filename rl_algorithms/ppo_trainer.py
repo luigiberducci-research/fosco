@@ -8,6 +8,7 @@ import torch
 from torch import optim, nn
 
 from models.ppo_agent import ActorCriticAgent
+from rl_algorithms.buffer import CyclicBuffer
 from rl_algorithms.rl_trainer import RLTrainer
 
 
@@ -28,21 +29,36 @@ class PPOTrainer(RLTrainer):
         output_size = np.array(act_space.shape).prod()
         self.agent = ActorCriticAgent(input_size=input_size, output_size=output_size).to(device)
 
+        buffer_shapes = {
+            "obs": (args.num_steps, args.num_envs) + envs.single_observation_space.shape,
+            "actions": (args.num_steps, args.num_envs) + envs.single_action_space.shape,
+            "logprobs": (args.num_steps, args.num_envs),
+            "rewards": (args.num_steps, args.num_envs),
+            "dones": (args.num_steps, args.num_envs),
+            "values": (args.num_steps, args.num_envs),
+        }
+        self.buffer = CyclicBuffer(
+            capacity=args.num_steps,
+            feature_shapes=buffer_shapes,
+            device=self.device
+        )
+
         self.optimizer = optim.Adam(self.agent.parameters(), lr=self.args.learning_rate, eps=1e-5)
         self.iteration = 0
 
     def train(
             self,
-            obs: torch.Tensor,
-            actions: torch.Tensor,
-            rewards: torch.Tensor,
-            dones: torch.Tensor,
-            next_obs: torch.Tensor,
-            next_done: Optional[torch.Tensor] = None,
-            values: Optional[torch.Tensor] = None,
-            logprobs: Optional[torch.Tensor] = None,
-            global_step: Optional[int] = None
+            next_obs,
+            next_done,
     ) -> dict[str, float]:
+        data = self.buffer.sample()
+        obs = data["obs"]
+        logprobs = data["logprobs"]
+        actions = data["actions"]
+        rewards = data["rewards"]
+        dones = data["dones"]
+        values = data["values"]
+
         self.iteration += 1
 
         # Annealing the rate if instructed to do so.

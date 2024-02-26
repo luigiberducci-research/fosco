@@ -91,7 +91,11 @@ class PPOTrainer(RLTrainer):
                 end = start + self.args.minibatch_size
                 mb_inds = b_inds[start:end]
 
-                _, newlogprob, entropy, newvalue = self.agent.get_action_and_value(b_obs[mb_inds], b_actions[mb_inds])
+                results = self.agent.get_action_and_value(b_obs[mb_inds], b_actions[mb_inds])
+                newlogprob = results["log_prob"]
+                entropy = results["entropy"]
+                newvalue = results["value"]
+
                 logratio = newlogprob - b_logprobs[mb_inds]
                 ratio = logratio.exp()
 

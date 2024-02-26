@@ -36,6 +36,23 @@ class ActorCriticAgent(nn.Module):
         action_logstd = self.actor_logstd.expand_as(action_mean)
         action_std = torch.exp(action_logstd)
         probs = Normal(action_mean, action_std)
+
         if action is None:
             action = probs.sample()
-        return action, probs.log_prob(action).sum(1), probs.entropy().sum(1), self.critic(x)
+
+        log_probs = probs.log_prob(action).sum(1)
+        entropy = probs.entropy().sum(1)
+        value = self.critic(x)
+
+        results = {
+            "action": action,
+            "log_prob": log_probs,
+            "entropy": entropy,
+            "value": value,
+        }
+
+        batch_sz = x.shape[0]
+        for k, batch in results.items():
+            assert batch.shape[0] == batch_sz, f"wrong {k} shape: {batch.shape}"
+
+        return results

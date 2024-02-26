@@ -1,4 +1,3 @@
-# docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/ppo/#ppo_continuous_actionpy
 import os
 import random
 import time
@@ -107,7 +106,8 @@ def evaluate(
     obs, _ = envs.reset()
     episodic_returns = []
     while len(episodic_returns) < eval_episodes:
-        actions, _, _, _ = agent.get_action_and_value(torch.Tensor(obs).to(device))
+        results = agent.get_action_and_value(torch.Tensor(obs).to(device))
+        actions = results["action"]
         next_obs, _, _, _, infos = envs.step(actions.cpu().numpy())
         if "final_info" in infos:
             for info in infos["final_info"]:
@@ -171,13 +171,17 @@ if __name__ == "__main__":
     for iteration in range(1, args.num_iterations + 1):
         agent = trainer.get_actor()
 
+        # data collection
         for step in range(0, args.num_steps):
             global_step += args.num_envs
             cur_obs = torch.clone(next_obs)
 
             # ALGO LOGIC: action logic
             with torch.no_grad():
-                action, logprob, _, value = agent.get_action_and_value(next_obs)
+                results = agent.get_action_and_value(next_obs)
+                action = results["action"]
+                logprob = results["log_prob"]
+                value = results["value"]
 
             # TRY NOT TO MODIFY: execute the game and log data.
             next_obs, reward, terminations, truncations, infos = envs.step(action.cpu().numpy())

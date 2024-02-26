@@ -156,7 +156,8 @@ class Rectangle(Set):
     def check_containment(self, x: np.ndarray | torch.Tensor) -> torch.Tensor:
         if self.dim_select:
             x = np.array([x[:, i] for i in self.dim_select])
-        x = torch.from_numpy(x)
+        if isinstance(x, np.ndarray):
+            x = torch.from_numpy(x)
         all_constr = torch.logical_and(
             torch.tensor(self.upper_bounds) >= x, torch.tensor(self.lower_bounds) <= x
         )

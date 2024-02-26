@@ -12,7 +12,7 @@ import tyro
 from torch.utils.tensorboard import SummaryWriter
 
 from models.cbf_agent import SafeActorCriticAgent
-from rl_algorithms.cbfagent_trainer import SafeRLTrainer
+from rl_algorithms.cbfagent_trainer import SafePPOTrainer
 from rl_algorithms.utils import make_env
 
 
@@ -36,7 +36,7 @@ class Args:
     """the user or org name of the model repository from the Hugging Face Hub"""
 
     # Algorithm specific arguments
-    env_id: str = "systems:SingleIntegrator-GoToUnsafeReward-v0" #"Hopper-v4"
+    env_id: str = "Hopper-v4" #"systems:SingleIntegrator-GoToUnsafeReward-v0"
     """the id of the environment"""
     total_timesteps: int = 50000
     """total timesteps of the experiments"""
@@ -143,17 +143,7 @@ if __name__ == "__main__":
     )
     assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
 
-    trainer = SafeRLTrainer(envs=envs, args=args, device=device)
-
-    # ALGO Logic: Storage setup
-    obs = torch.zeros((args.num_steps, args.num_envs) + envs.single_observation_space.shape).to(device)
-    actions = torch.zeros((args.num_steps, args.num_envs) + envs.single_action_space.shape).to(device)
-    logprobs = torch.zeros((args.num_steps, args.num_envs)).to(device)
-    classks = torch.zeros((args.num_steps, args.num_envs) + (1,)).to(device)
-    classk_logprobs = torch.zeros((args.num_steps, args.num_envs)).to(device)
-    rewards = torch.zeros((args.num_steps, args.num_envs)).to(device)
-    dones = torch.zeros((args.num_steps, args.num_envs)).to(device)
-    values = torch.zeros((args.num_steps, args.num_envs)).to(device)
+    trainer = SafePPOTrainer(envs=envs, args=args, device=device)
 
     # TRY NOT TO MODIFY: start the game
     global_step = 0
@@ -167,8 +157,7 @@ if __name__ == "__main__":
 
         for step in range(0, args.num_steps):
             global_step += args.num_envs
-            obs[step] = next_obs
-            dones[step] = next_done
+            cur_obs = torch.clone(next_obs)
 
             # ALGO LOGIC: action logic
             with torch.no_grad():
@@ -178,17 +167,23 @@ if __name__ == "__main__":
                 logprob = results["log_prob"]
                 classk_logprob = results["class_k_log_prob"]
                 value = results["value"]
-                values[step] = value.flatten()
-            actions[step] = action
-            classks[step] = classk
-            logprobs[step] = logprob
-            classk_logprobs[step] = classk_logprob
+
 
             # TRY NOT TO MODIFY: execute the game and log data.
             next_obs, reward, terminations, truncations, infos = envs.step(action.cpu().numpy())
             next_done = np.logical_or(terminations, truncations)
-            rewards[step] = torch.tensor(reward).to(device).view(-1)
             next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(next_done).to(device)
+
+            trainer.buffer.push(
+                obs=cur_obs,
+                dones=next_done,
+                actions=action,
+                classks=classk,
+                logprobs=logprob,
+                classk_logprobs=classk_logprob,
+                values=value.flatten(),
+                rewards=torch.tensor(reward).to(device).view(-1)
+            )
 
             if "final_info" in infos:
                 for info in infos["final_info"]:
@@ -199,17 +194,8 @@ if __name__ == "__main__":
 
         # update agent
         train_infos = trainer.train(
-            obs=obs,
-            logprobs=logprobs,
-            actions=actions,
-            classks=classks,
-            classk_logprobs=classk_logprobs,
-            rewards=rewards,
-            dones=dones,
             next_obs=next_obs,
             next_done=next_done,
-            values=values,
-            global_step=global_step,
         )
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes

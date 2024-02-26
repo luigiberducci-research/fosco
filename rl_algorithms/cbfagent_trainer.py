@@ -7,43 +7,55 @@ import torch
 from torch import optim, nn
 
 from models.cbf_agent import SafeActorCriticAgent
-from rl_algorithms.rl_trainer import RLTrainer
+from rl_algorithms.buffer import CyclicBuffer
+from rl_algorithms.ppo_trainer import PPOTrainer
 
 
-class SafeRLTrainer(RLTrainer):
+class SafePPOTrainer(PPOTrainer):
     def __init__(
             self,
             envs: gymnasium.Env,
             args: Namespace,
             device: Optional[torch.device] = None,
     ) -> None:
-        self.device = device or torch.device("cpu")
-        self.args = args
+        super().__init__(
+            envs=envs,
+            args=args,
+            agent_cls=SafeActorCriticAgent,
+            device=device,
+        )
 
-        obs_space = envs.single_observation_space if hasattr(envs,
-                                                             "single_observation_space") else envs.observation_space
-        act_space = envs.single_action_space if hasattr(envs, "single_action_space") else envs.action_space
-        input_size = np.array(obs_space.shape).prod()
-        output_size = np.array(act_space.shape).prod()
-        self.agent = SafeActorCriticAgent(input_size=input_size, output_size=output_size).to(device)
-
-        self.optimizer = optim.Adam(self.agent.parameters(), lr=self.args.learning_rate, eps=1e-5)
-        self.iteration = 0
+        buffer_shapes = {
+            "obs": (args.num_steps, args.num_envs) + envs.single_observation_space.shape,
+            "actions": (args.num_steps, args.num_envs) + envs.single_action_space.shape,
+            "classks": (args.num_steps, args.num_envs) + (1,),
+            "logprobs": (args.num_steps, args.num_envs),
+            "classk_logprobs": (args.num_steps, args.num_envs),
+            "rewards": (args.num_steps, args.num_envs),
+            "dones": (args.num_steps, args.num_envs),
+            "values": (args.num_steps, args.num_envs),
+        }
+        self.buffer = CyclicBuffer(
+            capacity=args.num_steps,
+            feature_shapes=buffer_shapes,
+            device=self.device
+        )
 
     def train(
             self,
-            obs: torch.Tensor,
-            actions: torch.Tensor,
-            classks: torch.Tensor,
-            rewards: torch.Tensor,
-            dones: torch.Tensor,
             next_obs: torch.Tensor,
             next_done: Optional[torch.Tensor] = None,
-            values: Optional[torch.Tensor] = None,
-            logprobs: Optional[torch.Tensor] = None,
-            classk_logprobs: Optional[torch.Tensor] = None,
-            global_step: Optional[int] = None
     ) -> dict[str, float]:
+        data = self.buffer.sample()
+        obs = data["obs"]
+        logprobs = data["logprobs"]
+        classk_logprobs = data["classk_logprobs"]
+        actions = data["actions"]
+        classks = data["classks"]
+        rewards = data["rewards"]
+        dones = data["dones"]
+        values = data["values"]
+
         self.iteration += 1
 
         # Annealing the rate if instructed to do so.
@@ -141,26 +153,3 @@ class SafeRLTrainer(RLTrainer):
             "losses/clipfrac": np.mean(clipfracs),
             "losses/explained_variance": explained_var,
         }
-
-    def _advantage_estimation(self, obs, actions, rewards, dones, next_obs, next_done, values):
-        # bootstrap value if not done
-        with torch.no_grad():
-            next_value = self.agent.get_value(next_obs).reshape(1, -1)
-            advantages = torch.zeros_like(rewards).to(self.device)
-            lastgaelam = 0
-            for t in reversed(range(self.args.num_steps)):
-                if t == self.args.num_steps - 1:
-                    nextnonterminal = 1.0 - next_done
-                    nextvalues = next_value
-                else:
-                    nextnonterminal = 1.0 - dones[t + 1]
-                    nextvalues = values[t + 1]
-                delta = rewards[t] + self.args.gamma * nextvalues * nextnonterminal - values[t]
-                advantages[
-                    t] = lastgaelam = delta + self.args.gamma * self.args.gae_lambda * nextnonterminal * lastgaelam
-            returns = advantages + values
-
-        return advantages, returns
-
-    def get_actor(self) -> SafeActorCriticAgent:
-        return self.agent

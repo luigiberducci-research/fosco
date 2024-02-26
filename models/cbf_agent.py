@@ -3,24 +3,16 @@ import torch
 from torch import nn
 from torch.distributions import Normal
 
+from models.ppo_agent import ActorCriticAgent
 from models.utils import layer_init
 
 
-class SafeActorCriticAgent(nn.Module):
+class SafeActorCriticAgent(ActorCriticAgent):
     def __init__(self, input_size: int, output_size: int):
-        super().__init__()
-        self.input_size = input_size
-        self.output_size = output_size
+        super().__init__(input_size=input_size, output_size=output_size)
         self.classk_size = 1
 
-        self.critic = nn.Sequential(
-            layer_init(nn.Linear(input_size, 64)),
-            nn.Tanh(),
-            layer_init(nn.Linear(64, 64)),
-            nn.Tanh(),
-            layer_init(nn.Linear(64, 1), std=1.0),
-        )
-
+        # override actor model
         self.actor_backbone = nn.Sequential(
             layer_init(nn.Linear(input_size, 64)),
             nn.Tanh(),

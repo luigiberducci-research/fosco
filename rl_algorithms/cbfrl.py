@@ -11,9 +11,8 @@ import torch
 import tyro
 from torch.utils.tensorboard import SummaryWriter
 
-from models.cbf_agent import CBFActorCriticAgent
-from models.ppo_agent import ActorCriticAgent
-from rl_algorithms.cbfagent_trainer import CBFRLTrainer
+from models.cbf_agent import SafeActorCriticAgent
+from rl_algorithms.cbfagent_trainer import SafeRLTrainer
 from rl_algorithms.utils import make_env
 
 
@@ -27,12 +26,6 @@ class Args:
     """if toggled, `torch.backends.cudnn.deterministic=False`"""
     cuda: bool = True
     """if toggled, cuda will be enabled by default"""
-    track: bool = False
-    """if toggled, this experiment will be tracked with Weights and Biases"""
-    wandb_project_name: str = "cleanRL"
-    """the wandb's project name"""
-    wandb_entity: str = None
-    """the entity (team) of wandb's project"""
     capture_video: bool = False
     """whether to capture videos of the agent performances (check out `videos` folder)"""
     save_model: bool = False
@@ -43,7 +36,7 @@ class Args:
     """the user or org name of the model repository from the Hugging Face Hub"""
 
     # Algorithm specific arguments
-    env_id: str = "Hopper-v4"
+    env_id: str = "systems:SingleIntegrator-GoToUnsafeReward-v0" #"Hopper-v4"
     """the id of the environment"""
     total_timesteps: int = 50000
     """total timesteps of the experiments"""
@@ -108,7 +101,8 @@ def evaluate(
     obs, _ = envs.reset()
     episodic_returns = []
     while len(episodic_returns) < eval_episodes:
-        actions, _, _, _ = agent.get_action_and_value(torch.Tensor(obs).to(device))
+        results = agent.get_action_and_value(torch.Tensor(obs).to(device))
+        actions = results["action"]
         next_obs, _, _, _, infos = envs.step(actions.cpu().numpy())
         if "final_info" in infos:
             for info in infos["final_info"]:
@@ -127,18 +121,7 @@ if __name__ == "__main__":
     args.minibatch_size = int(args.batch_size // args.num_minibatches)
     args.num_iterations = args.total_timesteps // args.batch_size
     run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
-    if args.track:
-        import wandb
 
-        wandb.init(
-            project=args.wandb_project_name,
-            entity=args.wandb_entity,
-            sync_tensorboard=True,
-            config=vars(args),
-            name=run_name,
-            monitor_gym=True,
-            save_code=True,
-        )
     writer = SummaryWriter(f"runs/{run_name}")
     writer.add_text(
         "hyperparameters",
@@ -160,16 +143,14 @@ if __name__ == "__main__":
     )
     assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
 
-    trainer = CBFRLTrainer(envs=envs, args=args, device=device)
+    trainer = SafeRLTrainer(envs=envs, args=args, device=device)
 
     # ALGO Logic: Storage setup
     obs = torch.zeros((args.num_steps, args.num_envs) + envs.single_observation_space.shape).to(device)
     actions = torch.zeros((args.num_steps, args.num_envs) + envs.single_action_space.shape).to(device)
-    classks = torch.zeros((args.num_steps, args.num_envs) + (1,)).to(device)
-
     logprobs = torch.zeros((args.num_steps, args.num_envs)).to(device)
-    classklogprobs = torch.zeros((args.num_steps, args.num_envs)).to(device)
-
+    classks = torch.zeros((args.num_steps, args.num_envs) + (1,)).to(device)
+    classk_logprobs = torch.zeros((args.num_steps, args.num_envs)).to(device)
     rewards = torch.zeros((args.num_steps, args.num_envs)).to(device)
     dones = torch.zeros((args.num_steps, args.num_envs)).to(device)
     values = torch.zeros((args.num_steps, args.num_envs)).to(device)
@@ -191,18 +172,20 @@ if __name__ == "__main__":
 
             # ALGO LOGIC: action logic
             with torch.no_grad():
-                action, logprob, _, value = agent.get_action_and_value(next_obs)
-                act, classk = action
-                logprob, classklogprob = logprob
+                results = agent.get_action_and_value(next_obs)
+                action = results["action"]
+                classk = results["class_k"]
+                logprob = results["log_prob"]
+                classk_logprob = results["class_k_log_prob"]
+                value = results["value"]
                 values[step] = value.flatten()
-
-            actions[step] = act
+            actions[step] = action
             classks[step] = classk
             logprobs[step] = logprob
-            classklogprobs[step] = classklogprob
+            classk_logprobs[step] = classk_logprob
 
             # TRY NOT TO MODIFY: execute the game and log data.
-            next_obs, reward, terminations, truncations, infos = envs.step(act.cpu().numpy())
+            next_obs, reward, terminations, truncations, infos = envs.step(action.cpu().numpy())
             next_done = np.logical_or(terminations, truncations)
             rewards[step] = torch.tensor(reward).to(device).view(-1)
             next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(next_done).to(device)
@@ -219,6 +202,8 @@ if __name__ == "__main__":
             obs=obs,
             logprobs=logprobs,
             actions=actions,
+            classks=classks,
+            classk_logprobs=classk_logprobs,
             rewards=rewards,
             dones=dones,
             next_obs=next_obs,
@@ -244,7 +229,7 @@ if __name__ == "__main__":
             args.env_id,
             eval_episodes=10,
             run_name=f"{run_name}-eval",
-            Model=CBFActorCriticAgent,
+            Model=SafeActorCriticAgent,
             device=device,
             gamma=args.gamma,
         )

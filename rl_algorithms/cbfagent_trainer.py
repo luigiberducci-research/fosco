@@ -6,11 +6,11 @@ import numpy as np
 import torch
 from torch import optim, nn
 
-from models.cbf_agent import CBFActorCriticAgent
+from models.cbf_agent import SafeActorCriticAgent
 from rl_algorithms.rl_trainer import RLTrainer
 
 
-class CBFRLTrainer(RLTrainer):
+class SafeRLTrainer(RLTrainer):
     def __init__(
             self,
             envs: gymnasium.Env,
@@ -25,7 +25,7 @@ class CBFRLTrainer(RLTrainer):
         act_space = envs.single_action_space if hasattr(envs, "single_action_space") else envs.action_space
         input_size = np.array(obs_space.shape).prod()
         output_size = np.array(act_space.shape).prod()
-        self.agent = CBFActorCriticAgent(input_size=input_size, output_size=output_size).to(device)
+        self.agent = SafeActorCriticAgent(input_size=input_size, output_size=output_size).to(device)
 
         self.optimizer = optim.Adam(self.agent.parameters(), lr=self.args.learning_rate, eps=1e-5)
         self.iteration = 0
@@ -34,12 +34,14 @@ class CBFRLTrainer(RLTrainer):
             self,
             obs: torch.Tensor,
             actions: torch.Tensor,
+            classks: torch.Tensor,
             rewards: torch.Tensor,
             dones: torch.Tensor,
             next_obs: torch.Tensor,
             next_done: Optional[torch.Tensor] = None,
             values: Optional[torch.Tensor] = None,
             logprobs: Optional[torch.Tensor] = None,
+            classk_logprobs: Optional[torch.Tensor] = None,
             global_step: Optional[int] = None
     ) -> dict[str, float]:
         self.iteration += 1
@@ -57,6 +59,8 @@ class CBFRLTrainer(RLTrainer):
         b_obs = obs.reshape((-1,) + (self.agent.input_size,))
         b_logprobs = logprobs.reshape(-1)
         b_actions = actions.reshape((-1,) + (self.agent.output_size,))
+        b_classks = classks.reshape((-1,) + (self.agent.classk_size,))
+        b_classk_logprobs = classk_logprobs.reshape(-1)
         b_advantages = advantages.reshape(-1)
         b_returns = returns.reshape(-1)
         b_values = values.reshape(-1)
@@ -71,11 +75,14 @@ class CBFRLTrainer(RLTrainer):
                 end = start + self.args.minibatch_size
                 mb_inds = b_inds[start:end]
 
-                _, newlogprob, entropy, newvalue = self.agent.get_action_and_value(b_obs[mb_inds], b_actions[mb_inds])
-                newlogprob, newclassklogprob = newlogprob
-                entropy, classk_entropy = entropy
+                results = self.agent.get_action_and_value(b_obs[mb_inds], b_actions[mb_inds], b_classks[mb_inds])
+                newlogprob = results["log_prob"]
+                newclassklogprob = results["class_k_log_prob"]
+                entropy = results["entropy"]
+                classkentropy = results["class_k_entropy"]
+                newvalue = results["value"]
 
-                logratio = newlogprob - b_logprobs[mb_inds]
+                logratio = newlogprob + newclassklogprob - b_logprobs[mb_inds] - b_classk_logprobs[mb_inds]
                 ratio = logratio.exp()
 
                 with torch.no_grad():
@@ -108,7 +115,7 @@ class CBFRLTrainer(RLTrainer):
                 else:
                     v_loss = 0.5 * ((newvalue - b_returns[mb_inds]) ** 2).mean()
 
-                entropy_loss = entropy.mean()
+                entropy_loss = 0.5 * (entropy.mean() + classkentropy.mean())
                 loss = pg_loss - self.args.ent_coef * entropy_loss + v_loss * self.args.vf_coef
 
                 self.optimizer.zero_grad()
@@ -155,5 +162,5 @@ class CBFRLTrainer(RLTrainer):
 
         return advantages, returns
 
-    def get_actor(self) -> CBFActorCriticAgent:
+    def get_actor(self) -> SafeActorCriticAgent:
         return self.agent

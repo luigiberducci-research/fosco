@@ -42,7 +42,7 @@ class Args:
     """the user or org name of the model repository from the Hugging Face Hub"""
 
     # Algorithm specific arguments
-    env_id: str = "Hopper-v4"
+    env_id: str = "Hopper-v4" #"systems:SingleIntegrator-GoToUnsafeReward-v0"
     """the id of the environment"""
     total_timesteps: int = 50000
     """total timesteps of the experiments"""

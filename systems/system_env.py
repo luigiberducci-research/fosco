@@ -26,12 +26,11 @@ import gymnasium
 import gymnasium as gym
 import numpy as np
 import torch
-from gymnasium.core import ObsType
 
 from fosco.common.domains import Rectangle
 from systems import ControlAffineDynamics
+from systems.rewards import RewardFnType
 
-RewardFnType = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 TermFnType = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 TensorType = torch.Tensor | np.ndarray
 
@@ -65,6 +64,8 @@ class SystemEnv(gymnasium.Env):
         # todo: propagation method for uncertain dynamical systems (basic: unif random)
         assert max_steps and isinstance(max_steps, int), f"max_steps must be a positive integer, got {max_steps}"
         assert dt and isinstance(dt, float), f"dt must be a positive float, got {dt}"
+
+        super(SystemEnv, self).__init__()
 
         self.system = system
         self.max_steps = max_steps

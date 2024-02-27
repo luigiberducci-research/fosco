@@ -1,3 +1,5 @@
+import pathlib
+
 import numpy as np
 import torch
 from torch import nn
@@ -28,6 +30,7 @@ class ActorCriticAgent(nn.Module):
         )
         self.actor_logstd = nn.Parameter(torch.zeros(1, output_size))
 
+
     def get_value(self, x):
         return self.critic(x)
 
@@ -56,3 +59,9 @@ class ActorCriticAgent(nn.Module):
             assert batch.shape[0] == batch_sz, f"wrong {k} shape: {batch.shape}"
 
         return results
+
+    def save(self, model_path: pathlib.Path) -> None:
+        torch.save(self.state_dict(), model_path)
+
+    def load(self, model_path: pathlib.Path):
+        pass

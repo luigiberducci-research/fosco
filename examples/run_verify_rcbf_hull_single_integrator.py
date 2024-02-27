@@ -1,5 +1,5 @@
 """
-Example of verifying a known valid CBF for single-integrator dynamics.
+Example of verifying a known valid CBF for single-integrator dynamics with convex hull uncertainty.
 """
 import torch
 import numpy as np
@@ -12,18 +12,18 @@ from systems import make_system, make_domains
 from systems.uncertainty import add_uncertainty
 from models.torchsym import TorchSymFn
 
-
-class uncertain_func(TorchSymFn):
+# we are instaniating this class one by one, or by batch?
+class UncertainFunc(TorchSymFn):
     def __init__(self, uncertain_coeficient) -> None:
         super().__init__()
-        self.uncertain_coeficient = uncertain_coeficient
-    
+        self.uncertain_coeficient = np.array([uncertain_coeficient])
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # check the dim consistence, batch input, etc
         return x @ self.uncertain_coeficient
     
-    def forward_smt(self, x: list) -> list | np.array:
-        x = np.array(x)
+    def forward_smt(self, x: list) -> list | np.ndarray:
+        x = np.expand_dims(x, axis=1)
         return list(x @ self.uncertain_coeficient)
 
 def main(args):
@@ -31,8 +31,13 @@ def main(args):
     uncertainty_id = "ConvexHull"
     verbose = 1
 
+    uncertain_coefficient_list = [0.2, 0.3, 0.5]
+    f_uncertainty = []
+    for uncertain_coefficient in uncertain_coefficient_list:
+        f_uncertainty.append(UncertainFunc(uncertain_coefficient))
+
     system_fn = make_system(system_id=system_id)
-    system_fn = add_uncertainty(uncertainty_type=uncertainty_id, system_fn=system_fn)
+    system_fn = add_uncertainty(uncertainty_type=uncertainty_id, system_fn=system_fn, f_uncertainty=f_uncertainty)
 
     xvars = ["x0", "x1"]
     uvars = ["u0", "u1"]

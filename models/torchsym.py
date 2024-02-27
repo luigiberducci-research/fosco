@@ -16,14 +16,14 @@ class TorchSymFn(nn.Module, ABC):
     def forward_smt(self, x: Iterable[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL]]:
         raise NotImplementedError
 
-    @abstractmethod
-    def save(self, outdir: str):
-        raise NotImplementedError
+    # @abstractmethod
+    # def save(self, outdir: str):
+    #     raise NotImplementedError
 
-    @staticmethod
-    @abstractmethod
-    def load(logdir: str):
-        raise NotImplementedError
+    # @staticmethod
+    # @abstractmethod
+    # def load(logdir: str):
+    #     raise NotImplementedError
 
 
 class TorchSymDiffFn(TorchSymFn, ABC):

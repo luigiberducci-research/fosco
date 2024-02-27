@@ -7,6 +7,7 @@ import z3
 from fosco.verifier import SYMBOL, FUNCTIONS, VerifierZ3
 from models.torchsym import TorchSymDiffModel, TorchSymModel
 from systems import ControlAffineDynamics, UncertainControlAffineDynamics
+from systems.uncertainty.convex_hull import ConvexHull
 
 
 class SingleIntegratorCBF(TorchSymDiffModel):
@@ -245,33 +246,28 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
     
 class SingleIntegratorConvexHullUncertainty(TorchSymModel):
 
-    def __init__(self, h: TorchSymDiffModel, system: UncertainControlAffineDynamics):
+    def __init__(self, h: TorchSymDiffModel, system: ConvexHull):
         super().__init__()  
         self._system = system
         self._h = h # CBF (we use its gradient)
-        self._z_bound = 1.0 # todo this should be taken from system uncertainty
 
     def uncertain_phi(self, x: torch.Tensor) -> torch.Tensor:
         state_dim = self._system.n_vars
         # phi should be function from R^n to R^n where n is the system state dim
         # fix the phi, avoid many randomizations
-        phi_1 = torch.rand(state_dim) * x
-        phi_2 = torch.rand(state_dim) * x
-        phi_3 = torch.rand(state_dim) * x
-        all_phi = torch.cat((phi_1, phi_2, phi_3), 0)
-        print(all_phi.shape)
-
-        return all_phi
-
+        # phi_1 = torch.rand(state_dim) * x
+        # phi_2 = torch.rand(state_dim) * x
+        # phi_3 = torch.rand(state_dim) * x
+        # all_phi = torch.cat((phi_1, phi_2, phi_3), 0)
+        # print(all_phi.shape)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        sigma(x) = || h.gradient(x) || * z_bound
+        sigma(x) = 
         """
         self._assert_forward_input(x=x)
         dhdx = self._h.gradient(x=x)
-        self.all_phi = self.uncertain_phi(x=x)
-        sigma = torch.min(dhdx * self.all_phi)
+        sigma = - torch.min(dhdx * self._system.f_uncertainty(x)) # compensanter
         self._assert_forward_output(x=sigma)
         return sigma
 
@@ -288,13 +284,21 @@ class SingleIntegratorConvexHullUncertainty(TorchSymModel):
         self._assert_forward_smt_input(x=x)
         _And = FUNCTIONS["And"]
 
+        def min(x, y):
+            If = FUNCTIONS["If"]
+            return If(x<=y, x, y)
+
         dhdx, dhdx_constraints = self._h.gradient_smt(x=x)
         norm = VerifierZ3.new_vars(n=1, base="norm")[0]
         norm_constraint = [
             norm * norm == dhdx[0, 0] ** 2 + dhdx[0, 1] ** 2,
             norm >= 0.0
         ]
-        sigma = norm * self.all_phi # take the min, how to do it in z3
+        min_sigma = dhdx * self._system.f_uncertainty[0].forward_smt(x)
+        for f_uncertain_func in self._system.f_uncertainty[1:]:
+            new_sigma = dhdx * f_uncertain_func.forward_smt(x)
+            min_sigma = min(min_sigma, new_sigma)
+        sigma = - min_sigma
 
         self._assert_forward_smt_output(x=sigma)
         return sigma, dhdx_constraints + norm_constraint

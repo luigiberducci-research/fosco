@@ -22,11 +22,11 @@ class ConvexHull(UncertaintyWrapper):
     f(x) = f_base(x) + co(Z_1) + co(Z_2) u = f_base(x) + fz + gz u
     """
 
-    def __init__(self, system: ControlAffineDynamics, f_uncertainty: list[TorchSymFn], g_uncertainty: list[TorchSymFn]) -> None:
+    def __init__(self, system: ControlAffineDynamics, f_uncertainty: list[TorchSymFn]) -> None:
         super().__init__(system)
 
         self.f_uncertainty = f_uncertainty # list of function, each function input n_vars dim, output n_vars
-        self.g_uncertainty = g_uncertainty # list of function, ignore this first
+        # self.g_uncertainty = g_uncertainty # list of function, ignore this first
 
     @property
     def uncertainty_id(self) -> str:
@@ -60,7 +60,7 @@ class ConvexHull(UncertaintyWrapper):
         for f_uncertain in self.f_uncertainty:
             f_uncertain_x.append(f_uncertain.forward_smt(x))
         f_uncertain_x = np.array(f_uncertain_x)
-        return z[:, 0:len(self.f_uncertainty), 0] @ f_uncertain_x
+        return z[0:len(self.f_uncertainty)] @ f_uncertain_x
 
     # z is the 2n variables, we should return z[n:2n] @ g_uncertainty, double check the dim of g_uncertainty
     def gz_torch(

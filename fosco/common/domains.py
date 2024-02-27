@@ -64,6 +64,27 @@ class Set:
     def check_containment(self, x: np.ndarray | torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
 
+class SumToOneSet(Set):
+    def __init__(self, vars: list[str] = None) -> None:
+        if vars is None:
+            vars = [f"x{i}" for i in range(self.dimension)]
+        self.vars = vars
+
+    def generate_domain(self, x) -> verifier.SYMBOL:
+        # todo: implement this method to return a z3 expression for the domain
+        # z1 + z2 + z3 == 1 (extend it to a variable number of z, use self.vars)
+        raise NotImplementedError
+
+    def generate_data(self, batch_size) -> torch.Tensor:
+        # todo: implement a numerical method to return a torch tensor of size "batch_size" of z variables
+        # summing up to 1. For example, draw random number and normalize them.
+
+        raise NotImplementedError
+    def check_containment(self, x: np.ndarray | torch.Tensor) -> torch.Tensor:
+        # todo: implement a method which checks if x (numerical tensor) is a valid tensor (the numbers sum up to 1)
+        # return a boolean tensor of the same batch size of x
+        raise NotImplementedError
+
 
 class Rectangle(Set):
     def __init__(

@@ -251,16 +251,6 @@ class SingleIntegratorConvexHullUncertainty(TorchSymModel):
         self._system = system
         self._h = h # CBF (we use its gradient)
 
-    def uncertain_phi(self, x: torch.Tensor) -> torch.Tensor:
-        state_dim = self._system.n_vars
-        # phi should be function from R^n to R^n where n is the system state dim
-        # fix the phi, avoid many randomizations
-        # phi_1 = torch.rand(state_dim) * x
-        # phi_2 = torch.rand(state_dim) * x
-        # phi_3 = torch.rand(state_dim) * x
-        # all_phi = torch.cat((phi_1, phi_2, phi_3), 0)
-        # print(all_phi.shape)
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         sigma(x) = 
@@ -285,8 +275,8 @@ class SingleIntegratorConvexHullUncertainty(TorchSymModel):
         _And = FUNCTIONS["And"]
 
         def min(x, y):
-            If = FUNCTIONS["If"]
-            return If(x<=y, x, y)
+            _If = FUNCTIONS["If"]
+            return _If(x<=y, x, y)
 
         dhdx, dhdx_constraints = self._h.gradient_smt(x=x)
         norm = VerifierZ3.new_vars(n=1, base="norm")[0]
@@ -294,9 +284,9 @@ class SingleIntegratorConvexHullUncertainty(TorchSymModel):
             norm * norm == dhdx[0, 0] ** 2 + dhdx[0, 1] ** 2,
             norm >= 0.0
         ]
-        min_sigma = dhdx * self._system.f_uncertainty[0].forward_smt(x)
+        min_sigma = norm * self._system.f_uncertainty[0].forward_smt(x)
         for f_uncertain_func in self._system.f_uncertainty[1:]:
-            new_sigma = dhdx * f_uncertain_func.forward_smt(x)
+            new_sigma = norm * f_uncertain_func.forward_smt(x)
             min_sigma = min(min_sigma, new_sigma)
         sigma = - min_sigma
 

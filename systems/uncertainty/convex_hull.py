@@ -7,8 +7,6 @@ from systems.uncertainty.uncertainty_wrapper import UncertaintyWrapper
 
 from models.torchsym import TorchSymFn
 
-from z3 import *
-
 
 @register
 class ConvexHull(UncertaintyWrapper):

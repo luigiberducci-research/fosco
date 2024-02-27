@@ -31,7 +31,7 @@ def main(args):
     uncertainty_id = "ConvexHull"
     verbose = 1
 
-    uncertain_coefficient_list = [0.2, 0.3, 0.5]
+    uncertain_coefficient_list = [[0.2, 0.2], [0.3, 0.2], [0.5, 0.1]]
     f_uncertainty = []
     for uncertain_coefficient in uncertain_coefficient_list:
         f_uncertainty.append(UncertainFunc(uncertain_coefficient))
@@ -45,11 +45,13 @@ def main(args):
 
     XD = domains.Rectangle(vars=xvars, lb=(-5.0, -5.0), ub=(5.0, 5.0))
     UD = domains.Rectangle(vars=uvars, lb=(-5.0, -5.0), ub=(5.0, 5.0))
-    ZD = domains.Sphere(vars=zvars, centre=(0.0, 0.0, 0.0), radius=1.0)
     XI = domains.Rectangle(vars=xvars, lb=(-5.0, -5.0), ub=(-4.0, -4.0))
     XU = domains.Sphere(
         vars=xvars, centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1], include_boundary=False
     )
+    # todo: the domain of z has to be s.t. sum_i z_i = 1.0
+    ZD = domains.Sphere(vars=zvars, centre=(0.0, 0.0, 0.0), radius=1.0)
+
 
     sets ={"init": XI, 
            "unsafe": XU,

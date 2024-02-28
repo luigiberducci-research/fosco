@@ -1,6 +1,5 @@
 import pathlib
 
-import numpy as np
 import torch
 from torch import nn
 from torch.distributions import Normal

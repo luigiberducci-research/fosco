@@ -13,31 +13,6 @@ from systems.system_env import SystemEnv
 import time
 
 
-
-
-def construct_cbf_problem(ud: int, umin: np.ndarray, umax: np.ndarray) -> CvxpyLayer:
-    Q = np.diag(np.ones(ud))
-    px = cp.Parameter(ud)
-
-    Lfhx = cp.Parameter(1)
-    Lghx = cp.Parameter(ud)
-    alphahx = cp.Parameter(1)
-
-    u = cp.Variable(ud)
-
-    constraints = []
-    # input constraint: u in U
-    constraints += [u >= umin, u <= umax]
-
-    # constraint: hdot(x,u) + alpha(h(x)) >= 0
-    constraints += [Lfhx + Lghx @ u + alphahx >= 0.0]
-
-    # objective: u.T Q u + p.T u
-    objective = 1 / 2 * cp.quad_form(u, Q) + px.T @ u
-    problem = cp.Problem(cp.Minimize(objective), constraints)
-    return CvxpyLayer(problem, variables=[u], parameters=[px, Lfhx, Lghx, alphahx])
-
-
 def dummy_term_fn(actions, next_obss):
     return torch.zeros((actions.shape[0],), dtype=torch.bool)
 

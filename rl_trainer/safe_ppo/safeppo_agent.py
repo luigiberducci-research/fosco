@@ -12,12 +12,16 @@ from torch.nn import functional as F
 from rl_trainer.ppo.ppo_agent import ActorCriticAgent
 from models.torchsym import TorchSymDiffModel
 from models.utils import layer_init
-from systems import ControlAffineDynamics
+from systems import ControlAffineDynamics, SystemEnv
 
 
 class SafeActorCriticAgent(ActorCriticAgent):
     def __init__(self, envs: gymnasium.Env):
         super().__init__(envs=envs)
+
+        if not isinstance(envs.unwrapped, SystemEnv):
+            raise TypeError(f"This agent runs only in SystemEnv because it relies on the dynamics, got {envs.unwrapped}")
+
         self.classk_size = 1
 
         # override actor model

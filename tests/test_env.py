@@ -30,6 +30,19 @@ class TestEnv(unittest.TestCase):
 
             check_env(env, skip_render_check=True)
 
+            self.assertTrue(env.system.id == system_id, f"created env id {env.system.id} for {system_id}")
+
+    def test_registered_system_envs(self):
+        import gymnasium
+
+        for system_id in ["SingleIntegrator", "DoubleIntegrator"]:
+            reward_id = "GoToUnsafeReward"
+            env = gymnasium.make(f"systems:{system_id}-{reward_id}-v0")
+
+            check_env(env, skip_render_check=True)
+
+            self.assertTrue(env.system.id == system_id, f"created env id {env.system.id} for {system_id}")
+
     def test_numpy_batch_step(self):
         batch_size = 1000
 

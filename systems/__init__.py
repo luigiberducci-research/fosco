@@ -25,8 +25,10 @@ for system_id in ["SingleIntegrator", "DoubleIntegrator"]: #system.SYSTEM_REGIST
             max_steps=100
         )
 
-        gymnasium.register(id=f"{system_id}-{reward_id}-v0",
+        env_id = f"{system_id}-{reward_id}-v0"
+        gymnasium.register(id=env_id,
                            entry_point=entrypoint)
+        print(f"registered {env_id}")
 
 def make_system(system_id: str) -> Type[ControlAffineDynamics]:
     """

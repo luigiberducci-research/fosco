@@ -45,6 +45,8 @@ class Args:
     """the id of the environment"""
     trainer_id: str = "ppo"
     """the id of the rl trainer"""
+    use_true_barrier: bool = True
+    """toggle the use of grount-truth barrier"""
     total_timesteps: int = 50000
     """total timesteps of the experiments"""
     learning_rate: float = 3e-4

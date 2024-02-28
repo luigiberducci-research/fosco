@@ -16,12 +16,12 @@ from systems import ControlAffineDynamics, SystemEnv
 
 
 class SafeActorCriticAgent(ActorCriticAgent):
-    def __init__(self, envs: gymnasium.Env):
+    def __init__(
+            self,
+            envs: SystemEnv,
+            barrier: TorchSymDiffModel | Callable,
+    ):
         super().__init__(envs=envs)
-
-        if not isinstance(envs.unwrapped, SystemEnv):
-            raise TypeError(f"This agent runs only in SystemEnv because it relies on the dynamics, got {envs.unwrapped}")
-
         self.classk_size = 1
 
         # override actor model
@@ -42,12 +42,60 @@ class SafeActorCriticAgent(ActorCriticAgent):
         )
         self.actor_k_logstd = nn.Parameter(torch.zeros(1, self.classk_size))
 
+        # safety layer
+        if not isinstance(envs.action_space, gymnasium.spaces.Box):
+            raise TypeError(f"This agent only supports continuous actions as Box type, got {envs.action_space}")
+        self.umin = envs.action_space.low
+        self.umax = envs.action_space.high
+        self.barrier = barrier
+        self.safety_layer = self._make_barrier_layer()
+        self.fx = envs.system.fx_torch
+        self.gx = envs.system.gx_torch
+
+    def _make_barrier_layer(self) -> CvxpyLayer:
+        """
+        Constructs a CvxpyLayer to implement the CBF problem:
+            argmin_u u.T Q u + px.T u
+            s.t. dh(x,u) + alpha(h(x)) >= 0
+        """
+        Q = torch.eye(self.output_size)
+        px = cp.Parameter(self.output_size)
+
+        Lfhx = cp.Parameter(1)
+        Lghx = cp.Parameter(self.output_size)
+        alphahx = cp.Parameter(1)
+
+        u = cp.Variable(self.output_size)
+
+        constraints = []
+        # input constraint: u in U
+        constraints += [u >= self.umin, u <= self.umax]
+
+        # constraint: hdot(x,u) + alpha(h(x)) >= 0
+        constraints += [Lfhx + Lghx @ u + alphahx >= 0.0]
+
+        # objective: u.T Q u + p.T u
+        objective = 1 / 2 * cp.quad_form(u, Q) + px.T @ u
+        problem = cp.Problem(cp.Minimize(objective), constraints)
+
+        return CvxpyLayer(problem, variables=[u], parameters=[px, Lfhx, Lghx, alphahx])
+
     def get_value(self, x):
         return self.critic(x)
 
     def get_action_and_value(self, x, action=None, action_k=None):
+        # assert input is ok
+        assert isinstance(x, torch.Tensor), f"Expected torch.Tensor, got {type(x)}"
+        assert len(x.shape) == 2, f"Expected (batch, dim) got {x.shape}"
+
+        # denormalize
+        x0 = x
+
+        # normalize
+        # todo
         action_z = self.actor_backbone(x)
 
+        # action mean here is not the diag in the Q matrix
         action_mean = self.actor_mean(action_z)
         action_logstd = self.actor_logstd.expand_as(action_mean)
         action_std = torch.exp(action_logstd)
@@ -64,6 +112,24 @@ class SafeActorCriticAgent(ActorCriticAgent):
         if action_k is None:
             action_k = probs_k.sample()
 
+        # safety layer
+        n_batch = x.size(0)
+        hx = self.barrier(x0).view(n_batch, 1)
+        dhdx = self.barrier.gradient(x0).view(n_batch, 1, self.output_size)
+
+        fx = self.fx(x0.view(-1, self.input_size, 1))
+        gx = self.gx(x0.view(-1, self.input_size, 1))
+
+        Lfhx = (dhdx @ fx).view(n_batch, 1)
+        Lghx = (dhdx @ gx).view(n_batch, self.nCls)
+        alphahx = (action_k * hx).view(n_batch, 1)
+        (safe_action,) = self._safety_layer(
+            px=action,
+            Lfhx=Lfhx,
+            Lghx=Lghx,
+            alphahx=alphahx
+        )
+
         log_probs = probs.log_prob(action).sum(1)
         entropy = probs.entropy().sum(1)
         class_k_log_probs = probs_k.log_prob(action_k).sum(1)
@@ -71,9 +137,10 @@ class SafeActorCriticAgent(ActorCriticAgent):
         value = self.critic(x)
 
         results = {
-            "action": action,
-            "logprob": log_probs,
-            "entropy": entropy,
+            "safe_action": safe_action,
+            "action": action,   # this is px
+            "logprob": log_probs,   # this is logprob(px)
+            "entropy": entropy, # entropy of px
             "classk": action_k,
             "classk_logprob": class_k_log_probs,
             "classk_entropy": class_k_entropy,

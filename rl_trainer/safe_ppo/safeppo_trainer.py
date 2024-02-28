@@ -6,9 +6,11 @@ import numpy as np
 import torch
 from torch import nn
 
+from barriers import make_barrier
 from rl_trainer.safe_ppo.safeppo_agent import SafeActorCriticAgent
 from rl_trainer.common.buffer import CyclicBuffer
 from rl_trainer.ppo.ppo_trainer import PPOTrainer
+from systems import SystemEnv
 
 
 class SafePPOTrainer(PPOTrainer):
@@ -18,10 +20,22 @@ class SafePPOTrainer(PPOTrainer):
             args: Namespace,
             device: Optional[torch.device] = None,
     ) -> None:
+        if args.use_true_barrier:
+            single_env = envs.envs[0] if envs.unwrapped.is_vector_env else envs
+            if not isinstance(single_env.unwrapped, SystemEnv):
+                raise TypeError(
+                    f"This trainer runs only in SystemEnv because it relies on the dynamics, got {single_env.unwrapped}"
+                )
+            system = single_env.system
+            barrier = make_barrier(system=system)["barrier"]
+            agent_cls = lambda e: SafeActorCriticAgent(envs=e, barrier=barrier)
+        else:
+            raise NotImplementedError("learning barrier not integrated yet")
+
         super().__init__(
             envs=envs,
             args=args,
-            agent_cls=SafeActorCriticAgent,
+            agent_cls=agent_cls,
             device=device,
         )
 

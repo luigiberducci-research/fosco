@@ -12,7 +12,8 @@ from torch.nn import functional as F
 from rl_trainer.ppo.ppo_agent import ActorCriticAgent
 from models.torchsym import TorchSymDiffModel
 from models.utils import layer_init
-from systems import ControlAffineDynamics, SystemEnv
+from systems import ControlAffineDynamics
+from systems.system_env import SystemEnv
 
 
 class SafeActorCriticAgent(ActorCriticAgent):

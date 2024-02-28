@@ -41,7 +41,7 @@ class TestEnv(unittest.TestCase):
 
             check_env(env, skip_render_check=True)
 
-            self.assertTrue(env.system.id == system_id, f"created env id {env.system.id} for {system_id}")
+            self.assertEqual(system_id, env.system.id, f"created env id={env.system.id}, given {system_id}")
 
     def test_numpy_batch_step(self):
         batch_size = 1000

@@ -28,7 +28,7 @@ import numpy as np
 import torch
 
 from fosco.common.domains import Rectangle
-from systems import ControlAffineDynamics
+from systems import ControlAffineDynamics, make_system
 from systems.rewards import RewardFnType
 
 TermFnType = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
@@ -51,7 +51,7 @@ class SystemEnv(gymnasium.Env):
 
     def __init__(
         self,
-        system: ControlAffineDynamics,
+        system: str | ControlAffineDynamics,
         max_steps: int,
         dt: Optional[float] = 0.1,
         termination_fn: Optional[TermFnType] = None,
@@ -67,7 +67,7 @@ class SystemEnv(gymnasium.Env):
 
         super(SystemEnv, self).__init__()
 
-        self.system = system
+        self.system = make_system(system_id=system)() if isinstance(system, str) else system
         self.max_steps = max_steps
         self.dt = dt
         self.termination_fn = termination_fn or (lambda obs, act: torch.zeros(obs.shape[0], dtype=torch.bool))

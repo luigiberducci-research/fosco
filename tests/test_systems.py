@@ -3,19 +3,18 @@ import unittest
 import numpy as np
 import torch
 
+from systems import make_system
 from tests.test_translator import check_smt_equivalence
 
 
 class TestControlAffineDynamicalSystem(unittest.TestCase):
     def test_single_integrator(self):
-        from systems.single_integrator import SingleIntegrator
+        f = make_system(system_id="SingleIntegrator")()
 
         x = np.zeros((10, 2))
         u = np.ones((10, 2))
         T = 10.0
         dt = 0.1
-
-        f = SingleIntegrator()
 
         t = dt
         while t < T:
@@ -25,13 +24,12 @@ class TestControlAffineDynamicalSystem(unittest.TestCase):
         self.assertTrue(np.allclose(x, 10.0 * np.ones_like(x)), f"got {x}")
 
     def test_single_integrator_z3(self):
-        from systems.single_integrator import SingleIntegrator
         from fosco.verifier.z3_verifier import VerifierZ3
+
+        f = make_system(system_id="SingleIntegrator")()
 
         x = VerifierZ3.new_vars(2, base="x")
         u = VerifierZ3.new_vars(2, base="u")
-
-        f = SingleIntegrator()
 
         xdot = f.f(x, u)
 
@@ -45,8 +43,10 @@ class TestControlAffineDynamicalSystem(unittest.TestCase):
 
 class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
     def test_noisy_single_integrator(self):
-        from systems.single_integrator import SingleIntegrator
         from systems.uncertainty.additive_bounded import AdditiveBounded
+
+        f = make_system(system_id="SingleIntegrator")
+        f = AdditiveBounded(system=f())
 
         x = np.zeros((10, 2))
         u = np.ones((10, 2))
@@ -55,7 +55,6 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         T = 10.0
         dt = 0.1
 
-        f = AdditiveBounded(system=SingleIntegrator())
 
         t = dt
         while t < T:
@@ -76,7 +75,8 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         T = 10.0
         dt = 0.1
 
-        f = AdditiveBounded(system=DoubleIntegrator())
+        f = make_system(system_id="DoubleIntegrator")
+        f = AdditiveBounded(system=f())
 
         t = dt
         while t < T:
@@ -101,7 +101,8 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         u = VerifierZ3.new_vars(2, base="u")
         z = VerifierZ3.new_vars(2, base="z")
 
-        f = AdditiveBounded(system=SingleIntegrator())
+        f = make_system(system_id="SingleIntegrator")
+        f = AdditiveBounded(system=f())
 
         xdot = f.f(x, u, z)
 
@@ -119,7 +120,6 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         Check that simulating the uncertain system with only_nominal=True
         is actually equivalent to simulating the nominal system.
         """
-        from systems.single_integrator import SingleIntegrator
         from systems.uncertainty.additive_bounded import AdditiveBounded
 
         x = np.zeros((10, 2))
@@ -129,8 +129,8 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         T = 10.0
         dt = 0.1
 
-        f = SingleIntegrator()
-        fz = AdditiveBounded(system=SingleIntegrator())
+        f = make_system(system_id="SingleIntegrator")()
+        fz = AdditiveBounded(system=f)
 
         t = dt
         while t < T:
@@ -150,7 +150,6 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         Check that the symbolic expression for the uncertain dynamics with only_nominal=True
         actually matches the symbolic expression for the nominal dynamics.
         """
-        from systems.single_integrator import SingleIntegrator
         from systems.uncertainty.additive_bounded import AdditiveBounded
         from fosco.verifier.z3_verifier import VerifierZ3
 
@@ -158,8 +157,8 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         u = VerifierZ3.new_vars(2, base="u")
         z = VerifierZ3.new_vars(2, base="z")
 
-        f = SingleIntegrator()
-        fz = AdditiveBounded(system=SingleIntegrator())
+        f = make_system(system_id="SingleIntegrator")()
+        fz = AdditiveBounded(system=f)
 
         xdot = f.f(x, u)
         xdotz = fz.f(x, u, z, only_nominal=True)
@@ -174,12 +173,14 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         )
 
     def test_properties_and_methods(self):
-        from systems.single_integrator import SingleIntegrator
         from systems.uncertainty.additive_bounded import AdditiveBounded
         from fosco.verifier.z3_verifier import VerifierZ3
+        from systems import make_system
 
-        f = SingleIntegrator()
-        fz = AdditiveBounded(system=SingleIntegrator())
+        system_id = "SingleIntegrator"
+        f = make_system(system_id=system_id)()
+        self.assertEqual(system_id, f.id)
+        fz = AdditiveBounded(system=f)
 
         self.assertEqual(f.n_vars, fz.n_vars)
         self.assertEqual(f.n_controls, fz.n_controls)
@@ -223,17 +224,16 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         self.assertTrue(id1 in id2, f"expected id1 in id2, got {id1} not in {id2}")
 
     def test_unicycle_numpy(self):
-        from systems import make_system
-
         debug_plot = False
 
-        f = make_system(system_id="Unicycle")()
+        system_id = "Unicycle"
+        f = make_system(system_id=system_id)()
         self.assertEqual(f.n_vars, 3)
         self.assertEqual(f.n_controls, 2)
+        self.assertEqual(system_id, f.id)
 
         n = 10
         x = np.zeros((n, 3))
-        u = np.array([[1.0, -1.0 + 2 * i / (n - 1)] for i in range(n)])
 
         if n > 1:
             u = np.array([[1.0, -1.0 + 2 * i / (n - 1)] for i in range(n)])
@@ -273,13 +273,13 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         )
 
     def test_unicycle_torch(self):
-        from systems import make_system
-
         debug_plot = False
 
-        f = make_system(system_id="Unicycle")()
+        system_id = "Unicycle"
+        f = make_system(system_id=system_id)()
         self.assertEqual(f.n_vars, 3)
         self.assertEqual(f.n_controls, 2)
+        self.assertEqual(system_id, f.id)
 
         n = 10
         x = torch.zeros((n, 3))
@@ -318,12 +318,12 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
             f"expectd mirrored trajectory for theta coord, got {first_traj[:, 1]} and {last_traj[:, 1]}"
         )
 
-
     def test_unicycle_symbolic(self):
-        from systems import make_system
         from fosco.verifier.dreal_verifier import VerifierDR
 
-        f = make_system(system_id="Unicycle")()
+        system_id = "Unicycle"
+        f = make_system(system_id=system_id)()
+        self.assertEqual(system_id, f.id)
 
         fns = VerifierDR.solver_fncts()
         x = VerifierDR.new_vars(f.n_vars, base="x")
@@ -345,13 +345,13 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         )
 
     def test_unicycle_acc_numpy(self):
-        from systems import make_system
-
         debug_plot = False
 
-        f = make_system(system_id="UnicycleAcc")()
+        system_id = "UnicycleAcc"
+        f = make_system(system_id=system_id)()
         self.assertEqual(f.n_vars, 4)
         self.assertEqual(f.n_controls, 2)
+        self.assertEqual(system_id, f.id)
 
         n = 10
         x = np.zeros((n, f.n_vars))
@@ -394,13 +394,13 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         )
 
     def test_unicycle_acc_torch(self):
-        from systems import make_system
-
         debug_plot = False
 
-        f = make_system(system_id="UnicycleAcc")()
+        system_id = "UnicycleAcc"
+        f = make_system(system_id=system_id)()
         self.assertEqual(f.n_vars, 4)
         self.assertEqual(f.n_controls, 2)
+        self.assertEqual(system_id, f.id)
 
         n = 10
         x = torch.zeros((n, f.n_vars))

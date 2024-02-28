@@ -1,34 +1,18 @@
 from typing import Type
 
-from .system import (
+from systems.system import (
     ControlAffineDynamics,
     UncertainControlAffineDynamics,
+    SYSTEM_REGISTRY
 )
-from .single_integrator import SingleIntegrator
-from .double_integrator import DoubleIntegrator
-from .system_env import SystemEnv
-from .unicycle_model import Unicycle
-from .unicycle_acc_model import UnicycleAcc
+from systems.single_integrator import SingleIntegrator
+from systems.double_integrator import DoubleIntegrator
+from systems.unicycle_model import Unicycle
+from systems.unicycle_acc_model import UnicycleAcc
 
-from .rewards import REWARD_REGISTRY
-
-# register gym env
+from systems.rewards import REWARD_REGISTRY
 import gymnasium
 
-for system_id in ["SingleIntegrator", "DoubleIntegrator"]: #system.SYSTEM_REGISTRY:
-    for reward_id in REWARD_REGISTRY:
-        my_system = system.SYSTEM_REGISTRY[system_id]()
-        reward_fn = REWARD_REGISTRY[reward_id](system=my_system)
-        entrypoint = lambda: SystemEnv(
-            system=my_system,
-            reward_fn=reward_fn,
-            max_steps=100
-        )
-
-        env_id = f"{system_id}-{reward_id}-v0"
-        gymnasium.register(id=env_id,
-                           entry_point=entrypoint)
-        print(f"registered {env_id}")
 
 def make_system(system_id: str) -> Type[ControlAffineDynamics]:
     """
@@ -38,3 +22,17 @@ def make_system(system_id: str) -> Type[ControlAffineDynamics]:
         return system.SYSTEM_REGISTRY[system_id]
     else:
         raise NotImplementedError(f"System {system_id} not implemented")
+
+
+# register gym env
+
+for system_id in ["SingleIntegrator", "DoubleIntegrator"]:
+    for reward_id in REWARD_REGISTRY:
+        env_id = f"{system_id}-{reward_id}-v0"
+        sys = make_system(system_id=system_id)()
+        rew_fn = REWARD_REGISTRY[reward_id](system=sys)
+        gymnasium.register(
+            id=env_id,
+            entry_point='systems.system_env:SystemEnv',
+            kwargs={"system": sys, 'reward_fn': rew_fn, "max_steps": 100}
+        )

@@ -159,7 +159,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
 
     # env setup
     envs = gym.vector.SyncVectorEnv([make_env(env_id=args.env_id, seed=args.seed, idx=0,
-                                              capture_video=args.capture_video, run_name=run_name, gamma=args.gamma)])
+                                              capture_video=args.capture_video, logdir=run_name, gamma=args.gamma)])
     assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
 
     trainer = TD3Trainer(envs=envs, args=args, device=device)

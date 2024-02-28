@@ -97,12 +97,17 @@ class SafePPOTrainer(PPOTrainer):
         b_inds = np.arange(self.args.batch_size)
         clipfracs = []
         for epoch in range(self.args.update_epochs):
+            print(f"epoch {epoch}")
             np.random.shuffle(b_inds)
             for start in range(0, self.args.batch_size, self.args.minibatch_size):
                 end = start + self.args.minibatch_size
                 mb_inds = b_inds[start:end]
 
-                results = self.agent.get_action_and_value(b_obs[mb_inds], b_actions[mb_inds], b_classks[mb_inds])
+                # note: logprob, entropy, newvalue do not depende on safe_action -> disable it
+                results = self.agent.get_action_and_value(x=b_obs[mb_inds],
+                                                          action=b_actions[mb_inds],
+                                                          action_k=b_classks[mb_inds],
+                                                          use_safety_layer=False)
                 newlogprob = results["logprob"]
                 newclassklogprob = results["classk_logprob"]
                 entropy = results["entropy"]

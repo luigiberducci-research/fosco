@@ -18,7 +18,7 @@ def main():
     system_id = "DoubleIntegrator"
     max_steps = 100
     dt = 0.1
-    batch_size = 100
+    batch_size = 1
 
     system = make_system(system_id=system_id)()
     env = SystemEnv(
@@ -27,6 +27,7 @@ def main():
         reward_fn=dummy_reward_fn,
         max_steps=max_steps,
         dt=dt,
+        render_mode="human"
     )
 
     # plotting
@@ -35,8 +36,8 @@ def main():
     obss, infos = env.reset(options={"batch_size": batch_size})
     terminations = truncations = np.zeros(batch_size, dtype=bool)
     while not any(terminations) and not any(truncations):
-        print(env._current_time[0])
-        actions = np.stack([env.action_space.sample() for _ in range(batch_size)])
+        print(obss)
+        actions = np.stack([np.ones(2, dtype=np.float32) for _ in range(batch_size)])
 
         obs, rewards, terminations, truncations, infos = env.step(actions)
         env.render()

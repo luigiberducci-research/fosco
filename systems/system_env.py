@@ -26,10 +26,12 @@ import gymnasium
 import gymnasium as gym
 import numpy as np
 import torch
+import pygame
 
 from fosco.common.domains import Rectangle
 from systems import ControlAffineDynamics, make_system
 from systems.rewards import RewardFnType
+
 
 TermFnType = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 TensorType = torch.Tensor | np.ndarray
@@ -48,6 +50,7 @@ class SystemEnv(gymnasium.Env):
         # todo
 
     """
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 30}
 
     def __init__(
         self,
@@ -58,6 +61,7 @@ class SystemEnv(gymnasium.Env):
         reward_fn: Optional[RewardFnType] = None,
         return_np: Optional[bool] = True,
         device: Optional[torch.device] = None,
+        render_mode: Optional[str] = None,
     ):
         # todo: generator for seeding the environment
         # todo: device to run on gpu
@@ -81,6 +85,21 @@ class SystemEnv(gymnasium.Env):
         self._current_obs: torch.Tensor = None
         self._current_time: torch.Tensor = None
         self._return_as_np = return_np
+
+        # rendering
+        self.world_size = 60.0
+        self.collision_threshold = 5.0
+
+        self.window_size = 1024
+        self.ticks = 60
+        self.render_mode = render_mode
+        self.clock = None
+        self.screen = None
+
+        assert (
+                self.render_mode in self.metadata["render_modes"]
+                or self.render_mode is None
+        )
 
     @staticmethod
     def make_observation_space(system: ControlAffineDynamics) -> gym.spaces.Space:
@@ -220,9 +239,6 @@ class SystemEnv(gymnasium.Env):
 
         return next_observs, rewards, terminations, truncations, infos
 
-    def render(self, mode="human"):
-        pass
-
     def evaluate_action_sequences(
         self,
         action_sequences: torch.Tensor,
@@ -270,3 +286,54 @@ class SystemEnv(gymnasium.Env):
 
             total_rewards = total_rewards.reshape(-1, num_particles)
             return total_rewards.mean(dim=1)
+
+    def render(self):
+        # rendering only works if current obs is single dim
+        if len(self._current_obs.shape) == 2 and self._current_obs.shape[0] > 1:
+            return
+
+        if self.screen is None:
+            pygame.init()
+            if self.render_mode == "human":
+                pygame.display.init()
+                self.screen = pygame.display.set_mode(
+                    (self.window_size, self.window_size)
+                )
+                self.clock = pygame.time.Clock()
+
+        ppu = self.window_size / self.world_size
+        canvas = pygame.Surface((self.window_size, self.window_size))
+        canvas.fill((220, 220, 220))
+
+        # Draw agents
+        translation = self.system.state_domain.lower_bounds[:2]
+        position = self._current_obs.squeeze()[:2].numpy() - translation
+        radius = self.collision_threshold / 2 * ppu
+        for j in range(1):
+            if j == 0:
+                color = [0, 0, 200]
+            else:
+                color = [200, 0, 0]
+
+            pygame.draw.circle(
+                canvas,
+                color,
+                (position * ppu).astype(int),
+                radius,
+            )
+            # add label in the center with agent index
+            font = pygame.font.Font(None, 100)
+            text = font.render(f"{j}", 1, (10, 10, 10))
+            textpos = text.get_rect()
+            textpos.centerx = position[0] * ppu
+            textpos.centery = position[1] * ppu
+            canvas.blit(text, textpos)
+
+        if self.render_mode == "human":
+            self.screen.blit(canvas, canvas.get_rect())
+            pygame.display.update()
+            self.clock.tick(self.metadata["render_fps"])
+        else:
+            return np.transpose(
+                np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2)
+            )

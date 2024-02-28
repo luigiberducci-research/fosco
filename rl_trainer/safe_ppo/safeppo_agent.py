@@ -84,7 +84,7 @@ class SafeActorCriticAgent(ActorCriticAgent):
     def get_value(self, x):
         return self.critic(x)
 
-    def get_action_and_value(self, x, action=None, action_k=None):
+    def get_action_and_value(self, x, action=None, action_k=None, use_safety_layer: bool = True):
         # assert input is ok
         assert isinstance(x, torch.Tensor), f"Expected torch.Tensor, got {type(x)}"
         assert len(x.shape) == 2, f"Expected (batch, dim) got {x.shape}"
@@ -114,23 +114,26 @@ class SafeActorCriticAgent(ActorCriticAgent):
             action_k = probs_k.sample()
 
         # safety layer
-        n_batch = x.size(0)
-        hx = self.barrier(x0).view(n_batch, 1)
-        dhdx = self.barrier.gradient(x0).view(n_batch, 1, self.output_size)
+        safe_action = action
+        if use_safety_layer:
+            n_batch = x.size(0)
+            hx = self.barrier(x0).view(n_batch, 1)
+            dhdx = self.barrier.gradient(x0).view(n_batch, 1, self.output_size)
 
-        fx = self.fx(x0.view(-1, self.input_size, 1))
-        gx = self.gx(x0.view(-1, self.input_size, 1))
+            fx = self.fx(x0.view(-1, self.input_size, 1))
+            gx = self.gx(x0.view(-1, self.input_size, 1))
 
-        Lfhx = (dhdx @ fx).view(n_batch, 1)
-        Lghx = (dhdx @ gx).view(n_batch, self.output_size)
-        alphahx = (action_k * hx).view(n_batch, 1)
-        # note: no kwargs to cvxpylayer
-        (safe_action,) = self.safety_layer(
-            action,
-            Lfhx,
-            Lghx,
-            alphahx
-        )
+            Lfhx = (dhdx @ fx).view(n_batch, 1)
+            Lghx = (dhdx @ gx).view(n_batch, self.output_size)
+            alphahx = (action_k * hx).view(n_batch, 1)
+
+            # note: no kwargs to cvxpylayer
+            (safe_action,) = self.safety_layer(
+                    action,
+                    Lfhx,
+                    Lghx,
+                    alphahx
+            )
 
         log_probs = probs.log_prob(action).sum(1)
         entropy = probs.entropy().sum(1)

@@ -82,6 +82,7 @@ class PPOTrainer(RLTrainer):
         b_inds = np.arange(self.args.batch_size)
         clipfracs = []
         for epoch in range(self.args.update_epochs):
+            print(f"epoch {epoch}")
             np.random.shuffle(b_inds)
             for start in range(0, self.args.batch_size, self.args.minibatch_size):
                 end = start + self.args.minibatch_size

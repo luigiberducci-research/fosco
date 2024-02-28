@@ -18,3 +18,4 @@ stable-baselines3
 tensorboard
 tyro
 moviepy
+pygame

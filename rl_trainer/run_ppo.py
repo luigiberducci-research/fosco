@@ -1,4 +1,6 @@
+import logging
 import os
+import pathlib
 import random
 import time
 from dataclasses import dataclass
@@ -31,8 +33,10 @@ class Args:
     """the wandb's project name"""
     wandb_entity: str = None
     """the entity (team) of wandb's project"""
-    capture_video: bool = False
+    capture_video: bool = True
     """whether to capture videos of the agent performances (check out `videos` folder)"""
+    render_mode: str = None
+    """render mode during training if no capture video"""
     save_model: bool = False
     """whether to save model into the `runs/{run_name}` folder"""
     upload_model: bool = False
@@ -93,14 +97,14 @@ def evaluate(
         make_env: Callable,
         env_id: str,
         eval_episodes: int,
-        run_name: str,
+        logdir: str,
         agent: torch.nn.Module,
         device: torch.device = torch.device("cpu"),
         capture_video: bool = True,
         gamma: float = 0.99,
 ):
     envs = gym.vector.SyncVectorEnv([make_env(env_id=env_id, seed=None, idx=0,
-                                              capture_video=capture_video, run_name=run_name,
+                                              capture_video=capture_video, logdir=f"{logdir}/eval",
                                               gamma=gamma)])
     agent.eval()
 
@@ -125,13 +129,14 @@ def run(args):
     args.minibatch_size = int(args.batch_size // args.num_minibatches)
     args.num_iterations = args.total_timesteps // args.batch_size
     run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
-    logdir = f"runs/{run_name}"
+    logdir = f"{pathlib.Path(__file__).parent.parent}/runs/{run_name}"
 
     writer = SummaryWriter(logdir)
     writer.add_text(
         "hyperparameters",
         "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
     )
+    logging.info(f"Logdir {logdir}")
 
     # TRY NOT TO MODIFY: seeding
     random.seed(args.seed)
@@ -140,11 +145,12 @@ def run(args):
     torch.backends.cudnn.deterministic = args.torch_deterministic
 
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
+    logging.info(f"Running on device {device}")
 
     # env setup
     envs = gym.vector.SyncVectorEnv(
-        [make_env(env_id=args.env_id, seed=args.seed, idx=i, capture_video=args.capture_video, run_name=run_name,
-                  gamma=args.gamma) for i in range(args.num_envs)]
+        [make_env(env_id=args.env_id, seed=args.seed, idx=i, capture_video=args.capture_video, logdir=logdir,
+                  gamma=args.gamma, render_mode=args.render_mode) for i in range(args.num_envs)]
     )
     assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
 
@@ -179,6 +185,7 @@ def run(args):
             next_obs, reward, terminations, truncations, infos = envs.step(action.cpu().numpy())
             next_done = np.logical_or(terminations, truncations)
             next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(next_done).to(device)
+            envs.envs[0].render()
 
             trainer.buffer.push(
                 obs=cur_obs,
@@ -219,7 +226,7 @@ def run(args):
             make_env=make_env,
             env_id=args.env_id,
             eval_episodes=10,
-            run_name=f"{run_name}-eval",
+            logdir=logdir,
             agent=agent,
             device=device,
             gamma=args.gamma,

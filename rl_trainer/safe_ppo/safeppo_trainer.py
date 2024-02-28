@@ -1,4 +1,5 @@
 from argparse import Namespace
+from functools import partial
 from typing import Optional
 
 import gymnasium
@@ -10,7 +11,7 @@ from barriers import make_barrier
 from rl_trainer.safe_ppo.safeppo_agent import SafeActorCriticAgent
 from rl_trainer.common.buffer import CyclicBuffer
 from rl_trainer.ppo.ppo_trainer import PPOTrainer
-from systems import SystemEnv
+from systems.system_env import SystemEnv
 
 
 class SafePPOTrainer(PPOTrainer):
@@ -28,7 +29,7 @@ class SafePPOTrainer(PPOTrainer):
                 )
             system = single_env.system
             barrier = make_barrier(system=system)["barrier"]
-            agent_cls = lambda e: SafeActorCriticAgent(envs=e, barrier=barrier)
+            agent_cls = partial(SafeActorCriticAgent, barrier=barrier)
         else:
             raise NotImplementedError("learning barrier not integrated yet")
 

@@ -70,7 +70,7 @@ class SafeActorCriticAgent(ActorCriticAgent):
 
         constraints = []
         # input constraint: u in U
-        constraints += [u >= self.umin, u <= self.umax]
+        #constraints += [u >= self.umin, u <= self.umax]
 
         # constraint: hdot(x,u) + alpha(h(x)) >= 0
         constraints += [Lfhx + Lghx @ u + alphahx >= 0.0]
@@ -122,13 +122,14 @@ class SafeActorCriticAgent(ActorCriticAgent):
         gx = self.gx(x0.view(-1, self.input_size, 1))
 
         Lfhx = (dhdx @ fx).view(n_batch, 1)
-        Lghx = (dhdx @ gx).view(n_batch, self.nCls)
+        Lghx = (dhdx @ gx).view(n_batch, self.output_size)
         alphahx = (action_k * hx).view(n_batch, 1)
-        (safe_action,) = self._safety_layer(
-            px=action,
-            Lfhx=Lfhx,
-            Lghx=Lghx,
-            alphahx=alphahx
+        # note: no kwargs to cvxpylayer
+        (safe_action,) = self.safety_layer(
+            action,
+            Lfhx,
+            Lghx,
+            alphahx
         )
 
         log_probs = probs.log_prob(action).sum(1)

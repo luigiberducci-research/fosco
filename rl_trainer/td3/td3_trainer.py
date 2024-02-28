@@ -7,7 +7,7 @@ from torch import optim
 import torch.nn.functional as F
 
 from models.td3_agent import DDPGActor, QNetwork
-from rl_algorithms.rl_trainer import RLTrainer
+from rl_trainer.trainer import RLTrainer
 
 
 class TD3Trainer(RLTrainer):

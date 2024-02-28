@@ -67,11 +67,11 @@ class SafeActorCriticAgent(ActorCriticAgent):
 
         results = {
             "action": action,
-            "log_prob": log_probs,
+            "logprob": log_probs,
             "entropy": entropy,
-            "class_k": action_k,
-            "class_k_log_prob": class_k_log_probs,
-            "class_k_entropy": class_k_entropy,
+            "classk": action_k,
+            "classk_logprob": class_k_log_probs,
+            "classk_entropy": class_k_entropy,
             "value": value,
         }
 

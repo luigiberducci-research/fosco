@@ -9,15 +9,13 @@ import gymnasium as gym
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
 import tyro
 from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
 
 from models.td3_agent import DDPGActor, QNetwork
-from rl_algorithms.td3_trainer import TD3Trainer
-from rl_algorithms.utils import make_env
+from rl_trainer.common.utils import make_env
+from rl_trainer.td3.td3_trainer import TD3Trainer
 
 
 @dataclass

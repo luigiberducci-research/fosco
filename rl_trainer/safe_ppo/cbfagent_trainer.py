@@ -1,44 +1,39 @@
-import time
 from argparse import Namespace
-from typing import Optional, Type
+from typing import Optional
 
 import gymnasium
 import numpy as np
 import torch
-from torch import optim, nn
+from torch import nn
 
-from models.ppo_agent import ActorCriticAgent
-from rl_algorithms.buffer import CyclicBuffer
-from rl_algorithms.rl_trainer import RLTrainer
+from models.cbf_agent import SafeActorCriticAgent
+from rl_trainer.common.buffer import CyclicBuffer
+from rl_trainer.ppo.ppo_trainer import PPOTrainer
 
 
-class PPOTrainer(RLTrainer):
+class SafePPOTrainer(PPOTrainer):
     def __init__(
             self,
             envs: gymnasium.Env,
             args: Namespace,
-            agent_cls: Type[ActorCriticAgent] = None,
             device: Optional[torch.device] = None,
     ) -> None:
-        self.device = device or torch.device("cpu")
-        self.args = args
-
-        obs_space = envs.single_observation_space if hasattr(envs,
-                                                             "single_observation_space") else envs.observation_space
-        act_space = envs.single_action_space if hasattr(envs, "single_action_space") else envs.action_space
-        input_size = np.array(obs_space.shape).prod()
-        output_size = np.array(act_space.shape).prod()
-
-        agent_cls = agent_cls or ActorCriticAgent
-        self.agent = agent_cls(input_size=input_size, output_size=output_size).to(device)
+        super().__init__(
+            envs=envs,
+            args=args,
+            agent_cls=SafeActorCriticAgent,
+            device=device,
+        )
 
         buffer_shapes = {
             "obs": (args.num_steps, args.num_envs) + envs.single_observation_space.shape,
-            "actions": (args.num_steps, args.num_envs) + envs.single_action_space.shape,
-            "logprobs": (args.num_steps, args.num_envs),
-            "rewards": (args.num_steps, args.num_envs),
-            "dones": (args.num_steps, args.num_envs),
-            "values": (args.num_steps, args.num_envs),
+            "action": (args.num_steps, args.num_envs) + envs.single_action_space.shape,
+            "classk": (args.num_steps, args.num_envs) + (1,),
+            "logprob": (args.num_steps, args.num_envs),
+            "classk_logprob": (args.num_steps, args.num_envs),
+            "reward": (args.num_steps, args.num_envs),
+            "done": (args.num_steps, args.num_envs),
+            "value": (args.num_steps, args.num_envs),
         }
         self.buffer = CyclicBuffer(
             capacity=args.num_steps,
@@ -46,21 +41,20 @@ class PPOTrainer(RLTrainer):
             device=self.device
         )
 
-        self.optimizer = optim.Adam(self.agent.parameters(), lr=self.args.learning_rate, eps=1e-5)
-        self.iteration = 0
-
     def train(
             self,
-            next_obs,
-            next_done,
+            next_obs: torch.Tensor,
+            next_done: Optional[torch.Tensor] = None,
     ) -> dict[str, float]:
         data = self.buffer.sample()
         obs = data["obs"]
-        logprobs = data["logprobs"]
-        actions = data["actions"]
-        rewards = data["rewards"]
-        dones = data["dones"]
-        values = data["values"]
+        logprobs = data["logprob"]
+        classk_logprobs = data["classk_logprob"]
+        actions = data["action"]
+        classks = data["classk"]
+        rewards = data["reward"]
+        dones = data["done"]
+        values = data["value"]
 
         self.iteration += 1
 
@@ -77,6 +71,8 @@ class PPOTrainer(RLTrainer):
         b_obs = obs.reshape((-1,) + (self.agent.input_size,))
         b_logprobs = logprobs.reshape(-1)
         b_actions = actions.reshape((-1,) + (self.agent.output_size,))
+        b_classks = classks.reshape((-1,) + (self.agent.classk_size,))
+        b_classk_logprobs = classk_logprobs.reshape(-1)
         b_advantages = advantages.reshape(-1)
         b_returns = returns.reshape(-1)
         b_values = values.reshape(-1)
@@ -91,12 +87,14 @@ class PPOTrainer(RLTrainer):
                 end = start + self.args.minibatch_size
                 mb_inds = b_inds[start:end]
 
-                results = self.agent.get_action_and_value(b_obs[mb_inds], b_actions[mb_inds])
-                newlogprob = results["log_prob"]
+                results = self.agent.get_action_and_value(b_obs[mb_inds], b_actions[mb_inds], b_classks[mb_inds])
+                newlogprob = results["logprob"]
+                newclassklogprob = results["classk_logprob"]
                 entropy = results["entropy"]
+                classkentropy = results["classk_entropy"]
                 newvalue = results["value"]
 
-                logratio = newlogprob - b_logprobs[mb_inds]
+                logratio = newlogprob + newclassklogprob - b_logprobs[mb_inds] - b_classk_logprobs[mb_inds]
                 ratio = logratio.exp()
 
                 with torch.no_grad():
@@ -129,7 +127,7 @@ class PPOTrainer(RLTrainer):
                 else:
                     v_loss = 0.5 * ((newvalue - b_returns[mb_inds]) ** 2).mean()
 
-                entropy_loss = entropy.mean()
+                entropy_loss = 0.5 * (entropy.mean() + classkentropy.mean())
                 loss = pg_loss - self.args.ent_coef * entropy_loss + v_loss * self.args.vf_coef
 
                 self.optimizer.zero_grad()
@@ -155,28 +153,3 @@ class PPOTrainer(RLTrainer):
             "losses/clipfrac": np.mean(clipfracs),
             "losses/explained_variance": explained_var,
         }
-
-    def _advantage_estimation(self, obs, actions, rewards, dones, next_obs, next_done, values):
-        # bootstrap value if not done
-        with torch.no_grad():
-            next_value = self.agent.get_value(next_obs).reshape(1, -1)
-            advantages = torch.zeros_like(rewards).to(self.device)
-            lastgaelam = 0
-            for t in reversed(range(self.args.num_steps)):
-                if t == self.args.num_steps - 1:
-                    nextnonterminal = 1.0 - next_done
-                    nextvalues = next_value
-                else:
-                    nextnonterminal = 1.0 - dones[t + 1]
-                    nextvalues = values[t + 1]
-                delta = rewards[t] + self.args.gamma * nextvalues * nextnonterminal - values[t]
-                advantages[
-                    t] = lastgaelam = delta + self.args.gamma * self.args.gae_lambda * nextnonterminal * lastgaelam
-            returns = advantages + values
-
-        return advantages, returns
-
-    def get_actor(self) -> ActorCriticAgent:
-        return self.agent
-
-

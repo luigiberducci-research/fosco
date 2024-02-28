@@ -48,7 +48,7 @@ class ActorCriticAgent(nn.Module):
 
         results = {
             "action": action,
-            "log_prob": log_probs,
+            "logprob": log_probs,
             "entropy": entropy,
             "value": value,
         }
@@ -59,8 +59,8 @@ class ActorCriticAgent(nn.Module):
 
         return results
 
-    def save(self, model_path: pathlib.Path) -> None:
+    def save(self, model_path: pathlib.Path | str) -> None:
         torch.save(self.state_dict(), model_path)
 
-    def load(self, model_path: pathlib.Path):
-        pass
+    def load(self, model_path: pathlib.Path | str, device: torch.device | str) -> None:
+        self.load_state_dict(torch.load(model_path, map_location=device))

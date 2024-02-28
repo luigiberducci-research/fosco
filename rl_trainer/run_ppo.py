@@ -10,9 +10,9 @@ import torch
 import tyro
 from torch.utils.tensorboard import SummaryWriter
 
-from models.ppo_agent import ActorCriticAgent
-from rl_algorithms.ppo_trainer import PPOTrainer
-from rl_algorithms.utils import make_env
+from rl_trainer.safe_ppo.cbfagent_trainer import SafePPOTrainer
+from rl_trainer.ppo.ppo_trainer import PPOTrainer
+from rl_trainer.common.utils import make_env
 
 
 @dataclass
@@ -43,6 +43,8 @@ class Args:
     # Algorithm specific arguments
     env_id: str = "Hopper-v4" #"systems:SingleIntegrator-GoToUnsafeReward-v0"
     """the id of the environment"""
+    trainer_id: str = "ppo"
+    """the id of the rl trainer"""
     total_timesteps: int = 50000
     """total timesteps of the experiments"""
     learning_rate: float = 3e-4
@@ -86,21 +88,18 @@ class Args:
 
 
 def evaluate(
-        model_path: str,
         make_env: Callable,
         env_id: str,
         eval_episodes: int,
         run_name: str,
-        Model: torch.nn.Module,
+        agent: torch.nn.Module,
         device: torch.device = torch.device("cpu"),
         capture_video: bool = True,
         gamma: float = 0.99,
 ):
-    envs = gym.vector.SyncVectorEnv([make_env(env_id, 0, capture_video, run_name, gamma)])
-    input_size = np.array(envs.single_observation_space.shape).prod()
-    output_size = np.array(envs.single_action_space.shape).prod()
-    agent = Model(input_size=input_size, output_size=output_size).to(device)
-    agent.load_state_dict(torch.load(model_path, map_location=device))
+    envs = gym.vector.SyncVectorEnv([make_env(env_id=env_id, seed=None, idx=0,
+                                              capture_video=capture_video, run_name=run_name,
+                                              gamma=gamma)])
     agent.eval()
 
     obs, _ = envs.reset()
@@ -119,26 +118,14 @@ def evaluate(
 
     return episodic_returns
 
-
-if __name__ == "__main__":
-    args = tyro.cli(Args)
+def run(args):
     args.batch_size = int(args.num_envs * args.num_steps)
     args.minibatch_size = int(args.batch_size // args.num_minibatches)
     args.num_iterations = args.total_timesteps // args.batch_size
     run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
-    if args.track:
-        import wandb
+    logdir = f"runs/{run_name}"
 
-        wandb.init(
-            project=args.wandb_project_name,
-            entity=args.wandb_entity,
-            sync_tensorboard=True,
-            config=vars(args),
-            name=run_name,
-            monitor_gym=True,
-            save_code=True,
-        )
-    writer = SummaryWriter(f"runs/{run_name}")
+    writer = SummaryWriter(logdir)
     writer.add_text(
         "hyperparameters",
         "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
@@ -159,7 +146,12 @@ if __name__ == "__main__":
     )
     assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
 
-    trainer = PPOTrainer(envs=envs, args=args, device=device)
+    if args.trainer_id == "ppo":
+        trainer = PPOTrainer(envs=envs, args=args, device=device)
+    elif args.trainer_id == "safe-ppo":
+        trainer = SafePPOTrainer(envs=envs, args=args, device=device)
+    else:
+        raise NotImplementedError(f"No trainer implemented for id={args.trainer_id}")
 
     # TRY NOT TO MODIFY: start the game
     global_step = 0
@@ -180,8 +172,6 @@ if __name__ == "__main__":
             with torch.no_grad():
                 results = agent.get_action_and_value(next_obs)
                 action = results["action"]
-                logprob = results["log_prob"]
-                value = results["value"]
 
             # TRY NOT TO MODIFY: execute the game and log data.
             next_obs, reward, terminations, truncations, infos = envs.step(action.cpu().numpy())
@@ -190,11 +180,9 @@ if __name__ == "__main__":
 
             trainer.buffer.push(
                 obs=cur_obs,
-                dones=next_done,
-                actions=action,
-                logprobs=logprob,
-                values=value.flatten(),
-                rewards=torch.tensor(reward).to(device).view(-1)
+                done=next_done,
+                reward=torch.tensor(reward).to(device).view(-1),
+                **results
             )
 
             if "final_info" in infos:
@@ -217,17 +205,20 @@ if __name__ == "__main__":
         writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
     if args.save_model:
-        model_path = f"runs/{run_name}/{args.exp_name}.cleanrl_model"
+        model_path = f"{logdir}/{args.exp_name}.cleanrl_model"
         torch.save(agent.state_dict(), model_path)
         print(f"model saved to {model_path}")
 
+        del agent
+        agent = trainer.get_actor()
+        agent.load(model_path=model_path, device=device)
+
         episodic_returns = evaluate(
-            model_path,
-            make_env,
-            args.env_id,
+            make_env=make_env,
+            env_id=args.env_id,
             eval_episodes=10,
             run_name=f"{run_name}-eval",
-            Model=ActorCriticAgent,
+            agent=agent,
             device=device,
             gamma=args.gamma,
         )
@@ -237,3 +228,10 @@ if __name__ == "__main__":
 
     envs.close()
     writer.close()
+
+    return logdir
+
+
+if __name__ == "__main__":
+    args = tyro.cli(Args)
+    run(args=args)

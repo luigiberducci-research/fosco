@@ -156,3 +156,14 @@ class TestPolicy(unittest.TestCase):
 
         tol = 1e-3
         self.assertTrue(np.all(np.array(safety) > -tol), f"got {safety}")
+
+    def test_policy_evaluation(self):
+        # todo: check system variable for mujoco env is MUJOCO_ENV=egl
+        import os
+        os.environ["MUJOCO_ENV"] = "egl"
+
+        mujoco_env = os.environ.get("MUJOCO_ENV")
+        self.assertTrue(mujoco_env is not None, "env var MUJOCO_ENV not found")
+        self.assertTrue(mujoco_env == "egl", f"expected MUJOCO_ENV=egl, got {mujoco_env}")
+
+        # todo: run eval episode, check video recording is stored

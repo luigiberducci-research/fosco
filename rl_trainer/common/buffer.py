@@ -31,11 +31,17 @@ class CyclicBuffer(Buffer):
 
         self._step = 0
 
+
     def push(self, **kwargs) -> None:
+        updated = {k: False for k in self._buffers}
         for feature, batch in kwargs.items():
             if feature not in self._buffers:
-                raise KeyError(f"Feature {feature} is not defined in buffer")
+                continue
             self._buffers[feature][self._step] = batch
+            updated[feature] = True
+
+        # check consistency: all buffers same size
+        assert all(updated.values()), f"expected all buffers to get updated, got {updated}"
 
         self._step = (self._step + 1) % self._capacity
 

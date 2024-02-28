@@ -3,6 +3,7 @@ import torch
 from matplotlib import pyplot as plt
 
 from barriers import make_barrier
+from models.cbf_agent import BarrierPolicy
 
 from systems import make_system
 
@@ -23,6 +24,8 @@ def dummy_reward_fn(actions, next_obss):
 def main():
     system_id = "SingleIntegrator"
     batch_size = 10
+    max_steps = 200
+    dt = 0.1
 
     # this seed will give a policy which navigates towards the obstacle (demo)
     seed = 425 #np.random.randint(0, 1000)
@@ -37,8 +40,8 @@ def main():
         system=system,
         reward_fn=dummy_reward_fn,
         termination_fn=dummy_term_fn,
-        dt=0.1,
-        max_steps=200,
+        dt=dt,
+        max_steps=max_steps,
     )
 
     barrier = make_barrier(system=system)["barrier"]
@@ -57,6 +60,7 @@ def main():
     traj = {"x": [obs], "u": [], "hx": [], "px": []}
     while not (any(terminations) or any(truncations)):
         with torch.no_grad():
+            obs = obs[None] if len(obs.shape) == 1 else obs
             u = pi(x=obs)
             u = u.detach().numpy()
 
@@ -83,7 +87,7 @@ def main():
         ax1.scatter(xs[0], ys[0], marker="x", color="k")
 
     # draw circle unsafe set
-    cx, r = system.domains["unsafe"].centre, system.domains["unsafe"].radius
+    cx, r = system.domains["unsafe"].center, system.domains["unsafe"].radius
     ax1.plot(
         cx[0] + r * np.cos(np.linspace(0, 2 * np.pi, 25)),
         cx[1] + r * np.sin(np.linspace(0, 2 * np.pi, 25)),

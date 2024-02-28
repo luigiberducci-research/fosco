@@ -13,7 +13,7 @@ import tyro
 from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
 
-from models.td3_agent import DDPGActor, QNetwork
+from rl_trainer.td3.td3_agent import DDPGActor, QNetwork
 from rl_trainer.common.utils import make_env
 from rl_trainer.td3.td3_trainer import TD3Trainer
 

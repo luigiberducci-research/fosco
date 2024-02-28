@@ -1,5 +1,7 @@
 import pathlib
 
+import gymnasium
+import numpy as np
 import torch
 from torch import nn
 from torch.distributions import Normal
@@ -8,26 +10,26 @@ from models.utils import layer_init
 
 
 class ActorCriticAgent(nn.Module):
-    def __init__(self, input_size: int, output_size: int):
+    def __init__(self, envs: gymnasium.Env):
         super().__init__()
-        self.input_size = input_size
-        self.output_size = output_size
+        self.input_size = np.array(envs.observation_space.shape).prod()
+        self.output_size = np.prod(envs.action_space.shape)
 
         self.critic = nn.Sequential(
-            layer_init(nn.Linear(input_size, 64)),
+            layer_init(nn.Linear(self.input_size, 64)),
             nn.Tanh(),
             layer_init(nn.Linear(64, 64)),
             nn.Tanh(),
             layer_init(nn.Linear(64, 1), std=1.0),
         )
         self.actor_mean = nn.Sequential(
-            layer_init(nn.Linear(input_size, 64)),
+            layer_init(nn.Linear(self.input_size, 64)),
             nn.Tanh(),
             layer_init(nn.Linear(64, 64)),
             nn.Tanh(),
-            layer_init(nn.Linear(64, output_size), std=0.01),
+            layer_init(nn.Linear(64, self.output_size), std=0.01),
         )
-        self.actor_logstd = nn.Parameter(torch.zeros(1, output_size))
+        self.actor_logstd = nn.Parameter(torch.zeros(1, self.output_size))
 
 
     def get_value(self, x):

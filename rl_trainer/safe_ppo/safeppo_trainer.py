@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from models.cbf_agent import SafeActorCriticAgent
+from rl_trainer.safe_ppo.safeppo_agent import SafeActorCriticAgent
 from rl_trainer.common.buffer import CyclicBuffer
 from rl_trainer.ppo.ppo_trainer import PPOTrainer
 

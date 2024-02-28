@@ -3,12 +3,9 @@ import torch
 from matplotlib import pyplot as plt
 
 from barriers import make_barrier
-from models.cbf_agent import BarrierPolicy
+from rl_trainer.safe_ppo.safeppo_agent import BarrierPolicy
 
 from systems import make_system
-
-import cvxpy as cp
-from cvxpylayers.torch import CvxpyLayer
 
 from systems.system_env import SystemEnv
 import time

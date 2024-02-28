@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch import optim, nn
 
-from models.ppo_agent import ActorCriticAgent
+from rl_trainer.ppo.ppo_agent import ActorCriticAgent
 from rl_trainer.common.buffer import CyclicBuffer
 from rl_trainer.trainer import RLTrainer
 
@@ -22,18 +22,15 @@ class PPOTrainer(RLTrainer):
         self.device = device or torch.device("cpu")
         self.args = args
 
-        obs_space = envs.single_observation_space if hasattr(envs,
-                                                             "single_observation_space") else envs.observation_space
-        act_space = envs.single_action_space if hasattr(envs, "single_action_space") else envs.action_space
-        input_size = np.array(obs_space.shape).prod()
-        output_size = np.array(act_space.shape).prod()
+        if envs.unwrapped.is_vector_env:
+            single_env = envs.envs[0]
 
         agent_cls = agent_cls or ActorCriticAgent
-        self.agent = agent_cls(input_size=input_size, output_size=output_size).to(device)
+        self.agent = agent_cls(envs=single_env).to(device)
 
         buffer_shapes = {
-            "obs": (args.num_steps, args.num_envs) + envs.single_observation_space.shape,
-            "action": (args.num_steps, args.num_envs) + envs.single_action_space.shape,
+            "obs": (args.num_steps, args.num_envs) + single_env.observation_space.shape,
+            "action": (args.num_steps, args.num_envs) + single_env.action_space.shape,
             "logprob": (args.num_steps, args.num_envs),
             "reward": (args.num_steps, args.num_envs),
             "done": (args.num_steps, args.num_envs),

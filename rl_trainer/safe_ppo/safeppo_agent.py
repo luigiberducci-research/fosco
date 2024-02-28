@@ -1,5 +1,6 @@
 from typing import Callable
 
+import gymnasium
 import numpy as np
 import torch
 import cvxpy as cp
@@ -8,20 +9,20 @@ from torch import nn
 from torch.distributions import Normal
 from torch.nn import functional as F
 
-from models.ppo_agent import ActorCriticAgent
+from rl_trainer.ppo.ppo_agent import ActorCriticAgent
 from models.torchsym import TorchSymDiffModel
 from models.utils import layer_init
 from systems import ControlAffineDynamics
 
 
 class SafeActorCriticAgent(ActorCriticAgent):
-    def __init__(self, input_size: int, output_size: int):
-        super().__init__(input_size=input_size, output_size=output_size)
+    def __init__(self, envs: gymnasium.Env):
+        super().__init__(envs=envs)
         self.classk_size = 1
 
         # override actor model
         self.actor_backbone = nn.Sequential(
-            layer_init(nn.Linear(input_size, 64)),
+            layer_init(nn.Linear(self.input_size, 64)),
             nn.Tanh(),
             layer_init(nn.Linear(64, 64)),
             nn.Tanh(),

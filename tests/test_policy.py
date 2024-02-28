@@ -2,11 +2,9 @@ import unittest
 
 import numpy as np
 import torch
-from scipy.integrate import odeint
-from torch.autograd import Variable
 
 from barriers import make_barrier
-from models.cbf_agent import BarrierPolicy
+from rl_trainer.safe_ppo.safeppo_agent import BarrierPolicy
 from systems import make_system
 from systems.system_env import SystemEnv
 

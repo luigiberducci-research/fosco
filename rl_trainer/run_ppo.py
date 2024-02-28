@@ -10,7 +10,7 @@ import torch
 import tyro
 from torch.utils.tensorboard import SummaryWriter
 
-from rl_trainer.safe_ppo.cbfagent_trainer import SafePPOTrainer
+from rl_trainer.safe_ppo.safeppo_trainer import SafePPOTrainer
 from rl_trainer.ppo.ppo_trainer import PPOTrainer
 from rl_trainer.common.utils import make_env
 

@@ -257,7 +257,11 @@ class SingleIntegratorConvexHullUncertainty(TorchSymModel):
         """
         self._assert_forward_input(x=x)
         dhdx = self._h.gradient(x=x)
-        sigma = - torch.min(dhdx * self._system.f_uncertainty(x)) # compensanter
+        min_sigma = torch.zeros((x.shape[0])) + 1e5
+        for f_uncertain_func in self._system.f_uncertainty:
+            new_value = torch.sum(dhdx * f_uncertain_func.forward(x).squeeze(dim=2), dim=1)
+            min_sigma = torch.min(min_sigma, new_value)
+        sigma = - min_sigma # compensanter
         self._assert_forward_output(x=sigma)
         return sigma
 
@@ -279,19 +283,14 @@ class SingleIntegratorConvexHullUncertainty(TorchSymModel):
             return _If(x<=y, x, y)
 
         dhdx, dhdx_constraints = self._h.gradient_smt(x=x)
-        norm = VerifierZ3.new_vars(n=1, base="norm")[0]
-        norm_constraint = [
-            norm * norm == dhdx[0, 0] ** 2 + dhdx[0, 1] ** 2,
-            norm >= 0.0
-        ]
-        min_sigma = norm * self._system.f_uncertainty[0].forward_smt(x)
+        min_sigma = (dhdx @ self._system.f_uncertainty[0].forward_smt(x)).item()
         for f_uncertain_func in self._system.f_uncertainty[1:]:
-            new_sigma = norm * f_uncertain_func.forward_smt(x)
+            new_sigma = (dhdx @ f_uncertain_func.forward_smt(x)).item()
             min_sigma = min(min_sigma, new_sigma)
         sigma = - min_sigma
 
         self._assert_forward_smt_output(x=sigma)
-        return sigma, dhdx_constraints + norm_constraint
+        return sigma, dhdx_constraints
 
     def _assert_forward_input(self, x: torch.Tensor) -> None:
         state_dim = self._system.n_vars

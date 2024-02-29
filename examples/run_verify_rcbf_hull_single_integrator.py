@@ -14,31 +14,34 @@ from models.torchsym import TorchSymFn
 
 # we are instaniating this class one by one, or by batch?
 class UncertainFunc(TorchSymFn):
-    def __init__(self, uncertain_coeficient) -> None:
+    def __init__(self, uncertain_func) -> None:
         super().__init__()
-        self.uncertain_coeficient = np.array([uncertain_coeficient])
+        self.uncertain_func = uncertain_func
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # check the dim consistence, batch input, etc
-        return x @ self.uncertain_coeficient
+        if len(x.size()) == 2:
+            x = torch.unsqueeze(x, dim=2)
+        return (x.squeeze(dim=2) * torch.tensor(self.uncertain_func)).unsqueeze(dim=2)
     
     def forward_smt(self, x: list) -> list | np.ndarray:
-        x = np.expand_dims(x, axis=1)
-        return list(x @ self.uncertain_coeficient)
+        return np.array(self.uncertain_func) * np.array(x)
 
 def main(args):
     system_id = "SingleIntegrator"
     uncertainty_id = "ConvexHull"
     verbose = 1
 
-    uncertain_coefficient_list = [[0.2, 0.2], [0.3, 0.2], [0.5, 0.1]]
+    uncertain_func_list = [[0.2, 0.2], [0.3, 0.2], [0.5, 0.1]] # linear functions
+    uncertain_func_coefficiet_list = [0.3, 0.3, 0.4] 
     f_uncertainty = []
-    for uncertain_coefficient in uncertain_coefficient_list:
-        f_uncertainty.append(UncertainFunc(uncertain_coefficient))
+    for uncertain_func in uncertain_func_list:
+        f_uncertainty.append(UncertainFunc(uncertain_func))
 
     system_fn = make_system(system_id=system_id)
-    system_fn = add_uncertainty(uncertainty_type=uncertainty_id, system_fn=system_fn, f_uncertainty=f_uncertainty)
-
+    system_fn = add_uncertainty(uncertainty_type=uncertainty_id, system_fn=system_fn, f_uncertainty=f_uncertainty, 
+                                f_uncertainty_params=uncertain_func_coefficiet_list)
+    
     xvars = ["x0", "x1"]
     uvars = ["u0", "u1"]
     zvars = ["z0", "z1", "z2"]

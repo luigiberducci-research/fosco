@@ -1,3 +1,4 @@
+import pathlib
 from argparse import Namespace
 from functools import partial
 from typing import Optional
@@ -21,7 +22,44 @@ class SafePPOTrainer(PPOTrainer):
             args: Namespace,
             device: Optional[torch.device] = None,
     ) -> None:
-        if args.use_true_barrier:
+        if args.barrier_from_aim_run:
+            from aim import Run
+            from fosco.learner import make_learner
+            from fosco.common.consts import TimeDomain, ActivationType
+            from fosco.certificates.cbf import TrainableCBF
+
+            single_env = envs.envs[0] if envs.unwrapped.is_vector_env else envs
+            system = single_env.system
+            aim_run = Run(run_hash=args.barrier_from_aim_run)
+            config = aim_run["config"]
+
+            timedomain = eval(config["TIME_DOMAIN"])
+            learner_type = make_learner(system=system, time_domain=timedomain)
+
+            # todo rewrite logs in primitive types to make loading easier
+            learner = learner_type(
+                state_size=system.n_vars,
+                learn_method=None,
+                hidden_sizes=[5, 5],    # todo: load from cfg instead of hardcoding
+                activation=["square", "linear"],    # todo: load from cfg
+                optimizer=eval(config["OPTIMIZER"]),
+                lr=eval(config["LEARNING_RATE"]),
+                weight_decay=eval(config["WEIGHT_DECAY"]),
+            )
+
+            pwd = pathlib.Path(__file__).parent.parent.parent
+            model_path = pwd / config["MODEL_DIR"] / config["EXP_NAME"]
+            model_path = [p for p in model_path.glob("*pt")]
+
+            if len(model_path) == 0:
+                raise FileNotFoundError(f"no model found in {model_path}")
+
+            model_path = model_path[0]  # pick first
+            learner.load(model_path=model_path)
+
+            barrier = learner.net
+            barrier.train()
+        else:
             single_env = envs.envs[0] if envs.unwrapped.is_vector_env else envs
             if not isinstance(single_env.unwrapped, SystemEnv):
                 raise TypeError(
@@ -29,10 +67,8 @@ class SafePPOTrainer(PPOTrainer):
                 )
             system = single_env.system
             barrier = make_barrier(system=system)["barrier"]
-            agent_cls = partial(SafeActorCriticAgent, barrier=barrier)
-        else:
-            raise NotImplementedError("learning barrier not integrated yet")
 
+        agent_cls = partial(SafeActorCriticAgent, barrier=barrier)
         super().__init__(
             envs=envs,
             args=args,

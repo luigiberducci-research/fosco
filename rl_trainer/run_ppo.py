@@ -51,6 +51,8 @@ class Args:
     """the id of the rl trainer"""
     use_true_barrier: bool = True
     """toggle the use of grount-truth barrier"""
+    barrier_from_aim_run: str = None
+    """load barrier learner from the aim logs with this hash"""
     total_timesteps: int = 50000
     """total timesteps of the experiments"""
     learning_rate: float = 3e-4
@@ -180,9 +182,12 @@ def run(args):
             cur_obs = torch.clone(next_obs)
 
             # ALGO LOGIC: action logic
-            with torch.no_grad():
-                results = agent.get_action_and_value(next_obs)
-                action = results["safe_action"] if "safe_action" in results else results["action"]
+            # note: we dont want to keep gradients of inference but we cannot use torch.nograd because we need
+            # autograd for the barrier derivative
+            #with torch.no_grad():
+            results = agent.get_action_and_value(next_obs)
+            results = {k: v.detach() for k, v in results.items()}   # solution: detach all returned values
+            action = results["safe_action"] if "safe_action" in results else results["action"]
 
             # TRY NOT TO MODIFY: execute the game and log data.
             next_obs, reward, terminations, truncations, infos = envs.step(action.cpu().numpy())

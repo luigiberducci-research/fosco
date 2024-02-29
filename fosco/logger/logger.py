@@ -23,3 +23,7 @@ class Logger(ABC):
     @abstractmethod
     def log_video(self, tag: str, video: VideoType, step: int, **kwargs):
         raise NotImplementedError
+
+    @abstractmethod
+    def log_model(self, tag: str, video: VideoType, step: int, **kwargs):
+        raise NotImplementedError

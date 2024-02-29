@@ -57,13 +57,12 @@ class Cegis:
         self.tlogger.info(f"Seed: {self.config.SEED}")
 
     def _initialise_logger(self) -> Logger:
-        config = self.config.dict()
-
         # make experiment name
         datetime_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-        cfg = self.config
-        exp_name = f"{self.f.id}_{cfg.CERTIFICATE.value}_{cfg.EXP_NAME}_Seed{cfg.SEED}_{datetime_str}"
+        exp_name = f"{self.f.id}_{self.config.CERTIFICATE.value}_{self.config.EXP_NAME}_Seed{self.config.SEED}_{datetime_str}"
+        self.config.EXP_NAME = exp_name
 
+        config = self.config.dict()
         logger = make_logger(
             logger_type=self.config.LOGGER, config=config, experiment=exp_name
         )
@@ -93,6 +92,7 @@ class Cegis:
             lr=self.config.LEARNING_RATE,
             weight_decay=self.config.WEIGHT_DECAY,
             initial_models=initial_models,
+            verbose=self.verbose
         )
         return learner_instance
 
@@ -357,10 +357,8 @@ class Cegis:
                 break
 
         self.tlogger.info(f"CEGIS finished after {iter} iterations")
+        self.logger.log_model(tag="barrier", model=self.learner, step=iter)
 
-        # save model
-        model_dir = pathlib.Path(self.config.MODEL_DIR / self.config.EXP_NAME)
-        self.learner.save(model_path=model_dir)
 
         infos = {"iter": iter}
         self._result = CegisResult(

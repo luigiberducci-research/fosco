@@ -257,7 +257,7 @@ class SingleIntegratorConvexHullUncertainty(TorchSymModel):
         """
         self._assert_forward_input(x=x)
         dhdx = self._h.gradient(x=x)
-        min_sigma = torch.zeros((x.shape[0])) + 1e5
+        min_sigma = torch.zeros((x.shape[0])) + 1e10
         for f_uncertain_func in self._system.f_uncertainty:
             new_value = torch.sum(dhdx * f_uncertain_func.forward(x).squeeze(dim=2), dim=1)
             min_sigma = torch.min(min_sigma, new_value)

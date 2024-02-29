@@ -69,6 +69,10 @@ class SumToOneSet(Set):
         if vars is None:
             vars = [f"z{i}" for i in range(self.dimension)]
         self.vars = vars
+        
+    # what does this mean?
+    def __repr__(self):
+        return f"SumToOneSet{self.vars}"
 
     def generate_domain(self, z) -> verifier.SYMBOL:
         # todo: implement this method to return a z3 expression for the domain
@@ -85,8 +89,7 @@ class SumToOneSet(Set):
         z_sum = 0.
         for v_id in dim_selection:
             z_sum += z[v_id]
-        sum_to_one_constraint = [z_sum == 1]
-        return f["And"](positivity, sum_to_one_constraint)
+        return f["And"](positivity, sum == 1)
 
     def generate_data(self, batch_size) -> torch.Tensor:
         # todo: implement a numerical method to return a torch tensor of size "batch_size" of z variables
@@ -94,7 +97,7 @@ class SumToOneSet(Set):
         # the tensor shape is batch_size * len(self.vars)
 
         sum_to_one_data = torch.rand(batch_size, len(self.vars))
-        sum_to_one_data /= torch.sum(sum_to_one_data, dim=1)
+        sum_to_one_data /= sum_to_one_data.sum(dim=-1).unsqueeze(-1)
 
         return sum_to_one_data
 

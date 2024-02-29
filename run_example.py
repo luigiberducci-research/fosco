@@ -109,6 +109,9 @@ def main(args):
 
     result = cegis.solve()
 
+    # save model
+    pass
+
 
 if __name__ == "__main__":
     import argparse

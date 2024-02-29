@@ -47,6 +47,7 @@ class CegisConfig:
     # seeding
     SEED: int = None
     # logging
+    MODEL_DIR: str = "logs/models"
     LOGGER: LoggerType = None
     EXP_NAME: str = None
 

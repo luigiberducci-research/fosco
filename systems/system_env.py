@@ -307,9 +307,20 @@ class SystemEnv(gymnasium.Env):
         canvas = pygame.Surface((self.window_size, self.window_size))
         canvas.fill((220, 220, 220))
 
+        # Draw origin
+        origin_translation = np.array(self.system.state_domain.lower_bounds[:2])
+        position = np.array(self.system.unsafe_domain.center) - origin_translation
+        radius = self.system.unsafe_domain.radius * ppu
+        color = [200, 0, 0]
+        pygame.draw.circle(
+            canvas,
+            color,
+            (position * ppu).astype(int),
+            radius,
+        )
+
         # Draw agents
-        translation = np.array(self.system.state_domain.lower_bounds[:2])
-        position = self._current_obs.squeeze()[:2].numpy() - translation
+        position = self._current_obs.squeeze()[:2].numpy() - origin_translation
         radius = self.collision_threshold / 2 * ppu
         for j in range(1):
             if j == 0:
@@ -330,18 +341,6 @@ class SystemEnv(gymnasium.Env):
             textpos.centerx = position[0] * ppu
             textpos.centery = position[1] * ppu
             canvas.blit(text, textpos)
-
-        # Draw origin
-        translation = np.array(self.system.state_domain.lower_bounds[:2])
-        position = np.array(self.system.unsafe_domain.center) - translation
-        radius = self.system.unsafe_domain.radius * ppu
-        color = [200, 0, 0]
-        pygame.draw.circle(
-            canvas,
-            color,
-            (position * ppu).astype(int),
-            radius,
-        )
 
         if self.render_mode == "human":
             self.screen.blit(canvas, canvas.get_rect())

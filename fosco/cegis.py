@@ -1,4 +1,5 @@
 import logging
+import pathlib
 from datetime import datetime
 
 import numpy as np
@@ -355,8 +356,11 @@ class Cegis:
                 self.tlogger.debug("found valid certificate")
                 break
 
-        # state = self.process_timers(state)
         self.tlogger.info(f"CEGIS finished after {iter} iterations")
+
+        # save model
+        model_dir = pathlib.Path(self.config.MODEL_DIR / self.config.EXP_NAME)
+        self.learner.save(model_path=model_dir)
 
         infos = {"iter": iter}
         self._result = CegisResult(

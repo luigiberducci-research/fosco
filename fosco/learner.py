@@ -1,5 +1,6 @@
+import pathlib
 from abc import abstractmethod
-from typing import Callable, Type
+from typing import Callable, Type, Mapping, Any
 
 import torch
 from torch import nn
@@ -21,6 +22,14 @@ class LearnerNN(nn.Module):
     def update(self, **kwargs) -> dict:
         raise NotImplementedError
 
+    @abstractmethod
+    def save(self, model_path: str | pathlib.Path) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def load(self, model_path: str | pathlib.Path) -> None:
+        raise NotImplementedError
+
 
 class LearnerCT(LearnerNN):
     """
@@ -32,15 +41,15 @@ class LearnerCT(LearnerNN):
         pass
 
     def __init__(
-        self,
-        state_size,
-        learn_method,
-        hidden_sizes: tuple[int, ...],
-        activation: tuple[ActivationType, ...],
-        optimizer: str | None,
-        lr: float,
-        weight_decay: float,
-        initial_models: dict[str, nn.Module] | None = None,
+            self,
+            state_size,
+            learn_method,
+            hidden_sizes: tuple[int, ...],
+            activation: tuple[ActivationType, ...],
+            optimizer: str | None,
+            lr: float,
+            weight_decay: float,
+            initial_models: dict[str, nn.Module] | None = None,
     ):
         super(LearnerCT, self).__init__()
 
@@ -68,6 +77,30 @@ class LearnerCT(LearnerNN):
         output = self.learn_method(self, self.optimizers, datasets, xdot_func)
         return output
 
+    def save(self, model_path: str | pathlib.Path) -> None:
+        assert isinstance(model_path, str) or isinstance(model_path, pathlib.Path), f"wrong path type {type(model_path)}"
+
+        model_path = pathlib.Path(model_path) if isinstance(model_path, str) else model_path
+        if model_path.is_dir():
+            model_path.mkdir(parents=True, exist_ok=True)
+            model_path = model_path / "learner.pt"
+        else:
+            model_dir = model_path.parent
+            model_dir.mkdir(parents=True, exist_ok=True)
+
+        learner_state = self.state_dict()
+        torch.save(learner_state, model_path)
+
+    def load(self, model_path: pathlib.Path) -> None:
+        assert (isinstance(model_path, str) or
+                isinstance(model_path, pathlib.Path)), f"wrong path type {type(model_path)}"
+
+        model_path = pathlib.Path(model_path) if isinstance(model_path, str) else model_path
+        if not model_path.exists():
+            raise FileNotFoundError(f"learner checkpoint not found at {model_path}")
+        learner_state = torch.load(model_path)
+        self.load_state_dict(learner_state)
+
 
 class LearnerRobustCT(LearnerCT):
     """
@@ -76,15 +109,15 @@ class LearnerRobustCT(LearnerCT):
     """
 
     def __init__(
-        self,
-        state_size,
-        learn_method,
-        hidden_sizes: tuple[int, ...],
-        activation: tuple[ActivationType, ...],
-        optimizer: str | None,
-        lr: float,
-        weight_decay: float,
-        initial_models: dict[str, nn.Module] | None = None,
+            self,
+            state_size,
+            learn_method,
+            hidden_sizes: tuple[int, ...],
+            activation: tuple[ActivationType, ...],
+            optimizer: str | None,
+            lr: float,
+            weight_decay: float,
+            initial_models: dict[str, nn.Module] | None = None,
     ):
         super(LearnerRobustCT, self).__init__(
             state_size=state_size,
@@ -117,11 +150,11 @@ class LearnerRobustCT(LearnerCT):
 
 
 def make_learner(
-    system: ControlAffineDynamics, time_domain: TimeDomain
+        system: ControlAffineDynamics, time_domain: TimeDomain
 ) -> Type[LearnerNN]:
     if (
-        isinstance(system, UncertainControlAffineDynamics)
-        and time_domain == TimeDomain.CONTINUOUS
+            isinstance(system, UncertainControlAffineDynamics)
+            and time_domain == TimeDomain.CONTINUOUS
     ):
         return LearnerRobustCT
     elif time_domain == TimeDomain.CONTINUOUS:

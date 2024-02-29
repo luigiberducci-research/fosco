@@ -18,14 +18,14 @@ class ConvexHull(UncertaintyWrapper):
         - and Z_2 = z_{n+1:2n} is the additive convex hull uncertainty for control input for x_i 
 
     f(x) = f_base(x) + co(Z_1) + co(Z_2) u = f_base(x) + fz + gz u
+
+    TODO: to implement gz part!
     """
 
-    def __init__(self, system: ControlAffineDynamics, f_uncertainty: list[TorchSymFn], f_uncertainty_params: list) -> None:
+    def __init__(self, system: ControlAffineDynamics, f_uncertainty: list[TorchSymFn]) -> None:
         super().__init__(system)
 
         self.f_uncertainty = f_uncertainty # list of function, each function input n_vars dim, output n_vars
-        self.f_uncertainty_params = f_uncertainty_params # linear combination parameters for uncertain functions
-        assert len(self.f_uncertainty_params) == len(self.f_uncertainty), "the number of uncertain functions and parameters are not the same"
         # self.g_uncertainty = g_uncertainty # list of function, ignore this first
 
     @property
@@ -37,28 +37,28 @@ class ConvexHull(UncertaintyWrapper):
     def n_uncertain(self) -> int:
         return len(self.f_uncertainty) # + len(self.g_uncertainty)
 
-    # z is the 2n variables, we should return z[0:n] @ f_uncertainty; f_uncertainty idealy should be a function
+    # z is the 2n variables, we should return z[0:n] @ f_uncertainty
     def fz_torch(
         self, x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
     ) -> np.ndarray | torch.Tensor:
         self._assert_batched_input(x, z)
-        # self._assert_sum_to_one(z[:, 0:len(self.f_uncertainty), 0])
-        # another assertion on the dim of z
-        
-        f_uncertain_x = torch.zeros_like(x)
+        self._assert_sum_to_one(z[:, 0:len(self.f_uncertainty), 0])
+        if isinstance(x, np.ndarray):
+            f_uncertain_x = np.zeros_like(x)
+        else:
+            f_uncertain_x = torch.zeros_like(x)
+
         for index in range(len(self.f_uncertainty)):
             f_uncertain_x = f_uncertain_x + self.f_uncertainty[index].forward(x) * z[:, index:index+1, :]
-        if isinstance(x, np.ndarray):
-            f_uncertain_x = np.array(f_uncertain_x)
+
         return f_uncertain_x
 
-    # return symbolic variable, double check!
+    # symbolic version of fz_torch
     def fz_smt(self, x: list, z: list) -> np.ndarray | torch.Tensor:
         self._assert_symbolic_input(x, z)
         f_uncertain_x = np.zeros_like(x, dtype=float)
         for index in range(len(self.f_uncertainty)):
             f_uncertain_x = f_uncertain_x + self.f_uncertainty[index].forward_smt(x) * z[index]
-        f_uncertain_x = np.array(f_uncertain_x)
         return f_uncertain_x
 
     # z is the 2n variables, we should return z[n:2n] @ g_uncertainty, double check the dim of g_uncertainty
@@ -66,7 +66,6 @@ class ConvexHull(UncertaintyWrapper):
         self, x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
     ) -> np.ndarray | torch.Tensor:
         self._assert_batched_input(x, z)
-        # self._assert_sum_to_one(z[:, self.n_vars:2*self.n_vars, 0])
 
         if isinstance(x, np.ndarray):
             gx = np.zeros((self.n_vars, self.n_controls))[None].repeat(
@@ -99,11 +98,12 @@ class ConvexHull(UncertaintyWrapper):
         ), f"expected same type for x and z, got {type(x)} and {type(z)}"
 
     @staticmethod
-    def _assert_sum_to_one(self, z: np.ndarray | torch.Tensor) -> None:
+    def _assert_sum_to_one(z: np.ndarray | torch.Tensor) -> None:
+        print(z.shape, torch.ones(z.shape[0]).shape)
         if isinstance(z, np.ndarray):
             assert np.sum(z, axis=1) == np.ones(z.shape[0]), "expected z is summed to 1"
         else:
-            assert torch.sum(z, axis=1) == torch.ones(z.shape[0]), "expected z is summed to 1"
+            assert torch.all(torch.eq(torch.sum(z, axis=1), torch.ones(z.shape[0]))), "expected z is summed to 1"
 
     def _assert_symbolic_input(self, x: list, z: list) -> None:
         assert isinstance(

@@ -19,10 +19,12 @@ class UncertainFunc(TorchSymFn):
         self.uncertain_func = uncertain_func
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # check the dim consistence, batch input, etc
-        if len(x.size()) == 2:
-            x = torch.unsqueeze(x, dim=2)
-        return (x.squeeze(dim=2) * torch.tensor(self.uncertain_func)).unsqueeze(dim=2)
+        """
+        Input x: shape is (batch_size, state_dim) or (batch_size, state_dim, 1)
+        """
+        if len(x.size()) == 3:
+            x = torch.squeeze(x, dim=2)
+        return (x * torch.tensor(self.uncertain_func)).unsqueeze(dim=2)
     
     def forward_smt(self, x: list) -> list | np.ndarray:
         return np.array(self.uncertain_func) * np.array(x)
@@ -32,15 +34,13 @@ def main(args):
     uncertainty_id = "ConvexHull"
     verbose = 1
 
-    uncertain_func_list = [[0.2, 0.2], [0.3, 0.2], [0.5, 0.1]] # linear functions
-    uncertain_func_coefficiet_list = [0.3, 0.3, 0.4] 
+    uncertain_func_list = [[0.2, 0.2], [0.3, 0.2], [0.5, 0.1]] # define uncertain function to be linear
     f_uncertainty = []
     for uncertain_func in uncertain_func_list:
         f_uncertainty.append(UncertainFunc(uncertain_func))
 
     system_fn = make_system(system_id=system_id)
-    system_fn = add_uncertainty(uncertainty_type=uncertainty_id, system_fn=system_fn, f_uncertainty=f_uncertainty, 
-                                f_uncertainty_params=uncertain_func_coefficiet_list)
+    system_fn = add_uncertainty(uncertainty_type=uncertainty_id, system_fn=system_fn, f_uncertainty=f_uncertainty)
     
     xvars = ["x0", "x1"]
     uvars = ["u0", "u1"]
@@ -52,7 +52,7 @@ def main(args):
     XU = domains.Sphere(
         vars=xvars, centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1], include_boundary=False
     )
-    ZD = domains.SumToOneSet(vars=zvars)
+    ZD = domains.SumToOneSet(vars=zvars) # uncertain variables should sum to be 1
 
 
     sets ={"init": XI, 
@@ -60,8 +60,6 @@ def main(args):
            "lie": XD,
            "uncertainty": ZD,
            "input": UD}
-    
-    # sets = make_domains(system_id=system_id)
 
     # data generator
     data_gen = {

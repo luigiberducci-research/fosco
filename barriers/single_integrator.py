@@ -241,8 +241,6 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
     def load(logdir: str):
         pass
 
-# system, verify (fail), compensator, verify (work)
-# create an example in /examples
     
 class SingleIntegratorConvexHullUncertainty(TorchSymModel):
 
@@ -253,30 +251,26 @@ class SingleIntegratorConvexHullUncertainty(TorchSymModel):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        sigma(x) = 
+        Input:
+        x: batch_size * state_dim
+
+        Return:
+        sigma(x) = - min_{i} (dhdx * uncertain_func_i)
         """
         self._assert_forward_input(x=x)
         dhdx = self._h.gradient(x=x)
-        min_sigma = torch.zeros((x.shape[0])) + 1e10
+        batch_size = x.shape[0]
+        min_sigma = torch.zeros((batch_size)) + 1e10
         for f_uncertain_func in self._system.f_uncertainty:
-            new_value = torch.sum(dhdx * f_uncertain_func.forward(x).squeeze(dim=2), dim=1)
-            min_sigma = torch.min(min_sigma, new_value)
+            new_sigma = torch.sum(dhdx * f_uncertain_func.forward(x).squeeze(dim=2), dim=1)
+            min_sigma = torch.min(min_sigma, new_sigma)
         sigma = - min_sigma # compensanter
         self._assert_forward_output(x=sigma)
         return sigma
 
     def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL]]:
-        """
-        Problem: z3 is not able to cope with sqrt.
 
-        Solution: forward pass as conjunction of two constraints
-        - note that sigma = sqrt(dhdx[0] ** 2 + dhdx[1] ** 2) is equivalent to
-          sigma ** 2 = dhdx[0] ** 2 + dhdx[1] ** 2
-        - then we forward pass as
-        And(sigma * z_bound, sigma ** 2 = dhdx[0] ** 2 + dhdx[1] ** 2)
-        """
         self._assert_forward_smt_input(x=x)
-        _And = FUNCTIONS["And"]
 
         def min(x, y):
             _If = FUNCTIONS["If"]

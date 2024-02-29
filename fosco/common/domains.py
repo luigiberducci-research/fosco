@@ -82,14 +82,14 @@ class SumToOneSet(Set):
         returns: symbolic formula for domain
         """
         f = verifier.FUNCTIONS
-        dim_selection = [i for i, vz in enumerate(z) if str(vz) in self.vars]
+        z_dim = [i for i, vz in enumerate(z) if str(vz) in self.vars]
         positivity = f["And"](
-            *[0. <= z[v_id] for v_id in dim_selection]
+            *[0. <= z[v_id] for v_id in z_dim]
         )
         z_sum = 0.
-        for v_id in dim_selection:
+        for v_id in z_dim:
             z_sum += z[v_id]
-        return f["And"](positivity, sum == 1)
+        return f["And"](positivity, z_sum == 1)
 
     def generate_data(self, batch_size) -> torch.Tensor:
         # todo: implement a numerical method to return a torch tensor of size "batch_size" of z variables

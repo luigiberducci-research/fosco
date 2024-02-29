@@ -87,8 +87,10 @@ class SystemEnv(gymnasium.Env):
         self._return_as_np = return_np
 
         # rendering
-        self.world_size = 60.0
-        self.collision_threshold = 5.0
+        domain_xy_size = (np.array(self.system.state_domain.upper_bounds[:2]) -
+                          np.array(self.system.state_domain.lower_bounds[:2]))
+        self.world_size = max(domain_xy_size)   # if different domain sizes, pick the largest
+        self.collision_threshold = 1.0
 
         self.window_size = 1024
         self.ticks = 60
@@ -306,7 +308,7 @@ class SystemEnv(gymnasium.Env):
         canvas.fill((220, 220, 220))
 
         # Draw agents
-        translation = self.system.state_domain.lower_bounds[:2]
+        translation = np.array(self.system.state_domain.lower_bounds[:2])
         position = self._current_obs.squeeze()[:2].numpy() - translation
         radius = self.collision_threshold / 2 * ppu
         for j in range(1):
@@ -328,6 +330,18 @@ class SystemEnv(gymnasium.Env):
             textpos.centerx = position[0] * ppu
             textpos.centery = position[1] * ppu
             canvas.blit(text, textpos)
+
+        # Draw origin
+        translation = np.array(self.system.state_domain.lower_bounds[:2])
+        position = np.array(self.system.unsafe_domain.center) - translation
+        radius = self.system.unsafe_domain.radius * ppu
+        color = [200, 0, 0]
+        pygame.draw.circle(
+            canvas,
+            color,
+            (position * ppu).astype(int),
+            radius,
+        )
 
         if self.render_mode == "human":
             self.screen.blit(canvas, canvas.get_rect())

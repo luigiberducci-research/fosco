@@ -37,7 +37,7 @@ class Args:
     """whether to capture videos of the agent performances (check out `videos` folder)"""
     render_mode: str = None
     """render mode during training if no capture video"""
-    save_model: bool = False
+    save_model: bool = True
     """whether to save model into the `runs/{run_name}` folder"""
     upload_model: bool = False
     """whether to upload the saved model to huggingface"""
@@ -128,8 +128,11 @@ def run(args):
     args.batch_size = int(args.num_envs * args.num_steps)
     args.minibatch_size = int(args.batch_size // args.num_minibatches)
     args.num_iterations = args.total_timesteps // args.batch_size
-    run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
+    run_name = f"{args.env_id}__{args.trainer_id}__{args.seed}__{int(time.time())}"
     logdir = f"{pathlib.Path(__file__).parent.parent}/runs/{run_name}"
+
+    if args.num_iterations == 0:
+        raise ValueError("Number of iterations = 0, maybe total timestep <= numenvs*numsteps?")
 
     writer = SummaryWriter(logdir)
     writer.add_text(
@@ -179,7 +182,7 @@ def run(args):
             # ALGO LOGIC: action logic
             with torch.no_grad():
                 results = agent.get_action_and_value(next_obs)
-                action = results["action"]
+                action = results["safe_action"] if "safe_action" in results else results["action"]
 
             # TRY NOT TO MODIFY: execute the game and log data.
             next_obs, reward, terminations, truncations, infos = envs.step(action.cpu().numpy())
@@ -214,8 +217,11 @@ def run(args):
         writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
     if args.save_model:
-        model_path = f"{logdir}/{args.exp_name}.cleanrl_model"
-        torch.save(agent.state_dict(), model_path)
+        checkpoint_dir = pathlib.Path(f"{logdir}/checkpoints/")
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+        model_path = checkpoint_dir / f"model_{global_step}.pt"
+        torch.save(agent.state_dict(), str(model_path))
         print(f"model saved to {model_path}")
 
         del agent

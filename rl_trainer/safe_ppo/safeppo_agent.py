@@ -67,19 +67,20 @@ class SafeActorCriticAgent(ActorCriticAgent):
         alphahx = cp.Parameter(1)
 
         u = cp.Variable(self.output_size)
+        slack = cp.Variable(1)
 
         constraints = []
         # input constraint: u in U
-        #constraints += [u >= self.umin, u <= self.umax]
+        constraints += [u >= self.umin, u <= self.umax]
 
         # constraint: hdot(x,u) + alpha(h(x)) >= 0
-        constraints += [Lfhx + Lghx @ u + alphahx >= 0.0]
+        constraints += [Lfhx + Lghx @ u + alphahx + slack >= 0.0]
 
         # objective: u.T Q u + p.T u
-        objective = 1 / 2 * cp.quad_form(u, Q) + px.T @ u
+        objective = 1 / 2 * cp.quad_form(u, Q) + px.T @ u + 1000 * slack**2
         problem = cp.Problem(cp.Minimize(objective), constraints)
 
-        return CvxpyLayer(problem, variables=[u], parameters=[px, Lfhx, Lghx, alphahx])
+        return CvxpyLayer(problem, variables=[u, slack], parameters=[px, Lfhx, Lghx, alphahx])
 
     def get_value(self, x):
         return self.critic(x)
@@ -125,10 +126,11 @@ class SafeActorCriticAgent(ActorCriticAgent):
 
             Lfhx = (dhdx @ fx).view(n_batch, 1)
             Lghx = (dhdx @ gx).view(n_batch, self.output_size)
-            alphahx = (action_k * hx).view(n_batch, 1)
+            alpha = 4 * nn.Sigmoid()(action_k)
+            alphahx = (alpha * hx).view(n_batch, 1)
 
             # note: no kwargs to cvxpylayer
-            (safe_action,) = self.safety_layer(
+            (safe_action, slack) = self.safety_layer(
                     action,
                     Lfhx,
                     Lghx,

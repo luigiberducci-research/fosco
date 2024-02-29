@@ -67,23 +67,44 @@ class Set:
 class SumToOneSet(Set):
     def __init__(self, vars: list[str] = None) -> None:
         if vars is None:
-            vars = [f"x{i}" for i in range(self.dimension)]
+            vars = [f"z{i}" for i in range(self.dimension)]
         self.vars = vars
 
-    def generate_domain(self, x) -> verifier.SYMBOL:
+    def generate_domain(self, z) -> verifier.SYMBOL:
         # todo: implement this method to return a z3 expression for the domain
         # z1 + z2 + z3 == 1 (extend it to a variable number of z, use self.vars)
-        raise NotImplementedError
+        """
+        param x: data point z
+        returns: symbolic formula for domain
+        """
+        f = verifier.FUNCTIONS
+        dim_selection = [i for i, vz in enumerate(z) if str(vz) in self.vars]
+        positivity = f["And"](
+            *[0. <= z[v_id] for v_id in dim_selection]
+        )
+        z_sum = 0.
+        for v_id in dim_selection:
+            z_sum += z[v_id]
+        sum_to_one_constraint = [z_sum == 1]
+        return f["And"](positivity, sum_to_one_constraint)
 
     def generate_data(self, batch_size) -> torch.Tensor:
         # todo: implement a numerical method to return a torch tensor of size "batch_size" of z variables
         # summing up to 1. For example, draw random number and normalize them.
+        # the tensor shape is batch_size * len(self.vars)
 
-        raise NotImplementedError
-    def check_containment(self, x: np.ndarray | torch.Tensor) -> torch.Tensor:
-        # todo: implement a method which checks if x (numerical tensor) is a valid tensor (the numbers sum up to 1)
-        # return a boolean tensor of the same batch size of x
-        raise NotImplementedError
+        sum_to_one_data = torch.rand(batch_size, len(self.vars))
+        sum_to_one_data /= torch.sum(sum_to_one_data, dim=1)
+
+        return sum_to_one_data
+
+    def check_containment(self, z: np.ndarray | torch.Tensor) -> torch.Tensor:
+        # todo: implement a method which checks if z (numerical tensor) is a valid tensor (the numbers sum up to 1)
+        # return a boolean tensor of the same batch size of z
+        batch_size = z.shape[0]
+        assert z.shape[1] == len(self.vars)
+        contain_validity = (torch.sum(z, sum=1)==torch.ones(batch_size))
+        return contain_validity
 
 
 class Rectangle(Set):

@@ -50,8 +50,6 @@ class ConvexHull(UncertaintyWrapper):
             f_uncertain_x = f_uncertain_x + self.f_uncertainty[index].forward(x) * z[:, index:index+1, :]
         if isinstance(x, np.ndarray):
             f_uncertain_x = np.array(f_uncertain_x)
-        else:
-            f_uncertain_x = torch.tensor(f_uncertain_x)
         return f_uncertain_x
 
     # return symbolic variable, double check!

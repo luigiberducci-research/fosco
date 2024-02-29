@@ -99,7 +99,6 @@ class ConvexHull(UncertaintyWrapper):
 
     @staticmethod
     def _assert_sum_to_one(z: np.ndarray | torch.Tensor) -> None:
-        print(z.shape, torch.ones(z.shape[0]).shape)
         if isinstance(z, np.ndarray):
             assert np.sum(z, axis=1) == np.ones(z.shape[0]), "expected z is summed to 1"
         else:

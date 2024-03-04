@@ -2,11 +2,8 @@ from functools import partial
 
 import numpy as np
 import torch
-from matplotlib import pyplot as plt
-from mpl_toolkits.mplot3d import art3d
 
 from fosco import verifier
-from fosco.common.plotting import get_plot_colour
 from fosco.common.utils import round_init_data, square_init_data
 
 
@@ -64,49 +61,54 @@ class Set:
     def check_containment(self, x: np.ndarray | torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
 
+
 class SumToOneSet(Set):
-    def __init__(self, vars: list[str] = None) -> None:
-        if vars is None:
-            vars = [f"z{i}" for i in range(self.dimension)]
-        self.vars = vars
-        
-    # what does this mean?
+    """
+    A set whose elements are positive and sum up to one.
+    """
     def __repr__(self):
+        """
+        Return a string representation of the domain.
+        e.g., print(SumToOneSet()) => 'SumToOneSet()'
+        """
         return f"SumToOneSet{self.vars}"
 
     def generate_domain(self, z) -> verifier.SYMBOL:
-        # todo: implement this method to return a z3 expression for the domain
-        # z1 + z2 + z3 == 1 (extend it to a variable number of z, use self.vars)
         """
-        param x: data point z
-        returns: symbolic formula for domain
+        Generates symbolic domain.
+
+        :param z: symbolic variables
+        :return: symbolic expression
         """
         f = verifier.FUNCTIONS
         z_dim = [i for i, vz in enumerate(z) if str(vz) in self.vars]
-        positivity = f["And"](
-            *[0. <= z[v_id] for v_id in z_dim]
-        )
-        z_sum = 0.
+        positivity = f["And"](*[0.0 <= z[v_id] for v_id in z_dim])
+        z_sum = 0.0
         for v_id in z_dim:
             z_sum += z[v_id]
         return f["And"](positivity, z_sum == 1)
 
     def generate_data(self, batch_size) -> torch.Tensor:
-        # todo: implement a numerical method to return a torch tensor of size "batch_size" of z variables
-        # summing up to 1. For example, draw random number and normalize them.
-        # the tensor shape is batch_size * len(self.vars)
+        """
+        Generates data samples in the domain.
 
+        :param batch_size: number of samples
+        :return: batch of data
+        """
         sum_to_one_data = torch.rand(batch_size, len(self.vars))
         sum_to_one_data /= sum_to_one_data.sum(dim=-1).unsqueeze(-1)
-
         return sum_to_one_data
 
     def check_containment(self, z: np.ndarray | torch.Tensor) -> torch.Tensor:
-        # todo: implement a method which checks if z (numerical tensor) is a valid tensor (the numbers sum up to 1)
-        # return a boolean tensor of the same batch size of z
+        """
+        Checks if the given batch of samples is contained in the domain.
+
+        :param z: batch of data samples
+        :return: boolean batch
+        """
         batch_size = z.shape[0]
         assert z.shape[1] == len(self.vars)
-        contain_validity = (torch.sum(z, sum=1)==torch.ones(batch_size))
+        contain_validity = torch.sum(z, sum=1) == torch.ones(batch_size)
         return contain_validity
 
 
@@ -215,7 +217,14 @@ class Rectangle(Set):
 
 
 class Sphere(Set):
-    def __init__(self, centre, radius, vars: list[str] = None, dim_select=None, include_boundary: bool =True):
+    def __init__(
+        self,
+        centre,
+        radius,
+        vars: list[str] = None,
+        dim_select=None,
+        include_boundary: bool = True,
+    ):
         self.centre = centre
         self.radius = radius
         self.dimension = len(centre)
@@ -237,22 +246,21 @@ class Sphere(Set):
         if self.include_boundary:
             domain = (
                 sum([(x[i] - self.centre[i]) ** 2 for i in range(self.dimension)])
-                <= self.radius ** 2
+                <= self.radius**2
             )
         else:
             domain = (
                 sum([(x[i] - self.centre[i]) ** 2 for i in range(self.dimension)])
-                < self.radius ** 2
+                < self.radius**2
             )
         return domain
-
 
     def generate_data(self, batch_size):
         """
         param batch_size: number of data points to generate
         returns: data points generated in relevant domain according to shape
         """
-        return round_init_data(self.centre, self.radius ** 2, batch_size)
+        return round_init_data(self.centre, self.radius**2, batch_size)
 
     def sample_border(self, batch_size):
         """
@@ -260,7 +268,7 @@ class Sphere(Set):
         returns: data points generated on the border of the set
         """
         return round_init_data(
-            self.centre, self.radius ** 2, batch_size, on_border=True
+            self.centre, self.radius**2, batch_size, on_border=True
         )
 
     def check_containment(self, x: np.ndarray | torch.Tensor) -> torch.Tensor:
@@ -268,7 +276,7 @@ class Sphere(Set):
             x = np.array([x[:, i] for i in self.dim_select])
         x = torch.from_numpy(x)
         c = torch.tensor(self.centre).reshape(1, -1)
-        return (x - c).norm(2, dim=-1) <= self.radius ** 2
+        return (x - c).norm(2, dim=-1) <= self.radius**2
 
     def check_containment_grad(self, x: torch.Tensor) -> torch.Tensor:
         # check containment and return a tensor with gradient
@@ -278,4 +286,4 @@ class Sphere(Set):
             c = [self.centre[i] for i in self.dim_select]
             c = torch.tensor(c).reshape(1, -1)
         # returns 0 if it IS contained, a positive number otherwise
-        return torch.relu((x - c).norm(2, dim=-1) - self.radius ** 2)
+        return torch.relu((x - c).norm(2, dim=-1) - self.radius**2)

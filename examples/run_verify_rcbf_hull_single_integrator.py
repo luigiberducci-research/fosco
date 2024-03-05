@@ -8,6 +8,7 @@ from fosco.cegis import Cegis
 from fosco.common.consts import CertificateType
 from fosco.config import CegisConfig
 from fosco.common import domains
+from fosco.logger import LoggerType
 from systems import make_system, make_domains
 from systems.uncertainty import add_uncertainty
 from models.torchsym import TorchSymFn
@@ -90,6 +91,7 @@ def main(args):
         CERTIFICATE=CertificateType.RCBF,
         USE_INIT_MODELS=True,
         CEGIS_MAX_ITERS=1,
+        LOGGER=LoggerType.AIM
     )
     cegis = Cegis(config=config, verbose=verbose)
 

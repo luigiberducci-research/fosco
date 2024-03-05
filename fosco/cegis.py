@@ -279,7 +279,7 @@ class Cegis:
                 )
                 if isinstance(self.f, UncertainControlAffineDynamics):
                     f = lambda x, u: self.f._f_torch(
-                        x, u, z=torch.zeros((x.shape[0], self.f.n_uncertain))
+                        x, u, z=None, only_nominal=True
                     )
                 else:
                     f = lambda x, u: self.f._f_torch(x, u)

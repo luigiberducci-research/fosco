@@ -40,7 +40,7 @@ class TestDomains(unittest.TestCase):
         X1 = domains.Rectangle(vars=["x", "y"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
         X2 = domains.Sphere(vars=["x", "y"], centre=(10.0, 10.0), radius=1.0)
 
-        X = domains.Union(X1, X2)
+        X = domains.Union(sets=[X1, X2])
         self.assertEqual(X.dimension, 2)
         self.assertEqual(X.vars, ["x", "y"])
 
@@ -56,7 +56,7 @@ class TestDomains(unittest.TestCase):
         X1 = domains.Rectangle(vars=["x", "y"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
         X2 = domains.Sphere(vars=["x", "y"], centre=(1.0, 1.0), radius=1.0)
 
-        X = domains.Intersection(X1, X2)
+        X = domains.Intersection(sets=[X1, X2])
         self.assertEqual(X.dimension, 2)
         self.assertEqual(X.vars, ["x", "y"])
 

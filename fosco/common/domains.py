@@ -1,3 +1,4 @@
+import warnings
 from functools import partial
 
 import numpy as np
@@ -14,6 +15,7 @@ class Set:
         if vars is None:
             vars = [f"x{i}" for i in range(self.dimension)]
         self.vars = vars
+        self.dimension = len(self.vars)
 
     def generate_domain(self, x) -> SYMBOL:
         raise NotImplementedError
@@ -67,16 +69,15 @@ class Set:
 
 class Rectangle(Set):
     def __init__(
-        self,
-        lb: tuple[float, ...],
-        ub: tuple[float, ...],
-        vars: list[str] = None,
-        dim_select=None,
+            self,
+            lb: tuple[float, ...],
+            ub: tuple[float, ...],
+            vars: list[str] = None,
+            dim_select=None,
     ):
-        self.name = "square"
+        self.name = "box"
         self.lower_bounds = lb
         self.upper_bounds = ub
-        self.dimension = len(lb)
         self.dim_select = dim_select
         super().__init__(vars=vars)
 
@@ -154,9 +155,11 @@ class Rectangle(Set):
         return vertices
 
     def check_containment(self, x: np.ndarray | torch.Tensor) -> torch.Tensor:
+        assert len(x.shape) == 2, f"Expected x to be 2D, got {x.shape}"
         if self.dim_select:
             x = np.array([x[:, i] for i in self.dim_select])
-        x = torch.from_numpy(x)
+        if isinstance(x, np.ndarray):
+            x = torch.from_numpy(x)
         all_constr = torch.logical_and(
             torch.tensor(self.upper_bounds) >= x, torch.tensor(self.lower_bounds) <= x
         )
@@ -179,16 +182,15 @@ class Rectangle(Set):
 
 class Sphere(Set):
     def __init__(
-        self,
-        centre,
-        radius,
-        vars: list[str] = None,
-        dim_select=None,
-        include_boundary: bool = True,
+            self,
+            centre,
+            radius,
+            vars: list[str] = None,
+            dim_select=None,
+            include_boundary: bool = True,
     ):
         self.centre = centre
         self.radius = radius
-        self.dimension = len(centre)
         self.include_boundary = include_boundary
         super().__init__(vars=vars)
         self.dim_select = dim_select
@@ -206,13 +208,13 @@ class Sphere(Set):
 
         if self.include_boundary:
             domain = (
-                sum([(x[i] - self.centre[i]) ** 2 for i in range(self.dimension)])
-                <= self.radius**2
+                    sum([(x[i] - self.centre[i]) ** 2 for i in range(self.dimension)])
+                    <= self.radius ** 2
             )
         else:
             domain = (
-                sum([(x[i] - self.centre[i]) ** 2 for i in range(self.dimension)])
-                < self.radius**2
+                    sum([(x[i] - self.centre[i]) ** 2 for i in range(self.dimension)])
+                    < self.radius ** 2
             )
         return domain
 
@@ -221,7 +223,7 @@ class Sphere(Set):
         param batch_size: number of data points to generate
         returns: data points generated in relevant domain according to shape
         """
-        return round_init_data(self.centre, self.radius**2, batch_size)
+        return round_init_data(self.centre, self.radius ** 2, batch_size)
 
     def sample_border(self, batch_size):
         """
@@ -229,15 +231,27 @@ class Sphere(Set):
         returns: data points generated on the border of the set
         """
         return round_init_data(
-            self.centre, self.radius**2, batch_size, on_border=True
+            self.centre, self.radius ** 2, batch_size, on_border=True
         )
 
-    def check_containment(self, x: np.ndarray | torch.Tensor) -> torch.Tensor:
+    def check_containment(self, x: np.ndarray | torch.Tensor, epsilon: float = 1e-6) -> torch.Tensor:
+        """
+        Check if the points in x are contained in the sphere.
+
+        Args:
+            x: batch of points to check
+            epsilon: tolerance for the checking up to numerical precision
+
+        Returns:
+            torch.Tensor: boolean tensor with True for points contained in the sphere
+        """
+        assert len(x.shape) == 2, f"Expected x to be 2D, got {x.shape}"
         if self.dim_select:
             x = np.array([x[:, i] for i in self.dim_select])
-        x = torch.from_numpy(x)
+        if isinstance(x, np.ndarray):
+            x = torch.from_numpy(x)
         c = torch.tensor(self.centre).reshape(1, -1)
-        return (x - c).norm(2, dim=-1) <= self.radius**2
+        return (x - c).norm(2, dim=-1) - self.radius ** 2 <= epsilon
 
     def check_containment_grad(self, x: torch.Tensor) -> torch.Tensor:
         # check containment and return a tensor with gradient
@@ -247,4 +261,74 @@ class Sphere(Set):
             c = [self.centre[i] for i in self.dim_select]
             c = torch.tensor(c).reshape(1, -1)
         # returns 0 if it IS contained, a positive number otherwise
-        return torch.relu((x - c).norm(2, dim=-1) - self.radius**2)
+        return torch.relu((x - c).norm(2, dim=-1) - self.radius ** 2)
+
+
+class Union(Set):
+    """
+    Set formed by union of S1 and S2
+    """
+
+    def __init__(self, S1: Set, S2: Set) -> None:
+        assert set(S1.vars) == set(S2.vars), f"Sets must have the same variables, got {S1.vars} and {S2.vars}"
+        super().__init__(vars=S1.vars)
+        self.S1 = S1
+        self.S2 = S2
+
+    def __repr__(self) -> str:
+        return f"({self.S1} | {self.S2})"
+
+    def generate_domain(self, x):
+        fns = get_solver_fns(x=x)
+        return fns["Or"](self.S1.generate_domain(x), self.S2.generate_domain(x))
+
+    def generate_data(self, batch_size):
+        X1 = self.S1.generate_data(int(batch_size / 2))
+        X2 = self.S2.generate_data(int(batch_size / 2))
+        return torch.cat([X1, X2])
+
+    def sample_border(self, batch_size):
+        warnings.warn(
+            "Assuming that border of S1 and S2 is the union of the two borders. This is not true in general, eg if the sets intersect."
+        )
+        X1 = self.S1.sample_border(int(batch_size / 2))
+        X2 = self.S2.sample_border(int(batch_size / 2))
+        return torch.cat([X1, X2])
+
+
+class Intersection(Set):
+    """
+    Set formed by intersection of S1 and S2
+    """
+
+    def __init__(self, S1: Set, S2: Set) -> None:
+        assert set(S1.vars) == set(S2.vars), f"Sets must have the same variables, got {S1.vars} and {S2.vars}"
+        super().__init__(vars=S1.vars)
+        self.S1 = S1
+        self.S2 = S2
+
+    def __repr__(self) -> str:
+        return f"({self.S1} & {self.S2})"
+
+    def generate_domain(self, x):
+        fns = get_solver_fns(x=x)
+        return fns["And"](self.S1.generate_domain(x), self.S2.generate_domain(x))
+
+    def generate_data(self, batch_size: int, max_iter: int = 1000) -> torch.Tensor:
+        """
+        Rejection sampling to generate data in the intersection of S1 and S2.
+
+        Args:
+            batch_size: number of data points to generate
+            max_iter: maximum number of iterations for rejection sampling
+
+        Returns:
+            torch.Tensor: data points generated in the intersection of S1 and S2
+        """
+        samples = torch.empty(0, self.S1.dimension)
+        while len(samples) < batch_size and max_iter > 0:
+            s = self.S1.generate_data(batch_size=batch_size)
+            s = s[self.S2.check_containment(s)]
+            samples = torch.cat([samples, s])
+            max_iter -= 1
+        return samples[:batch_size]

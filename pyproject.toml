@@ -1,0 +1,48 @@
+[tool.pytest.ini_options]
+minversion = 6.0
+addopts = "-ra"
+testpaths =[
+    "tests",
+]
+
+
+[tool.poetry]
+name = "fosco"
+version = "0.0.1"
+description = "Formal Synthesis of COntrol Barrier Functions"
+license = "MIT"
+authors = [
+    "Luigi Berducci",
+]
+maintainers = [
+    "Luigi Berducci",
+]
+readme = "README.md"
+repository = "https://github.com/f1tenth/f1tenth_gym"
+packages = [
+    {include = "fosco", from = "."},
+]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+torch = ">1.9.0"
+numpy = ">1.21.0"
+matplotlib = ">3.4.0"
+plotly = ">=5.18.0"
+pandas = ">=2.0.0"
+z3-solver = ">=4.12.4.0"
+dreal = ">=4.21.6"
+cvxpy = ">=1.4.1"
+gymnasium = ">0.29.0"
+pyyaml = "*"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.4"
+black = "^23.12.1"
+autoflake = "^2.2.1"
+flake8 = "^7.0.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

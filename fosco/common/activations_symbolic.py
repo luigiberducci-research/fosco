@@ -3,9 +3,15 @@
 #
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
+import logging
 
 import numpy as np
 import z3
+
+try:
+    import dreal as dr
+except Exception as e:
+    logging.exception("Exception while importing dReal")
 
 from fosco.common import consts
 
@@ -25,6 +31,14 @@ def activation_sym(select, p):
         return relu_square_z3(p)
     elif select == consts.ActivationType.REQU:
         return requ_z3(p)
+    elif select == consts.ActivationType.TANH:
+        return hyper_tan_dr(p)
+    elif select == consts.ActivationType.SIGMOID:
+        return sigm_dr(p)
+    elif select == consts.ActivationType.SOFTPLUS:
+        return softplus_dr(p)
+    elif select == consts.ActivationType.COSH:
+        return cosh(p)
     elif select == consts.ActivationType.POLY_3:
         return poly3_sym(p)
     elif select == consts.ActivationType.POLY_4:
@@ -47,6 +61,8 @@ def activation_sym(select, p):
         return even_poly10_sym(p)
     elif select == consts.ActivationType.RATIONAL:
         return rational_sym(p)
+    else:
+        raise NotImplementedError(f"Activation {select} not implemented")
 
 
 def activation_der_sym(select, p):
@@ -64,6 +80,14 @@ def activation_der_sym(select, p):
         return relu_square_der_z3(p)
     elif select == consts.ActivationType.REQU:
         return requ_der_z3(p)
+    elif select == consts.ActivationType.TANH:
+        return hyper_tan_der_dr(p)
+    elif select == consts.ActivationType.SIGMOID:
+        return sigm_der_dr(p)
+    elif select == consts.ActivationType.SOFTPLUS:
+        return softplus_der_dr(p)
+    elif select == consts.ActivationType.COSH:
+        return sinh(p)
     elif select == consts.ActivationType.POLY_3:
         return poly3_der_sym(p)
     elif select == consts.ActivationType.POLY_4:
@@ -86,7 +110,8 @@ def activation_der_sym(select, p):
         return even_poly10_der_sym(p)
     elif select == consts.ActivationType.RATIONAL:
         return rational_der_sym(p)
-
+    else:
+        raise NotImplementedError(f"Activation {select} not implemented")
 
 def relu(x):
     y = x.copy()
@@ -119,6 +144,38 @@ def relu_square_z3(x):
 def requ_z3(x):
     return np.multiply(x, relu(x))
 
+def hyper_tan_dr(x):
+    y = x.copy()
+    # original_shape = y.shape
+    # y = y.reshape(max(y.shape[0], y.shape[1]), 1)
+    for idx in range(len(y)):
+        y[idx, 0] = dr.tanh(y[idx, 0])
+    return y  # .reshape(original_shape)
+
+
+def sigm_dr(x):
+    # sigmoid is f(x) = 1/(1+e^-x)
+    y = x.copy()
+    for idx in range(len(y)):
+        y[idx, 0] = 1 / (1 + dr.exp(-y[idx, 0]))
+    return y
+
+
+def softplus_dr(x):
+    # softplus is f(x) = ln(1 + e^x)
+    y = x.copy()
+    for idx in range(len(y)):
+        y[idx, 0] = dr.log(1 + dr.exp(y[idx, 0]))
+    return y
+
+
+def cosh(x):
+    y = x.copy()
+    # original_shape = y.shape
+    # y = y.reshape(max(y.shape[0], y.shape[1]), 1)
+    for idx in range(len(y)):
+        y[idx, 0] = dr.cosh(y[idx, 0]) - 1
+    return y  # .reshape(original_shape)
 
 def poly3_sym(x):
     # linear - quadratic - cubic activation
@@ -337,7 +394,29 @@ def relu_square_der_z3(x):
 def requ_der_z3(x):
     return 2 * relu(x)
 
+def hyper_tan_der_dr(x):
+    y = x.copy()
+    # original_shape = y.shape
+    # y = y.reshape(max(y.shape[0], y.shape[1]), 1)
+    for idx in range(len(y)):
+        y[idx, 0] = 1 / dr.pow(dr.cosh(y[idx, 0]), 2)
+    return y  # .reshape(original_shape)
 
+
+def sinh(x):
+    y = x.copy()
+    # original_shape = y.shape
+    # y = y.reshape(max(y.shape[0], y.shape[1]), 1)
+    for idx in range(len(y)):
+        y[idx, 0] = dr.sinh(y[idx, 0])
+    return y  # .reshape(original_shape)
+
+
+def sigm_der_dr(x):
+    y = x.copy()
+    for idx in range(len(y)):
+        y[idx, 0] = dr.exp(-y[idx, 0]) / dr.pow((1 + dr.exp(-y[idx, 0])), 2)
+    return y
 def poly3_der_sym(x):
     # linear - quadratic - cubic activation
     h = int(x.shape[0] / 3)

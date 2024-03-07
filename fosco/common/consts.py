@@ -57,6 +57,11 @@ class ActivationType(Enum):
     EVEN_POLY_8 = "even_poly_8"
     EVEN_POLY_10 = "even_poly_10"
     RATIONAL = "rational"
+    # dReal only from here
+    TANH = "tanh"
+    SIGMOID = "sigmoid"
+    SOFTPLUS = "softplus"
+    COSH = "cosh"
 
 
 class VerifierType(Enum):

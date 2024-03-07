@@ -24,6 +24,14 @@ def activation(select: consts.ActivationType, p):
         return relu_square(p)
     elif select == consts.ActivationType.REQU:
         return requ(p)
+    elif select == consts.ActivationType.TANH:
+        return hyper_tan(p)
+    elif select == consts.ActivationType.SIGMOID:
+        return sigm(p)
+    elif select == consts.ActivationType.SOFTPLUS:
+        return softplus(p)
+    elif select == consts.ActivationType.COSH:
+        return cosh(p)
     elif select == consts.ActivationType.POLY_3:
         return poly3(p)
     elif select == consts.ActivationType.POLY_4:
@@ -46,6 +54,8 @@ def activation(select: consts.ActivationType, p):
         return even_poly10(p)
     elif select == consts.ActivationType.RATIONAL:
         return rational(p)
+    else:
+        raise ValueError(f"Activation {select} not implemented")
 
 
 def activation_der(select: consts.ActivationType, p):
@@ -68,6 +78,14 @@ def activation_der(select: consts.ActivationType, p):
         return relu_square_der(p)
     elif select == consts.ActivationType.REQU:
         return 2 * relu(p)
+    elif select == consts.ActivationType.TANH:
+        return hyper_tan_der(p)
+    elif select == consts.ActivationType.SIGMOID:
+        return sigm_der(p)
+    elif select == consts.ActivationType.SOFTPLUS:
+        return softplus_der(p)
+    elif select == consts.ActivationType.COSH:
+        return sinh(p)
     elif select == consts.ActivationType.POLY_3:
         return poly3_der(p)
     elif select == consts.ActivationType.POLY_4:
@@ -90,6 +108,8 @@ def activation_der(select: consts.ActivationType, p):
         return even_poly10_der(p)
     elif select == consts.ActivationType.RATIONAL:
         return rational_der(p)
+    else:
+        raise ValueError(f"Activation {select} not implemented")
 
 
 ##################################################################

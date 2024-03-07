@@ -48,7 +48,6 @@ class SingleIntegrator(ControlAffineDynamics):
 
     @property
     def unsafe_domain(self) -> Set:
-        # todo: do we need dim_select?
         return domains.Sphere(
             vars=self.vars,
             centre=(0.0,) * self.n_vars,

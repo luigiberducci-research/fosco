@@ -1,13 +1,12 @@
 from typing import Type
 
-from fosco.common import domains
-from fosco.common.domains import Set
 from .system import (
     ControlAffineDynamics,
     UncertainControlAffineDynamics,
 )
 from .single_integrator import SingleIntegrator
 from .double_integrator import DoubleIntegrator
+from .office import OfficeSingleIntegrator
 from .unicycle_model import Unicycle
 
 

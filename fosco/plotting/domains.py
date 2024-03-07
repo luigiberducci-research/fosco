@@ -2,7 +2,7 @@ import numpy as np
 
 from plotly.graph_objs import Figure, Surface
 
-from fosco.common.domains import Rectangle, Sphere, Set
+from fosco.common.domains import Rectangle, Sphere, Set, Union
 
 
 def plot_rectangle(
@@ -87,6 +87,12 @@ def plot_domain(
         fig = plot_rectangle(domain, fig, color, dim_select, label)
     elif isinstance(domain, Sphere):
         fig = plot_sphere(domain, fig, color, dim_select, label)
+    elif isinstance(domain, Union):
+        is_first = True
+        for subdomain in domain.sets:
+            label = label if is_first else None
+            fig = plot_domain(subdomain, fig, color, dim_select, label)
+            is_first = False
     else:
         raise NotImplementedError(f"Plotting for {domain} not implemented")
 

@@ -9,9 +9,7 @@ from fosco.verifier.verifier import SYMBOL
 
 
 class Set:
-    def __init__(self, vars: list[str] = None) -> None:
-        if vars is None:
-            vars = [f"x{i}" for i in range(self.dimension)]
+    def __init__(self, vars: list[str]) -> None:
         self.vars = vars
         self.dimension = len(self.vars)
 
@@ -45,7 +43,7 @@ class Rectangle(Set):
         self,
         lb: tuple[float, ...],
         ub: tuple[float, ...],
-        vars: list[str] = None,
+        vars: list[str],
         dim_select=None,
     ):
         self.name = "box"
@@ -114,7 +112,7 @@ class Sphere(Set):
         self,
         centre,
         radius,
-        vars: list[str] = None,
+        vars: list[str],
         dim_select=None,
         include_boundary: bool = True,
     ):

@@ -103,8 +103,8 @@ if __name__ == "__main__":
     import numpy as np
     from fosco.plotting.surface import plot_surface
 
-    domain1 = Rectangle([0, 1, 0], [2, 3, 4])
-    domain2 = Sphere([0, 1, 3], 1.333)
+    domain1 = Rectangle(vars=["x0", "x1", "x2"], lb=[0, 1, 0], ub=[2, 3, 4])
+    domain2 = Sphere(vars=["x0", "x1", "x2"], centre=[0, 1, 3], radius=1.333)
 
     fig = Figure()
 

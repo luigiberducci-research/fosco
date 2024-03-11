@@ -12,8 +12,21 @@ class VerifierDR(Verifier):
     SECOND_CHANCE_BOUND: float = 1e3
 
     @staticmethod
-    def new_vars(n, base: str = "x") -> list[SYMBOL]:
-        return [dreal.Variable(base + str(i)) for i in range(n)]
+    def new_vars(
+            n: int | None = None, var_names: list[str] | None = None, base: str = "x"
+    ) -> list[SYMBOL]:
+        assert (
+                n is not None or var_names is not None
+        ), "Must provide either n or var_names"
+        assert n is None or var_names is None, f"Cannot provide both n and var_names"
+        assert var_names is None or len(var_names) == len(
+            set(var_names)
+        ), "var_names must contain unique identifiers"
+
+        if var_names:
+            return [dreal.Variable(var) for var in var_names]
+        else:
+            return [dreal.Variable(base + str(i)) for i in range(n)]
 
     @staticmethod
     def solver_fncts() -> dict[str, Callable]:
@@ -84,3 +97,6 @@ class VerifierDR(Verifier):
             }
 
         return expr.Substitute(replacements)
+
+    def pretty_formula(self, fml) -> str:
+        return str(fml)

@@ -78,8 +78,6 @@ class VerifierZ3(Verifier):
         if self._rounding > 0:
             fml = self.round_expr(fml, rounding=self._rounding)
 
-        self._logger.debug(f"Fml: {z3.simplify(fml)}")
-
         timer = timeit.default_timer()
         solver.add(fml)
         res = solver.check()
@@ -144,3 +142,6 @@ class VerifierZ3(Verifier):
         # recursive case: non-const expr
         args = [self.round_expr(arg, rounding) for arg in e.children()]
         return e.decl()(*args)
+
+    def pretty_formula(self, fml) -> str:
+        return str(z3.simplify(fml))

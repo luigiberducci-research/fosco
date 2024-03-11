@@ -45,7 +45,7 @@ def plot_func_and_domains(
         ), "x must be a batch of 2d points"
 
         lb, ub = np.array(in_domain.lower_bounds), np.array(in_domain.upper_bounds)
-        x_mean = lb + (lb + ub) / 2.0
+        x_mean = lb + (ub - lb) / 2
         x_ext = x_mean[None].repeat(x.shape[0], 0)
         x_ext[:, dim_select] = x
 

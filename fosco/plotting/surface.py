@@ -25,13 +25,16 @@ def plot_surface(
 
     x = np.linspace(xrange[0], xrange[1], bins)
     y = np.linspace(yrange[0], yrange[1], bins)
-    inputs = np.array(np.meshgrid(x, y)).T.reshape(-1, 2)
+    X, Y = np.meshgrid(x, y)
+    Xflat = X.reshape(-1, 1)
+    Yflat = Y.reshape(-1, 1)
+    inputs = np.hstack([Xflat, Yflat])
     z = func(inputs).reshape(bins, bins)
 
     if fig is None:
-        fig = go.Figure(data=[go.Surface(z=z, x=x, y=y)])
+        fig = go.Figure(data=[go.Surface(x=x, y=y, z=z)])
     else:
-        fig.add_trace(go.Surface(z=z, x=x, y=y, opacity=opacity, name=label))
+        fig.add_trace(go.Surface(x=x, y=y, z=z, opacity=opacity, name=label))
 
     for level in levels:
         small_sz = 0.01
@@ -47,10 +50,6 @@ def plot_surface(
             )
         )
 
-    # top view with y-axis pointing up
-    # maxz = max(min(np.max(z), 5.0), 0.0)
-    # fig.update_layout(scene_camera=dict(eye=dict(x=0, y=0, z=maxz)))
-
     return fig
 
 
@@ -58,8 +57,8 @@ if __name__ == "__main__":
 
     def func(x):
         assert len(x.shape) == 2 and x.shape[1] == 2, "x must be a batch of 2d points"
-        return np.sin(x[:, 0]) + np.cos(x[:, 1])
+        return np.sin(x[:, 0]) #+ np.cos(x[:, 1])
 
-    fig = plot_surface(func, (-10, 10), (-10, 10), levels=[0], label="test")
+    fig = plot_surface(func, (-10, 10), (-5, 5), levels=[0], label="test")
 
     fig.show()

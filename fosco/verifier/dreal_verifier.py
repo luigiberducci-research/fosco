@@ -97,3 +97,6 @@ class VerifierDR(Verifier):
             }
 
         return expr.Substitute(replacements)
+
+    def pretty_formula(self, fml) -> str:
+        return str(fml)

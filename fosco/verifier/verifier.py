@@ -3,7 +3,6 @@ from abc import abstractmethod, ABC
 from typing import Callable, Generator, Iterable, Type, Any
 
 import torch
-import z3
 
 from fosco.common.timing import timed
 from fosco.logger import LOGGING_LEVELS
@@ -43,7 +42,7 @@ class Verifier(ABC):
 
         self._logger = logging.getLogger(__name__)
         self._logger.setLevel(LOGGING_LEVELS[verbose])
-        self._logger.debug("Translator initialized")
+        self._logger.debug("Verifier initialized")
 
     @staticmethod
     @abstractmethod
@@ -102,6 +101,11 @@ class Verifier(ABC):
     def replace_point(expr, ver_vars, point):
         raise NotImplementedError("")
 
+    @staticmethod
+    @abstractmethod
+    def pretty_formula(fml) -> str:
+        raise NotImplementedError("")
+
     @timed
     def verify(
         self,
@@ -152,6 +156,7 @@ class Verifier(ABC):
                     vars = self.xs
 
                 s = self.new_solver()
+                self._logger.debug(f"Constraint: {label}, Formula: {self.pretty_formula(fml=condition)}")
                 res, timedout = self._solver_solve(solver=s, fml=condition)
                 results[label] = res
                 solvers[label] = s

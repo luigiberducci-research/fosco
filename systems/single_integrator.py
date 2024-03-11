@@ -50,7 +50,7 @@ class SingleIntegrator(ControlAffineDynamics):
     def unsafe_domain(self) -> Set:
         return domains.Sphere(
             vars=self.vars,
-            centre=(0.0,) * self.n_vars,
+            center=(0.0,) * self.n_vars,
             radius=1.0,
             dim_select=[0, 1],
             include_boundary=False,

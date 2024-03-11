@@ -93,11 +93,12 @@ class LearnerCT(LearnerNN):
                                                          pathlib.Path), f"wrong path type {type(model_path)}"
 
         model_path = pathlib.Path(model_path) if isinstance(model_path, str) else model_path
-        assert ((model_path.is_dir() and model_path.exists()) or
-                (model_path.suffix == ".pt" and model_path.parent.exists())), f"expected dir or filepath with suffix .pt, got {model_path}"
+        assert (model_path.is_dir() and model_path.exists()) or (model_path.suffix == ".pt"), f"expected dir or filepath with suffix .pt, got {model_path} with suffix {model_path.suffix}"
 
         if not model_path.suffix == ".pt":
             model_path = model_path / "learner.pt"
+        else:
+            model_path.parent.mkdir(parents=True, exist_ok=True)
 
         learner_state = self.state_dict()
         torch.save(learner_state, model_path)
@@ -133,6 +134,7 @@ class LearnerRobustCT(LearnerCT):
             lr: float,
             weight_decay: float,
             initial_models: dict[str, nn.Module] | None = None,
+            verbose: int = 0
     ):
         super(LearnerRobustCT, self).__init__(
             state_size=state_size,
@@ -143,6 +145,7 @@ class LearnerRobustCT(LearnerCT):
             lr=lr,
             weight_decay=weight_decay,
             initial_models=initial_models,
+            verbose=verbose
         )
 
         # compensator for additive state disturbances

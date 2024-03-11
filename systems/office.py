@@ -40,15 +40,15 @@ class OfficeSingleIntegrator(SingleIntegrator):
         plant_radius = 0.4
 
         humans = [
-            domains.Sphere(vars=self.vars, centre=(0.44956875, 3.6988103), radius=human_radius, include_boundary=False),
-            domains.Sphere(vars=self.vars, centre=(4.0826755, -1.6512532), radius=human_radius, include_boundary=False),
-            domains.Sphere(vars=self.vars, centre=(3.0811677, -1.0228925), radius=human_radius, include_boundary=False),
-            domains.Sphere(vars=self.vars, centre=(3.03672, -2.3108509), radius=human_radius, include_boundary=False),
-            domains.Sphere(vars=self.vars, centre=(-0.69713455, 1.9523418), radius=human_radius, include_boundary=False)
+            domains.Sphere(vars=self.vars, center=(0.44956875, 3.6988103), radius=human_radius, include_boundary=False),
+            domains.Sphere(vars=self.vars, center=(4.0826755, -1.6512532), radius=human_radius, include_boundary=False),
+            domains.Sphere(vars=self.vars, center=(3.0811677, -1.0228925), radius=human_radius, include_boundary=False),
+            domains.Sphere(vars=self.vars, center=(3.03672, -2.3108509), radius=human_radius, include_boundary=False),
+            domains.Sphere(vars=self.vars, center=(-0.69713455, 1.9523418), radius=human_radius, include_boundary=False)
         ]
         plants = [
-            domains.Sphere(vars=self.vars, centre=(2.2344275, 3.9294362), radius=plant_radius, include_boundary=False),
-            domains.Sphere(vars=self.vars, centre=(-2.9687812, -4.31725), radius=plant_radius, include_boundary=False),
+            domains.Sphere(vars=self.vars, center=(2.2344275, 3.9294362), radius=plant_radius, include_boundary=False),
+            domains.Sphere(vars=self.vars, center=(-2.9687812, -4.31725), radius=plant_radius, include_boundary=False),
         ]
 
         table_cx = -0.6971345718589101

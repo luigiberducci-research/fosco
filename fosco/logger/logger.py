@@ -2,6 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 
 import numpy as np
+import torch
 from matplotlib import pyplot as plt
 
 ImageType = np.ndarray | plt.Figure
@@ -25,5 +26,5 @@ class Logger(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def log_model(self, tag: str, video: VideoType, step: int, **kwargs):
+    def log_model(self, tag: str, model: torch.nn.Module, step: int, **kwargs):
         raise NotImplementedError

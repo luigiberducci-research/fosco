@@ -25,7 +25,7 @@ class TestDomains(unittest.TestCase):
             self.assertTrue(X.check_containment(sample[None]), f"check containement failed for sample = {sample}")
 
     def test_sphere(self):
-        X = domains.Sphere(vars=["x", "y", "z"], centre=(0.0, 0.0, 0.0), radius=5.0)
+        X = domains.Sphere(vars=["x", "y", "z"], center=(0.0, 0.0, 0.0), radius=5.0)
         self.assertEqual(X.dimension, 3)
 
         data = X.generate_data(1000)
@@ -38,7 +38,7 @@ class TestDomains(unittest.TestCase):
 
     def test_union(self):
         X1 = domains.Rectangle(vars=["x", "y"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
-        X2 = domains.Sphere(vars=["x", "y"], centre=(10.0, 10.0), radius=1.0)
+        X2 = domains.Sphere(vars=["x", "y"], center=(10.0, 10.0), radius=1.0)
 
         X = domains.Union(sets=[X1, X2])
         self.assertEqual(X.dimension, 2)
@@ -54,7 +54,7 @@ class TestDomains(unittest.TestCase):
 
     def test_intersection(self):
         X1 = domains.Rectangle(vars=["x", "y"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
-        X2 = domains.Sphere(vars=["x", "y"], centre=(1.0, 1.0), radius=1.0)
+        X2 = domains.Sphere(vars=["x", "y"], center=(1.0, 1.0), radius=1.0)
 
         X = domains.Intersection(sets=[X1, X2])
         self.assertEqual(X.dimension, 2)

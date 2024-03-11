@@ -110,20 +110,20 @@ class Rectangle(Set):
 class Sphere(Set):
     def __init__(
         self,
-        centre,
+        center,
         radius,
         vars: list[str],
         dim_select=None,
         include_boundary: bool = True,
     ):
-        self.centre = centre
+        self.center = center
         self.radius = radius
         self.include_boundary = include_boundary
         super().__init__(vars=vars)
         self.dim_select = dim_select
 
     def __repr__(self) -> str:
-        return f"Sphere{self.centre, self.radius}"
+        return f"Sphere{self.center, self.radius}"
 
     def generate_domain(self, x):
         """
@@ -135,12 +135,12 @@ class Sphere(Set):
 
         if self.include_boundary:
             domain = (
-                sum([(x[i] - self.centre[i]) ** 2 for i in range(self.dimension)])
+                sum([(x[i] - self.center[i]) ** 2 for i in range(self.dimension)])
                 <= self.radius ** 2
             )
         else:
             domain = (
-                sum([(x[i] - self.centre[i]) ** 2 for i in range(self.dimension)])
+                sum([(x[i] - self.center[i]) ** 2 for i in range(self.dimension)])
                 < self.radius ** 2
             )
         return domain
@@ -150,7 +150,7 @@ class Sphere(Set):
         param batch_size: number of data points to generate
         returns: data points generated in relevant domain according to shape
         """
-        return round_init_data(self.centre, self.radius ** 2, batch_size)
+        return round_init_data(self.center, self.radius ** 2, batch_size)
 
     def check_containment(
         self, x: np.ndarray | torch.Tensor, epsilon: float = 1e-6
@@ -170,7 +170,7 @@ class Sphere(Set):
             x = np.array([x[:, i] for i in self.dim_select])
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
-        c = torch.tensor(self.centre).reshape(1, -1)
+        c = torch.tensor(self.center).reshape(1, -1)
         return (x - c).norm(2, dim=-1) - self.radius ** 2 <= epsilon
 
 

@@ -34,7 +34,7 @@ class AdditiveBounded(UncertaintyWrapper):
     def uncertainty_domain(self) -> Set:
         return domains.Sphere(
             vars=self.uncertain_vars,
-            centre=(0.0,) * self.n_uncertain,
+            center=(0.0,) * self.n_uncertain,
             radius=self._radius,
         )
 

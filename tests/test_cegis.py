@@ -127,7 +127,7 @@ class TestCEGIS(unittest.TestCase):
         UD = domains.Rectangle(vars=["u0", "u1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
         XI = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(-4.0, -4.0))
         XU = domains.Sphere(
-            vars=["x0", "x1"], centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1]
+            vars=["x0", "x1"], center=[0.0, 0.0], radius=1.0, dim_select=[0, 1]
         )
         ZD = domains.Rectangle(vars=["z0", "z1"], lb=(0.0, 0.0), ub=(0.0, 0.0))
 

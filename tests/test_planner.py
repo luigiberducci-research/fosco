@@ -19,7 +19,7 @@ class TestPlanner(unittest.TestCase):
         domains = {
             "input": Rectangle(vars=uvars, lb=(-5.0, -5.0), ub=(5.0, 5.0)),
             "init": Rectangle(vars=svars, lb=(-5.0, -5.0), ub=(-4.0, -4.0)),
-            "unsafe": Sphere(vars=svars, centre=[0.0, 0.0], radius=1.0),
+            "unsafe": Sphere(vars=svars, center=[0.0, 0.0], radius=1.0),
         }
         env = SystemEnv(system=system, domains=domains)
 

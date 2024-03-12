@@ -3,6 +3,8 @@ import numpy as np
 import torch
 
 from fosco.common.domains import Set
+from fosco.verifier.dreal_verifier import VerifierDR
+from fosco.verifier.types import DRSYMBOL
 from systems import ControlAffineDynamics
 from systems.system import register
 
@@ -89,7 +91,9 @@ class Unicycle(ControlAffineDynamics):
         assert isinstance(
             x, list
         ), "expected list of symbolic state variables, [x0, x1, ...]"
-        Sin_ = dreal.sin
-        Cos_ = dreal.cos
+        assert all([isinstance(xi, DRSYMBOL) for xi in x]), f"expected list of dreal variables, got {x}"
+        fns = VerifierDR.solver_fncts()
+        Sin_ = fns["Sin"]
+        Cos_ = fns["Cos"]
 
         return np.array([[Cos_(x[2]), 0.0], [Sin_(x[2]), 0.0], [0.0, 1.0]])

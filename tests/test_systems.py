@@ -331,11 +331,11 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
 
         xdot = f.f(x, u)
         self.assertTrue(
-            xdot[0] == u[0] * fns["cos"](x[2]),
+            xdot[0] == u[0] * fns["Cos"](x[2]),
             f"expected xdot[0] == u[0] * Cos(x[2]), got {xdot[0]}",
         )
         self.assertTrue(
-            xdot[1] == u[0] * fns["sin"](x[2]),
+            xdot[1] == u[0] * fns["Sin"](x[2]),
             f"expected xdot[1] == u[0] * Sin(x[2]), got {xdot[1]}",
         )
         self.assertTrue(xdot[2] == u[1], f"expected xdot[2] == u[1], got {xdot[2]}")

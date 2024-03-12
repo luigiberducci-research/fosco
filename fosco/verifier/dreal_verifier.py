@@ -31,9 +31,9 @@ class VerifierDR(Verifier):
     @staticmethod
     def solver_fncts() -> dict[str, Callable]:
         return {
-            "sin": dreal.sin,
-            "cos": dreal.cos,
-            "exp": dreal.exp,
+            "Sin": dreal.sin,
+            "Cos": dreal.cos,
+            "Exp": dreal.exp,
             "And": dreal.And,
             "Or": dreal.Or,
             "If": dreal.if_then_else,

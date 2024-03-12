@@ -1,6 +1,6 @@
 import multiprocessing.context
+import timeit
 from multiprocessing.pool import ThreadPool
-from time import sleep
 from typing import Callable
 
 import dreal
@@ -75,10 +75,12 @@ class VerifierDR(Verifier):
         async_result = pool.apply_async(dreal.CheckSatisfiability, args=(fml, 0.0001))
 
         try:
+            t0 = timeit.default_timer()
             res = async_result.get(timeout=self._solver_timeout)
         except multiprocessing.context.TimeoutError:
             res = None
             timedout = True
+            self._logger.info(f"Timed out while solving, kill after {timeit.default_timer() - t0} sec")
             return res, timedout
 
         if self.is_sat(res) and not self.within_bounds(res):

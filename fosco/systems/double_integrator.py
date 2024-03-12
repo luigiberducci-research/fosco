@@ -2,11 +2,10 @@ import numpy as np
 import torch
 
 from fosco.common import domains
-from fosco.common.consts import DomainName
 from fosco.common.domains import Set
 
-from systems import ControlAffineDynamics
-from systems.system import register
+from fosco.systems import ControlAffineDynamics
+from fosco.systems.system import register
 
 
 @register

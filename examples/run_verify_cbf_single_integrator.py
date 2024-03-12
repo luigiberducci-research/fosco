@@ -6,7 +6,7 @@ import torch
 from fosco.cegis import Cegis
 from fosco.common.consts import CertificateType
 from fosco.config import CegisConfig
-from systems import make_system
+from fosco.systems import make_system
 
 
 def main(args):

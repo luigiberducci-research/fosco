@@ -4,8 +4,8 @@ import fosco.cegis
 from fosco.common.consts import ActivationType, LossReLUType
 from fosco.common.consts import CertificateType, TimeDomain, VerifierType
 from fosco.logger import LoggerType
-from systems import make_system
-from systems.uncertainty import add_uncertainty
+from fosco.systems import make_system
+from fosco.systems.uncertainty import add_uncertainty
 
 
 def main(args):
@@ -115,8 +115,8 @@ def main(args):
 
 if __name__ == "__main__":
     import argparse
-    from systems.system import SYSTEM_REGISTRY
-    from systems.uncertainty.uncertainty_wrapper import UNCERTAINTY_REGISTRY
+    from fosco.systems import SYSTEM_REGISTRY
+    from fosco.systems.uncertainty import UNCERTAINTY_REGISTRY
 
     systems = SYSTEM_REGISTRY.keys()
     uncertainties = UNCERTAINTY_REGISTRY.keys()

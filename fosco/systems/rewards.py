@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 from fosco.common.domains import Sphere, Rectangle
-from systems import ControlAffineDynamics
+from fosco.systems import ControlAffineDynamics
 
 RewardFnType = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 

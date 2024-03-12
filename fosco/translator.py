@@ -6,7 +6,7 @@ import numpy as np
 
 from fosco.common.consts import VerifierType, TimeDomain, CertificateType
 from fosco.common.timing import timed
-from models.network import TorchMLP
+from fosco.models import TorchMLP
 from fosco.verifier.verifier import SYMBOL
 from fosco.logger import LOGGING_LEVELS
 

@@ -2,8 +2,8 @@ import numpy as np
 import torch
 from matplotlib import pyplot as plt
 
-from systems import make_system
-from systems.system_env import SystemEnv
+from fosco.systems import make_system
+from fosco.systems import SystemEnv
 
 
 def dummy_term_fn(actions, next_obss):

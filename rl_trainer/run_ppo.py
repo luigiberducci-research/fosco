@@ -49,10 +49,10 @@ class Args:
     """the id of the environment"""
     trainer_id: str = "ppo"
     """the id of the rl trainer"""
-    use_true_barrier: bool = True
+    use_true_barrier: bool = False
     """toggle the use of grount-truth barrier"""
-    barrier_from_aim_run: str = None
-    """load barrier learner from the aim logs with this hash"""
+    barrier_path: str = None
+    """barrier model or hash of training run from which load the barrier model"""
     total_timesteps: int = 50000
     """total timesteps of the experiments"""
     learning_rate: float = 3e-4

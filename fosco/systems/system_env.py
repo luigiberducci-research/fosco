@@ -29,8 +29,9 @@ import torch
 import pygame
 
 from fosco.common.domains import Rectangle
-from systems import ControlAffineDynamics, make_system
-from systems.rewards import RewardFnType
+from fosco.systems import make_system
+from fosco.systems.system import ControlAffineDynamics
+from fosco.systems.rewards import RewardFnType
 
 
 TermFnType = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]

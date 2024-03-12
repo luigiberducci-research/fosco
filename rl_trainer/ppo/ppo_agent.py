@@ -6,7 +6,7 @@ import torch
 from torch import nn
 from torch.distributions import Normal
 
-from models.utils import layer_init
+from fosco.models.utils import layer_init
 
 
 class ActorCriticAgent(nn.Module):

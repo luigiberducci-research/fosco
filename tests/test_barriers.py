@@ -5,9 +5,9 @@ import torch
 
 
 from barriers import make_barrier
-from models.torchsym import TorchSymDiffModel, TorchSymModel
-from systems import make_system
-from systems.uncertainty import add_uncertainty
+from fosco.models import TorchSymDiffModel, TorchSymModel
+from fosco.systems import make_system
+from fosco.systems.uncertainty import add_uncertainty
 
 
 class TestBarriers(unittest.TestCase):

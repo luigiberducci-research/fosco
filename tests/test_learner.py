@@ -2,7 +2,7 @@ import unittest
 
 import torch
 from fosco.learner import make_learner
-from systems import make_system
+from fosco.systems import make_system
 
 
 class TestLearner(unittest.TestCase):
@@ -40,20 +40,17 @@ class TestLearner(unittest.TestCase):
         state2 = learner2.state_dict()
         self.assertTrue(
             all([k in state2 for k in state1]),
-            f"expected same modules, got {state1.keys()} and {state2.keys()}"
+            f"expected same modules, got {state1.keys()} and {state2.keys()}",
         )
         self.assertTrue(
             all([k in state1 for k in state2]),
-            f"expected same modules, got {state1.keys()} and {state2.keys()}"
+            f"expected same modules, got {state1.keys()} and {state2.keys()}",
         )
         for k in state1:
             self.assertFalse(
-                torch.allclose(
-                    state1[k],
-                    state2[k]
-                ),
-                f"expected not the same parameters before loading, got {learner1.parameters()} and {learner2.parameters()}"
-                )
+                torch.allclose(state1[k], state2[k]),
+                f"expected not the same parameters before loading, got {learner1.parameters()} and {learner2.parameters()}",
+            )
 
         # test loading
         learner2.load(model_path=model_path)
@@ -62,21 +59,14 @@ class TestLearner(unittest.TestCase):
         state2 = learner2.state_dict()
         self.assertTrue(
             all([k in state2 for k in state1]),
-            f"expected same modules, got {state1.keys()} and {state2.keys()}"
+            f"expected same modules, got {state1.keys()} and {state2.keys()}",
         )
         self.assertTrue(
             all([k in state1 for k in state2]),
-            f"expected same modules, got {state1.keys()} and {state2.keys()}"
+            f"expected same modules, got {state1.keys()} and {state2.keys()}",
         )
         for k in state1:
             self.assertTrue(
-                torch.allclose(
-                    state1[k],
-                    state2[k]
-                ),
-                f"expected the same parameters before loading, got {learner1.parameters()} and {learner2.parameters()}"
+                torch.allclose(state1[k], state2[k]),
+                f"expected the same parameters before loading, got {learner1.parameters()} and {learner2.parameters()}",
             )
-
-
-
-

@@ -1,5 +1,5 @@
-from models.torchsym import TorchSymDiffModel
-from systems import ControlAffineDynamics
+from fosco.models import TorchSymDiffModel
+from fosco.systems import ControlAffineDynamics
 
 
 def make_barrier(

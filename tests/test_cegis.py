@@ -6,7 +6,6 @@ import torch
 import fosco
 from fosco.cegis import Cegis
 from fosco.config import CegisConfig
-from fosco.common.domains import Rectangle, Sphere
 from fosco.common.consts import (
     TimeDomain,
     ActivationType,
@@ -14,7 +13,7 @@ from fosco.common.consts import (
     CertificateType,
     DomainName,
 )
-from systems.single_integrator import SingleIntegrator
+from fosco.systems import SingleIntegrator
 
 
 class TestCEGIS(unittest.TestCase):
@@ -107,8 +106,8 @@ class TestCEGIS(unittest.TestCase):
         this test simply checks that the code runs using a dummy zero uncertainty.
         """
         import fosco
-        from systems import make_system
-        from systems.uncertainty import add_uncertainty
+        from fosco.systems import make_system
+        from fosco.systems.uncertainty import add_uncertainty
         from fosco.common import domains
 
         seed = 916104

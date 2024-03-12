@@ -4,7 +4,7 @@ import numpy as np
 
 from fosco.config import CegisConfig
 from fosco.common.domains import Set
-from systems import ControlAffineDynamics
+from fosco.systems import ControlAffineDynamics
 
 
 class Certificate(ABC):

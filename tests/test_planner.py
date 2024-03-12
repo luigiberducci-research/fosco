@@ -3,15 +3,15 @@ import unittest
 import numpy as np
 
 from fosco.common.domains import Rectangle, Sphere
-from models.network import TorchMLP
-from systems import make_system
+from fosco.models import TorchMLP
+from fosco.systems import make_system
 from fosco.planner.safety_filter import CBFSafetyFilter
 
 
 class TestPlanner(unittest.TestCase):
     @staticmethod
     def _test_single_integrator_cbf_planner():
-        from systems.system_env import SystemEnv
+        from fosco.systems import SystemEnv
 
         # make env for single integrator
         svars, uvars = ["x0", "x1"], ["u0", "u1"]

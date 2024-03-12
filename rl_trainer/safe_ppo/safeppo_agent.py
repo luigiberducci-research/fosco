@@ -10,10 +10,10 @@ from torch.distributions import Normal
 from torch.nn import functional as F
 
 from rl_trainer.ppo.ppo_agent import ActorCriticAgent
-from models.torchsym import TorchSymDiffModel
-from models.utils import layer_init
-from systems import ControlAffineDynamics
-from systems.system_env import SystemEnv
+from fosco.models import TorchSymDiffModel
+from fosco.models.utils import layer_init
+from fosco.systems import ControlAffineDynamics
+from fosco.systems.system_env import SystemEnv
 
 
 class SafeActorCriticAgent(ActorCriticAgent):

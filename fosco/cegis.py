@@ -1,5 +1,4 @@
 import logging
-import pathlib
 from datetime import datetime
 
 import numpy as np
@@ -21,7 +20,7 @@ from fosco.plotting.utils import (
 from fosco.translator import make_translator
 from fosco.verifier import make_verifier
 from fosco.logger import make_logger, Logger, LOGGING_LEVELS
-from systems.system import UncertainControlAffineDynamics
+from fosco.systems import UncertainControlAffineDynamics
 
 
 class Cegis:
@@ -110,15 +109,11 @@ class Cegis:
 
     def _initialise_domains(self):
         verifier_type = make_verifier(type=self.config.VERIFIER)
-        x = verifier_type.new_vars(var_names=[f"x{i}" for i in range(self.f.n_vars)])
-        u = verifier_type.new_vars(
-            var_names=[f"u{i}" for i in range(self.f.n_controls)]
-        )
+        x = verifier_type.new_vars(var_names=self.f.vars)
+        u = verifier_type.new_vars(var_names=self.f.controls)
 
         if isinstance(self.f, UncertainControlAffineDynamics):
-            z = verifier_type.new_vars(
-                var_names=[f"z{i}" for i in range(self.f.n_uncertain)]
-            )
+            z = verifier_type.new_vars(var_names=self.f.uncertain_vars)
         else:
             z = None
 

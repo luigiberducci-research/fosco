@@ -5,7 +5,7 @@ import torch
 
 from fosco.common.consts import DomainName as dn
 from fosco.common.domains import Set
-from systems import ControlAffineDynamics
+from fosco.systems import ControlAffineDynamics
 
 
 class System(ControlAffineDynamics):
@@ -14,13 +14,13 @@ class System(ControlAffineDynamics):
         id: str,
         variables: list[str],
         controls: list[str],
-        doms: dict[str, Set],
+        domains: dict[str, Set],
         dynamics: dict[str, Callable]
     ):
         self._id = id
         self._variables = variables
         self._controls = controls
-        self._domains = doms
+        self._domains = domains
         self._dynamics = dynamics
 
         assert all([dname.value in self._domains for dname in [dn.XD, dn.UD, dn.XI, dn.XU]])
@@ -40,19 +40,19 @@ class System(ControlAffineDynamics):
 
     @property
     def state_domain(self) -> Set:
-        return self._domains[dn.XD]
+        return self._domains[dn.XD.value]
 
     @property
     def input_domain(self) -> Set:
-        return self._domains[dn.UD]
+        return self._domains[dn.UD.value]
 
     @property
     def init_domain(self) -> Set:
-        return self._domains[dn.XI]
+        return self._domains[dn.XI.value]
 
     @property
     def unsafe_domain(self) -> Set:
-        return self._domains[dn.XU]
+        return self._domains[dn.XU.value]
 
     def fx_torch(self, x) -> np.ndarray | torch.Tensor:
         return self._dynamics["fx_torch"](x)

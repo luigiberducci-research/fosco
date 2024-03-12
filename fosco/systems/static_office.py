@@ -3,11 +3,11 @@ import torch
 
 from fosco.common import domains
 from fosco.common.domains import Set
-from systems import SingleIntegrator, DoubleIntegrator
-from systems.system import register, ControlAffineDynamics
+from fosco.systems import SingleIntegrator
+from fosco.systems.system import register, ControlAffineDynamics
 
 
-class StaticOfficeSystem(ControlAffineDynamics):
+class StaticOffice(ControlAffineDynamics):
     """
     Extends a given dynamical system with domains of a static office environment.
     """
@@ -146,6 +146,6 @@ class StaticOfficeSystem(ControlAffineDynamics):
 
 register(
     name="OfficeSingleIntegrator",
-    entrypoint=lambda: StaticOfficeSystem(system=SingleIntegrator())
+    entrypoint=lambda: StaticOffice(system=SingleIntegrator())
 )
 

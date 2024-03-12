@@ -4,8 +4,8 @@ import numpy as np
 import torch
 
 from fosco.verifier.verifier import SYMBOL
-from models.torchsym import TorchSymDiffModel, TorchSymModel
-from systems import ControlAffineDynamics, UncertainControlAffineDynamics
+from fosco.models import TorchSymDiffModel, TorchSymModel
+from fosco.systems import ControlAffineDynamics, UncertainControlAffineDynamics
 
 
 class SingleIntegratorCBF(TorchSymDiffModel):

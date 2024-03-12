@@ -5,9 +5,9 @@ from matplotlib import pyplot as plt
 from barriers import make_barrier
 from rl_trainer.safe_ppo.safeppo_agent import BarrierPolicy
 
-from systems import make_system
+from fosco.systems import make_system
 
-from systems.system_env import SystemEnv
+from fosco.systems import SystemEnv
 import time
 
 

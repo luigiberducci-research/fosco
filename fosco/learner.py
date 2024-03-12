@@ -1,7 +1,7 @@
 import logging
 import pathlib
 from abc import abstractmethod
-from typing import Callable, Type, Mapping, Any
+from typing import Type
 
 import torch
 from torch import nn
@@ -10,9 +10,9 @@ from fosco.common.activations import activation
 from fosco.common.consts import ActivationType, TimeDomain
 from fosco.common.timing import timed
 from fosco.logger import LOGGING_LEVELS
-from models.network import TorchMLP
-from systems import ControlAffineDynamics
-from systems.system import UncertainControlAffineDynamics
+from fosco.models import TorchMLP
+from fosco.systems import ControlAffineDynamics
+from fosco.systems import UncertainControlAffineDynamics
 
 
 class LearnerNN(nn.Module):

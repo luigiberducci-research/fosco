@@ -10,7 +10,7 @@ from fosco.common.consts import (
     LossReLUType,
 )
 from fosco.logger import LoggerType
-from systems import ControlAffineDynamics
+from fosco.systems import ControlAffineDynamics
 
 CegisResult = namedtuple("CegisResult", ["found", "net", "infos"])
 

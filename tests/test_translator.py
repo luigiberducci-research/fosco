@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from models.network import TorchMLP
+from fosco.models import TorchMLP
 from fosco.translator import MLPTranslator, make_translator, RobustMLPTranslator
 
 

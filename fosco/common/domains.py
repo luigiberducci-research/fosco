@@ -63,7 +63,7 @@ class Rectangle(Set):
         dim_selection = [i for i, vx in enumerate(x) if str(vx) in self.vars]
         fns = get_solver_fns(x=x)
         lower = fns["And"](
-            *[self.lower_bounds[i] <= x[v_id] for i, v_id in enumerate(dim_selection)]
+            *[x[v_id] >= self.lower_bounds[i] for i, v_id in enumerate(dim_selection)]
         )
         upper = fns["And"](
             *[x[v_id] <= self.upper_bounds[i] for i, v_id in enumerate(dim_selection)]
@@ -75,7 +75,8 @@ class Rectangle(Set):
         param x: data point x
         returns: data points generated in relevant domain according to shape
         """
-        return square_init_data([self.lower_bounds, self.upper_bounds], batch_size)
+        data = square_init_data([self.lower_bounds, self.upper_bounds], batch_size)
+        return data.float()
 
     def get_vertices(self):
         """Returns vertices of the rectangle
@@ -150,7 +151,8 @@ class Sphere(Set):
         param batch_size: number of data points to generate
         returns: data points generated in relevant domain according to shape
         """
-        return round_init_data(self.center, self.radius ** 2, batch_size)
+        data = round_init_data(self.center, self.radius ** 2, batch_size)
+        return data.astype(torch.float32)
 
     def check_containment(
         self, x: np.ndarray | torch.Tensor, epsilon: float = 1e-6
@@ -195,7 +197,7 @@ class Union(Set):
 
     def generate_data(self, batch_size):
         n_per_set = np.ceil(batch_size / len(self.sets)).astype(int)
-        s = torch.empty(0, self.dimension)
+        s = torch.empty(0, self.dimension, dtype=torch.float32)
         for set_i in self.sets:
             s = torch.cat([s, set_i.generate_data(n_per_set)])
         return s[:batch_size]
@@ -231,7 +233,7 @@ class Intersection(Set):
         Returns:
             torch.Tensor: data points generated in the intersection of S1 and S2
         """
-        samples = torch.empty(0, self.dimension)
+        samples = torch.empty(0, self.dimension, dtype=torch.float32)
         while len(samples) < batch_size and max_iter > 0:
             rnd_set_id = np.random.randint(0, len(self.sets))
             s = self.sets[rnd_set_id].generate_data(batch_size=batch_size)

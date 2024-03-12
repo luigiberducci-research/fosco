@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 import torch
 
-from systems.system_env import TensorType
+from fosco.systems.system_env import TensorType
 
 
 class Buffer(ABC):

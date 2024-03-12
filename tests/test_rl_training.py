@@ -1,10 +1,7 @@
 import unittest
 
 
-
 class TestRLTraining(unittest.TestCase):
-
-
     def test_ppo_hopper(self):
         from rl_trainer.run_ppo import Args, run
         from rl_trainer.common.utils import tflog2pandas
@@ -25,8 +22,10 @@ class TestRLTraining(unittest.TestCase):
         linreg = scipy.stats.linregress(steps, returns)
         print(linreg)
         slope = linreg.slope
-        self.assertTrue(slope > 0, f"We expect a positive trend in return (learning something), got slope={slope}")
-
+        self.assertTrue(
+            slope > 0,
+            f"We expect a positive trend in return (learning something), got slope={slope}",
+        )
 
     def test_safeppo_hopper(self):
         """
@@ -55,7 +54,7 @@ class TestRLTraining(unittest.TestCase):
 
         args = Args
         args.seed = 0
-        args.env_id = "systems:SingleIntegrator-GoToUnsafeReward-v0"
+        args.env_id = "fosco.systems:SingleIntegrator-GoToUnsafeReward-v0"
         args.trainer_id = "safe-ppo"
         args.total_timesteps = 7500
 
@@ -68,4 +67,7 @@ class TestRLTraining(unittest.TestCase):
         linreg = scipy.stats.linregress(steps, returns)
         print(linreg)
         slope = linreg.slope
-        self.assertTrue(slope > 0, f"We expect a positive trend in return (learning something), got slope={slope}")
+        self.assertTrue(
+            slope > 0,
+            f"We expect a positive trend in return (learning something), got slope={slope}",
+        )

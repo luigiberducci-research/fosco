@@ -14,7 +14,7 @@ from fosco.common.utils import _set_assertion
 from fosco.learner import LearnerNN
 from fosco.verifier.types import SYMBOL
 from fosco.logger import LOGGING_LEVELS
-from systems import ControlAffineDynamics
+from fosco.systems import ControlAffineDynamics
 
 XD = DomainName.XD.value
 XI = DomainName.XI.value

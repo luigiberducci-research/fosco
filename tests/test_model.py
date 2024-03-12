@@ -9,7 +9,7 @@ from fosco.common.consts import ActivationType, DomainName
 
 class TestModel(unittest.TestCase):
     def test_torchsym_model(self):
-        from models.network import TorchMLP
+        from fosco.models import TorchMLP
 
         model = TorchMLP(
             input_size=2,
@@ -40,7 +40,7 @@ class TestModel(unittest.TestCase):
         self.assertTrue(all([isinstance(c, z3.BoolRef) for c in dydx_constr]))
 
     def test_save_mlp_model(self):
-        from models.network import TorchMLP
+        from fosco.models import TorchMLP
 
         tmp_dir = "tmp"
 
@@ -75,7 +75,7 @@ class TestModel(unittest.TestCase):
         shutil.rmtree(tmp_dir)
 
     def test_mlp_relu_out(self):
-        from models.network import TorchMLP
+        from fosco.models import TorchMLP
 
         model = TorchMLP(
             input_size=2,
@@ -100,7 +100,7 @@ class TestModel(unittest.TestCase):
         """
         This test check the init model is correctly loaded and used.
         """
-        from systems import make_system
+        from fosco.systems import make_system
         from barriers import make_barrier
         from fosco.config import CegisConfig
         from fosco.cegis import Cegis
@@ -148,7 +148,7 @@ class TestModel(unittest.TestCase):
         self.assertTrue(torch.allclose(y, y_init), f"expected {y_init}, got {y}")
 
     def test_make_mlp(self):
-        from models.network import make_mlp
+        from fosco.models import make_mlp
 
         layers, acts = make_mlp(
             input_size=2,

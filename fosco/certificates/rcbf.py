@@ -13,7 +13,7 @@ from fosco.common.consts import DomainName
 from fosco.common.utils import _set_assertion
 from fosco.learner import LearnerCT
 from fosco.verifier.verifier import SYMBOL
-from systems import ControlAffineDynamics
+from fosco.systems import ControlAffineDynamics
 
 XD = DomainName.XD.value
 XI = DomainName.XI.value

@@ -22,7 +22,10 @@ class TestDomains(unittest.TestCase):
             self.assertLessEqual(x, 5.0)
             self.assertGreaterEqual(y, -5.0)
             self.assertLessEqual(y, 5.0)
-            self.assertTrue(X.check_containment(sample[None]), f"check containement failed for sample = {sample}")
+            self.assertTrue(
+                X.check_containment(sample[None]),
+                f"check containement failed for sample = {sample}",
+            )
 
     def test_sphere(self):
         X = domains.Sphere(vars=["x", "y", "z"], center=(0.0, 0.0, 0.0), radius=5.0)
@@ -34,7 +37,10 @@ class TestDomains(unittest.TestCase):
         for sample in data:
             x, y, z = sample
             self.assertLessEqual(x**2 + y**2 + z**2, 5.0**2)
-            self.assertTrue(X.check_containment(sample[None]), f"check containement failed for sample = {sample}")
+            self.assertTrue(
+                X.check_containment(sample[None]),
+                f"check containement failed for sample = {sample}",
+            )
 
     def test_union(self):
         X1 = domains.Rectangle(vars=["x", "y"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
@@ -50,7 +56,9 @@ class TestDomains(unittest.TestCase):
         for sample in data:
             is_in_x1 = X1.check_containment(sample[None])
             is_in_x2 = X2.check_containment(sample[None])
-            self.assertTrue(is_in_x1 or is_in_x2, f"check containement failed for sample = {sample}")
+            self.assertTrue(
+                is_in_x1 or is_in_x2, f"check containement failed for sample = {sample}"
+            )
 
     def test_intersection(self):
         X1 = domains.Rectangle(vars=["x", "y"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
@@ -66,4 +74,7 @@ class TestDomains(unittest.TestCase):
         for sample in data:
             is_in_x1 = X1.check_containment(sample[None])
             is_in_x2 = X2.check_containment(sample[None])
-            self.assertTrue(is_in_x1 and is_in_x2, f"check containement failed for sample = {sample}")
+            self.assertTrue(
+                is_in_x1 and is_in_x2,
+                f"check containement failed for sample = {sample}",
+            )

@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import torch
 
-from systems import make_system
+from fosco.systems import make_system
 from tests.test_translator import check_smt_equivalence
 
 
@@ -43,7 +43,7 @@ class TestControlAffineDynamicalSystem(unittest.TestCase):
 
 class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
     def test_noisy_single_integrator(self):
-        from systems.uncertainty.additive_bounded import AdditiveBounded
+        from fosco.systems.uncertainty import AdditiveBounded
 
         f = make_system(system_id="SingleIntegrator")
         f = AdditiveBounded(system=f())
@@ -55,7 +55,6 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         T = 10.0
         dt = 0.1
 
-
         t = dt
         while t < T:
             x = x + dt * f(x, u, z)
@@ -65,8 +64,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         self.assertTrue(np.allclose(x, 11.0 * np.ones_like(x)), f"got {x}")
 
     def test_noisy_double_integrator(self):
-        from systems.double_integrator import DoubleIntegrator
-        from systems.uncertainty.additive_bounded import AdditiveBounded
+        from fosco.systems.uncertainty import AdditiveBounded
 
         x = np.zeros((10, 4))
         u = np.ones((10, 2)) * 0.1
@@ -93,8 +91,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         )
 
     def test_noisy_single_integrator_z3(self):
-        from systems.single_integrator import SingleIntegrator
-        from systems.uncertainty.additive_bounded import AdditiveBounded
+        from fosco.systems.uncertainty import AdditiveBounded
         from fosco.verifier.z3_verifier import VerifierZ3
 
         x = VerifierZ3.new_vars(2, base="x")
@@ -120,7 +117,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         Check that simulating the uncertain system with only_nominal=True
         is actually equivalent to simulating the nominal system.
         """
-        from systems.uncertainty.additive_bounded import AdditiveBounded
+        from fosco.systems.uncertainty import AdditiveBounded
 
         x = np.zeros((10, 2))
         u = np.ones((10, 2))
@@ -150,7 +147,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         Check that the symbolic expression for the uncertain dynamics with only_nominal=True
         actually matches the symbolic expression for the nominal dynamics.
         """
-        from systems.uncertainty.additive_bounded import AdditiveBounded
+        from fosco.systems.uncertainty import AdditiveBounded
         from fosco.verifier.z3_verifier import VerifierZ3
 
         x = VerifierZ3.new_vars(2, base="x")
@@ -173,9 +170,9 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         )
 
     def test_properties_and_methods(self):
-        from systems.uncertainty.additive_bounded import AdditiveBounded
+        from fosco.systems.uncertainty import AdditiveBounded
         from fosco.verifier.z3_verifier import VerifierZ3
-        from systems import make_system
+        from fosco.systems import make_system
 
         system_id = "SingleIntegrator"
         f = make_system(system_id=system_id)()
@@ -261,15 +258,15 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         last_traj = xs[:, -1, :]
         self.assertTrue(
             np.allclose(first_traj[:, 0], last_traj[:, 0]),
-            f"expectd same trajectory for x coord, got {first_traj[:, 0]} and {last_traj[:, 0]}"
+            f"expectd same trajectory for x coord, got {first_traj[:, 0]} and {last_traj[:, 0]}",
         )
         self.assertTrue(
             np.allclose(first_traj[:, 1], -last_traj[:, 1]),
-            f"expectd mirrored trajectory for y coord, got {first_traj[:, 1]} and {last_traj[:, 1]}"
+            f"expectd mirrored trajectory for y coord, got {first_traj[:, 1]} and {last_traj[:, 1]}",
         )
         self.assertTrue(
             np.allclose(first_traj[:, 2], -last_traj[:, 2]),
-            f"expectd mirrored trajectory for theta coord, got {first_traj[:, 1]} and {last_traj[:, 1]}"
+            f"expectd mirrored trajectory for theta coord, got {first_traj[:, 1]} and {last_traj[:, 1]}",
         )
 
     def test_unicycle_torch(self):
@@ -307,15 +304,15 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         last_traj = xs[:, -1, :]
         self.assertTrue(
             torch.allclose(first_traj[:, 0], last_traj[:, 0]),
-            f"expectd same trajectory for x coord, got {first_traj[:, 0]} and {last_traj[:, 0]}"
+            f"expectd same trajectory for x coord, got {first_traj[:, 0]} and {last_traj[:, 0]}",
         )
         self.assertTrue(
             torch.allclose(first_traj[:, 1], -last_traj[:, 1]),
-            f"expectd mirrored trajectory for y coord, got {first_traj[:, 1]} and {last_traj[:, 1]}"
+            f"expectd mirrored trajectory for y coord, got {first_traj[:, 1]} and {last_traj[:, 1]}",
         )
         self.assertTrue(
             torch.allclose(first_traj[:, 2], -last_traj[:, 2]),
-            f"expectd mirrored trajectory for theta coord, got {first_traj[:, 1]} and {last_traj[:, 1]}"
+            f"expectd mirrored trajectory for theta coord, got {first_traj[:, 1]} and {last_traj[:, 1]}",
         )
 
     def test_unicycle_symbolic(self):
@@ -339,10 +336,7 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
             f"expected xdot[1] == u[0] * Sin(x[2]), got {xdot[1]}",
         )
         self.assertTrue(xdot[2] == u[1], f"expected xdot[2] == u[1], got {xdot[2]}")
-        self.assertTrue(
-            xdot[2] == u[1],
-            f"expected xdot[2] == u[1], got {xdot[2]}"
-        )
+        self.assertTrue(xdot[2] == u[1], f"expected xdot[2] == u[1], got {xdot[2]}")
 
     def test_unicycle_acc_numpy(self):
         debug_plot = False
@@ -378,19 +372,19 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         last_traj = xs[:, -1, :]
         self.assertTrue(
             np.allclose(first_traj[:, 0], last_traj[:, 0]),
-            f"expectd same trajectory for x coord, got {first_traj[:, 0]} and {last_traj[:, 0]}"
+            f"expectd same trajectory for x coord, got {first_traj[:, 0]} and {last_traj[:, 0]}",
         )
         self.assertTrue(
             np.allclose(first_traj[:, 1], -last_traj[:, 1]),
-            f"expectd mirrored trajectory for y coord, got {first_traj[:, 1]} and {last_traj[:, 1]}"
+            f"expectd mirrored trajectory for y coord, got {first_traj[:, 1]} and {last_traj[:, 1]}",
         )
         self.assertTrue(
             np.allclose(first_traj[:, 2], last_traj[:, 2]),
-            f"expectd mirrored trajectory for velocity coord, got {first_traj[:, 1]} and {last_traj[:, 1]}"
+            f"expectd mirrored trajectory for velocity coord, got {first_traj[:, 1]} and {last_traj[:, 1]}",
         )
         self.assertTrue(
             np.allclose(first_traj[:, 3], -last_traj[:, 3]),
-            f"expectd mirrored trajectory for theta coord, got {first_traj[:, 1]} and {last_traj[:, 1]}"
+            f"expectd mirrored trajectory for theta coord, got {first_traj[:, 1]} and {last_traj[:, 1]}",
         )
 
     def test_unicycle_acc_torch(self):
@@ -428,17 +422,17 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         last_traj = xs[:, -1, :]
         self.assertTrue(
             torch.allclose(first_traj[:, 0], last_traj[:, 0]),
-            f"expectd same trajectory for x coord, got {first_traj[:, 0]} and {last_traj[:, 0]}"
+            f"expectd same trajectory for x coord, got {first_traj[:, 0]} and {last_traj[:, 0]}",
         )
         self.assertTrue(
             torch.allclose(first_traj[:, 1], -last_traj[:, 1]),
-            f"expectd mirrored trajectory for y coord, got {first_traj[:, 1]} and {last_traj[:, 1]}"
+            f"expectd mirrored trajectory for y coord, got {first_traj[:, 1]} and {last_traj[:, 1]}",
         )
         self.assertTrue(
             torch.allclose(first_traj[:, 2], last_traj[:, 2]),
-            f"expectd mirrored trajectory for velocity coord, got {first_traj[:, 1]} and {last_traj[:, 1]}"
+            f"expectd mirrored trajectory for velocity coord, got {first_traj[:, 1]} and {last_traj[:, 1]}",
         )
         self.assertTrue(
             torch.allclose(first_traj[:, 3], -last_traj[:, 3]),
-            f"expectd mirrored trajectory for theta coord, got {first_traj[:, 1]} and {last_traj[:, 1]}"
+            f"expectd mirrored trajectory for theta coord, got {first_traj[:, 1]} and {last_traj[:, 1]}",
         )

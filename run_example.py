@@ -103,14 +103,10 @@ def main(args):
             "conservative_sigma": loss_conservative_sigma_weight,
         },
         LOSS_RELU=loss_act_type,
-        LOSS_NETGRAD_WEIGHT=loss_netgrad_weight,
     )
     cegis = fosco.cegis.Cegis(config=config, verbose=verbose)
 
     result = cegis.solve()
-
-    # save model
-    pass
 
 
 if __name__ == "__main__":

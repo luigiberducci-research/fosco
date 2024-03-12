@@ -43,6 +43,8 @@ class Args:
     """whether to upload the saved model to huggingface"""
     hf_entity: str = ""
     """the user or org name of the model repository from the Hugging Face Hub"""
+    logdir: str = f"{pathlib.Path(__file__).parent.parent}/runs"
+    """the directory to save the logs"""
 
     # Algorithm specific arguments
     env_id: str = "Hopper-v4" #"systems:SingleIntegrator-GoToUnsafeReward-v0"
@@ -130,8 +132,10 @@ def run(args):
     args.batch_size = int(args.num_envs * args.num_steps)
     args.minibatch_size = int(args.batch_size // args.num_minibatches)
     args.num_iterations = args.total_timesteps // args.batch_size
-    run_name = f"{args.env_id}__{args.trainer_id}__{args.seed}__{int(time.time())}"
-    logdir = f"{pathlib.Path(__file__).parent.parent}/runs/{run_name}"
+
+    env_id = args.env_id if isinstance(args.env_id, str) else "env"
+    run_name = f"{env_id}__{args.trainer_id}__{args.seed}__{int(time.time())}"
+    logdir = f"{args.logdir}/{run_name}"
 
     if args.num_iterations == 0:
         raise ValueError("Number of iterations = 0, maybe total timestep <= numenvs*numsteps?")

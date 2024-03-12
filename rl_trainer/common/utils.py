@@ -1,21 +1,39 @@
+from functools import partial
+from typing import Callable
+
 import gymnasium as gym
 import numpy as np
 import pandas as pd
 
 
-def make_env(env_id, seed, idx, capture_video, logdir, gamma, render_mode=None):
+def make_env(
+    env_id: str | Callable,
+    seed: int,
+    idx: int,
+    capture_video: bool,
+    logdir: str,
+    gamma: float,
+    render_mode: bool | None = None,
+):
+    if isinstance(env_id, str):
+        env_fn = partial(gym.make, id=env_id)
+    else:
+        env_fn = env_id
+
     def thunk():
         if capture_video and idx == 0:
-            env = gym.make(env_id, render_mode="rgb_array")
+            env = env_fn(render_mode="rgb_array")
             env = gym.wrappers.RecordVideo(env, f"{logdir}/videos")
         else:
-            env = gym.make(env_id, render_mode=render_mode)
-        env = gym.wrappers.FlattenObservation(env)  # deal with dm_control's Dict observation space
+            env = env_fn(render_mode=render_mode)
+        env = gym.wrappers.FlattenObservation(
+            env
+        )  # deal with dm_control's Dict observation space
         env = gym.wrappers.RecordEpisodeStatistics(env)
         env.action_space.seed(seed)
-        #env = gym.wrappers.ClipAction(env)
-        #env = gym.wrappers.NormalizeObservation(env)
-        #env = gym.wrappers.TransformObservation(env, lambda obs: np.clip(obs, -10, 10))
+        # env = gym.wrappers.ClipAction(env)
+        # env = gym.wrappers.NormalizeObservation(env)
+        # env = gym.wrappers.TransformObservation(env, lambda obs: np.clip(obs, -10, 10))
         env = gym.wrappers.NormalizeReward(env, gamma=gamma)
         env = gym.wrappers.TransformReward(env, lambda reward: np.clip(reward, -10, 10))
         return env
@@ -29,7 +47,10 @@ def tflog2pandas(path: str) -> pd.DataFrame:
     """
     runlog_data = pd.DataFrame({"metric": [], "value": [], "step": []})
     try:
-        from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
+        from tensorboard.backend.event_processing.event_accumulator import (
+            EventAccumulator,
+        )
+
         event_acc = EventAccumulator(path)
         event_acc.Reload()
         tags = event_acc.Tags()["scalars"]
@@ -43,6 +64,7 @@ def tflog2pandas(path: str) -> pd.DataFrame:
     # Dirty catch of DataLossError
     except Exception:
         import traceback
+
         print("Event file possibly corrupt: {}".format(path))
         traceback.print_exc()
     return runlog_data

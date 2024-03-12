@@ -1,3 +1,4 @@
+import pathlib
 from collections import namedtuple
 from dataclasses import dataclass, asdict
 from typing import Type, Any
@@ -54,4 +55,5 @@ class CegisConfig:
         return getattr(self, item)
 
     def dict(self):
+        self.MODEL_DIR = str(pathlib.Path(self.MODEL_DIR).absolute())
         return {k: str(v) for k, v in asdict(self).items()}

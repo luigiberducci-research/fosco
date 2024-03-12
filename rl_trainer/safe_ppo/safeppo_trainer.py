@@ -34,8 +34,9 @@ class SafePPOTrainer(PPOTrainer):
             else:
                 # load model from logs
                 from aim import Run
+                from fosco.common.consts import TimeDomain, ActivationType
 
-                aim_run = Run(run_hash=args.barrier_from_aim_run)
+                aim_run = Run(run_hash=args.barrier_path)
                 config = aim_run["config"]
 
                 timedomain = eval(config["TIME_DOMAIN"])
@@ -44,15 +45,14 @@ class SafePPOTrainer(PPOTrainer):
                 learner = learner_type(
                     state_size=system.n_vars,
                     learn_method=None,
-                    hidden_sizes=[5, 5],  # todo: load from cfg instead of hardcoding
-                    activation=["square", "linear"],  # todo: load from cfg
+                    hidden_sizes=eval(config["N_HIDDEN_NEURONS"]),  # todo: load from cfg instead of hardcoding
+                    activation=eval(config["ACTIVATION"]),  # todo: load from cfg
                     optimizer=eval(config["OPTIMIZER"]),
                     lr=eval(config["LEARNING_RATE"]),
                     weight_decay=eval(config["WEIGHT_DECAY"]),
                 )
 
-                pwd = pathlib.Path(__file__).parent.parent.parent
-                model_path = pwd / config["MODEL_DIR"] / config["EXP_NAME"]
+                model_path = pathlib.Path(config["MODEL_DIR"]) / config["EXP_NAME"]
                 model_path = [p for p in model_path.glob("*pt")]
 
                 if len(model_path) == 0:

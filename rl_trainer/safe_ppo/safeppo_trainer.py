@@ -22,7 +22,9 @@ class SafePPOTrainer(PPOTrainer):
             args: Namespace,
             device: Optional[torch.device] = None,
     ) -> None:
-        assert args.use_true_barrier or args.barrier_path, "safe ppo needs a cbf, either known or learned"
+        if not args.use_true_barrier and not args.barrier_path:
+            raise TypeError("safe ppo needs a cbf, either known or learned")
+
         if args.barrier_path:
             single_env = envs.envs[0] if envs.unwrapped.is_vector_env else envs
             system = single_env.system

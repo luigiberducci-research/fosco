@@ -357,7 +357,7 @@ class Cegis:
                 break
 
         self.tlogger.info(f"CEGIS finished after {iter} iterations")
-        self.logger.log_model(tag="barrier", model=self.learner, step=iter)
+        self.logger.log_model(tag="learner", model=self.learner, step=iter)
 
 
         infos = {"iter": iter}

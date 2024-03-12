@@ -29,7 +29,8 @@ class AimLogger(Logger):
         model_dir.mkdir(exist_ok=True, parents=True)
         model_path = model_dir / f"{tag}_{step}.pt"
         model.save(model_path=model_path)
-        self._run.track(str(model_path), name=tag, step=step, context={"model": True})
+        aim_string = aim.Text(str(model_path))
+        self._run.track(aim_string, name=tag, step=step, context={"model": True})
 
     def __close__(self):
         self._run.close()

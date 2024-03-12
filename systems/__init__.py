@@ -9,6 +9,7 @@ from systems.single_integrator import SingleIntegrator
 from systems.double_integrator import DoubleIntegrator
 from systems.unicycle_model import Unicycle
 from systems.unicycle_acc_model import UnicycleAcc
+from systems.static_office import StaticOfficeSystem
 
 from systems.rewards import REWARD_REGISTRY
 import gymnasium

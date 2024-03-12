@@ -1,4 +1,5 @@
 from abc import abstractmethod, ABC
+from typing import Callable
 
 import numpy as np
 import torch
@@ -11,12 +12,13 @@ from fosco.verifier.verifier import SYMBOL
 SYSTEM_REGISTRY = {}
 
 
-def register(cls):
+def register(entrypoint: Callable, name: str = None):
     """
-    Decorator to register a system class in the systems registry.
+    Decorator to register a system entrypoint in the systems registry.
     """
-    SYSTEM_REGISTRY[cls.__name__] = cls
-    return cls
+    name = name or entrypoint.__name__
+    SYSTEM_REGISTRY[name] = entrypoint
+    return entrypoint
 
 
 class ControlAffineDynamics(ABC):

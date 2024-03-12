@@ -152,7 +152,7 @@ class Sphere(Set):
         returns: data points generated in relevant domain according to shape
         """
         data = round_init_data(self.center, self.radius ** 2, batch_size)
-        return data.astype(torch.float32)
+        return data.float()
 
     def check_containment(
         self, x: np.ndarray | torch.Tensor, epsilon: float = 1e-6

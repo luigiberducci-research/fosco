@@ -1,6 +1,7 @@
 import numpy as np
 
 from fosco.common.consts import VerifierType
+from fosco.verifier import make_verifier
 from fosco.verifier.dreal_verifier import VerifierDR
 from fosco.verifier.z3_verifier import VerifierZ3
 
@@ -26,7 +27,7 @@ NP_FUNCTIONS = {
 
 
 FUNCTIONS = {
-    "numerical": NP_FUNCTIONS,
-    VerifierType.Z3: VerifierZ3.solver_fncts(),
-    VerifierType.DREAL: VerifierDR.solver_fncts(),
+    verifier_type.value: make_verifier(verifier_type).solver_fncts() for verifier_type in VerifierType.__members__.values()
 }
+FUNCTIONS["numerical"] = NP_FUNCTIONS
+

@@ -360,13 +360,8 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
                 alpha=1.0,
             )
 
-            # regularization net gradient
+            # net gradient info
             netgrad_sos = torch.sum(torch.square(gradB))
-            netgrad_loss = self.loss_netgrad_weight * netgrad_sos
-            losses["netgrad_loss"] = netgrad_loss.item()
-            loss += netgrad_loss
-
-            # infos
             infos = {
                 "netgrad_sos": netgrad_sos.item(),
             }

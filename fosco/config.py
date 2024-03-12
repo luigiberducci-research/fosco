@@ -41,8 +41,7 @@ class CegisConfig:
     OPTIMIZER: str | None = None
     LOSS_MARGINS: dict[str, float] | float = 0.0
     LOSS_WEIGHTS: dict[str, float] | float = 1.0
-    LOSS_RELU: LossReLUType = LossReLUType.RELU
-    LOSS_NETGRAD_WEIGHT: float = 0.0
+    LOSS_RELU: LossReLUType = LossReLUType.SOFTPLUS
     N_EPOCHS: int = 100
     # seeding
     SEED: int = None

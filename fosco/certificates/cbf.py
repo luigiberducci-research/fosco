@@ -230,9 +230,6 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
             loss_weights = config.LOSS_WEIGHTS
         self.loss_weights = loss_weights
 
-        # regularization on net gradient
-        self.loss_netgrad_weight = config.LOSS_NETGRAD_WEIGHT
-
     def learn(
         self,
         learner: LearnerNN,
@@ -288,13 +285,8 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
                 B_i, B_u, B_d, Bdot_d, alpha=1.0
             )
 
-            # regularization net gradient
+            # net gradient infos
             netgrad_sos = torch.sum(torch.square(gradB))
-            netgrad_loss = self.loss_netgrad_weight * netgrad_sos
-            losses["netgrad_loss"] = netgrad_loss.item()
-            loss += netgrad_loss
-
-            # infos
             infos = {
                 "netgrad_sos": netgrad_sos.item(),
             }

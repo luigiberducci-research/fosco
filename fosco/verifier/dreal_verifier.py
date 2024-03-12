@@ -1,3 +1,6 @@
+import multiprocessing.context
+from multiprocessing.pool import ThreadPool
+from time import sleep
 from typing import Callable
 
 import dreal
@@ -66,16 +69,25 @@ class VerifierDR(Verifier):
         )
 
     def _solver_solve(self, solver, fml):
-        res = dreal.CheckSatisfiability(fml, 0.0001)
+        timedout = False
+
+        pool = ThreadPool(processes=1)
+        async_result = pool.apply_async(dreal.CheckSatisfiability, args=(fml, 0.0001))
+
+        try:
+            res = async_result.get(timeout=self._solver_timeout)
+        except multiprocessing.context.TimeoutError:
+            res = None
+            timedout = True
+            return res, timedout
+
         if self.is_sat(res) and not self.within_bounds(res):
             And_ = self.solver_fncts()["And"]
             self._logger.info("Second chance bound used")
             new_bound = self.SECOND_CHANCE_BOUND
             fml = And_(fml, *(And_(x < new_bound, x > -new_bound) for x in self.xs))
             res = dreal.CheckSatisfiability(fml, 0.0001)
-        # todo: dreal does not implement any timeout mechanism for now (2024/02/15)
-        # how to implement a timeout mechanism?
-        timedout = False
+
         return res, timedout
 
     def _solver_model(self, solver, res):

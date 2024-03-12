@@ -32,13 +32,12 @@ class Verifier(ABC):
 
         # todo: move this to consolidator
         self.counterexample_n = n_counterexamples
-        self._n_cex_to_keep = self.counterexample_n * 1
         self._solver_timeout = solver_timeout
         self._rounding = rounding
 
-        assert self.counterexample_n > 0
-        assert self._n_cex_to_keep > 0
-        assert self._solver_timeout > 0
+        assert self.counterexample_n > 0, f"Nr of counterexamples must be greater than 0, got {self.counterexample_n}"
+        assert self._solver_timeout > 0, f"Solver's timeout must be greater than 0, got {self._solver_timeout}"
+        assert isinstance(self._solver_timeout, int), "solver timeout must be an integer (in seconds)"
 
         self._logger = logging.getLogger(__name__)
         self._logger.setLevel(LOGGING_LEVELS[verbose])

@@ -1,3 +1,4 @@
+import time
 import unittest
 
 
@@ -132,4 +133,72 @@ class TestVerifier(unittest.TestCase):
         self.assertTrue(
             len(results2["cex"]["unsat"]) == 0,
             f"expected no counterexample, got {results2['cex']['unsat']}",
+        )
+
+    def test_timeout_dreal(self):
+        verifier_fn = make_verifier(type=VerifierType.DREAL)
+        vars = verifier_fn.new_vars(n=1)
+        timeout_s = 1
+
+        def constraint_gen(verif: Verifier, C: SYMBOL, sigma, dC: SYMBOL, *args):
+            # force this to take more than timeout_s to check if timeout mechanism works
+            yield {"sat": C >= 0.0}
+
+        verifier = verifier_fn(
+            solver_vars=vars,
+            constraints_method=constraint_gen,
+            solver_timeout=timeout_s,
+            n_counterexamples=1,
+        )
+
+        C = vars[0] + 1.0
+        dC = vars[0] + 6.0
+        results, elapsed_time = verifier.verify(
+            V_symbolic=C,
+            V_symbolic_constr=[],
+            Vdot_symbolic=dC,
+            Vdot_symbolic_constr=[],
+            sigma_symbolic=None,
+            sigma_symbolic_constr=[],
+            Vdotz_symbolic=None,
+            Vdotz_symbolic_constr=[],
+        )
+
+        self.assertTrue(
+            elapsed_time <= timeout_s,
+            f"expected verifier to finish within the time limit, got elapsed time {elapsed_time} > {timeout_s}"
+        )
+
+    def test_timeout_z3(self):
+        verifier_fn = make_verifier(type=VerifierType.Z3)
+        vars = verifier_fn.new_vars(n=1)
+        timeout_s = 1
+
+        def constraint_gen(verif: Verifier, C: SYMBOL, sigma, dC: SYMBOL, *args):
+            # force this to take more than timeout_s to check if timeout mechanism works
+            yield {"sat": C >= 0.0}
+
+        verifier = verifier_fn(
+            solver_vars=vars,
+            constraints_method=constraint_gen,
+            solver_timeout=timeout_s,
+            n_counterexamples=1,
+        )
+
+        C = vars[0] + 1.0
+        dC = vars[0] + 6.0
+        results, elapsed_time = verifier.verify(
+            V_symbolic=C,
+            V_symbolic_constr=[],
+            Vdot_symbolic=dC,
+            Vdot_symbolic_constr=[],
+            sigma_symbolic=None,
+            sigma_symbolic_constr=[],
+            Vdotz_symbolic=None,
+            Vdotz_symbolic_constr=[],
+        )
+
+        self.assertTrue(
+            elapsed_time <= timeout_s,
+            f"expected verifier to finish within the time limit, got elapsed time {elapsed_time} > {timeout_s}"
         )

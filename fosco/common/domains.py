@@ -1,3 +1,4 @@
+import math
 from functools import partial
 
 import numpy as np
@@ -50,6 +51,7 @@ class Rectangle(Set):
         self.lower_bounds = lb
         self.upper_bounds = ub
         self.dim_select = dim_select
+        self.volume = np.prod([ub_i - lb_i for lb_i, ub_i in zip(lb, ub)])
         super().__init__(vars=vars)
 
     def __repr__(self):
@@ -63,7 +65,7 @@ class Rectangle(Set):
         dim_selection = [i for i, vx in enumerate(x) if str(vx) in self.vars]
         fns = get_solver_fns(x=x)
         lower = fns["And"](
-            *[x[v_id] >= self.lower_bounds[i] for i, v_id in enumerate(dim_selection)]
+            *[self.lower_bounds[i] <= x[v_id] for i, v_id in enumerate(dim_selection)]
         )
         upper = fns["And"](
             *[x[v_id] <= self.upper_bounds[i] for i, v_id in enumerate(dim_selection)]
@@ -75,8 +77,7 @@ class Rectangle(Set):
         param x: data point x
         returns: data points generated in relevant domain according to shape
         """
-        data = square_init_data([self.lower_bounds, self.upper_bounds], batch_size)
-        return data.float()
+        return square_init_data([self.lower_bounds, self.upper_bounds], batch_size)
 
     def get_vertices(self):
         """Returns vertices of the rectangle
@@ -111,20 +112,21 @@ class Rectangle(Set):
 class Sphere(Set):
     def __init__(
         self,
-        center,
+        centre,
         radius,
         vars: list[str],
         dim_select=None,
         include_boundary: bool = True,
     ):
-        self.center = center
+        self.centre = centre
         self.radius = radius
         self.include_boundary = include_boundary
         super().__init__(vars=vars)
         self.dim_select = dim_select
+        self.volume = math.pi ** (self.dimension / 2) / math.gamma(self.dimension/2 + 1)
 
     def __repr__(self) -> str:
-        return f"Sphere{self.center, self.radius}"
+        return f"Sphere{self.centre, self.radius}"
 
     def generate_domain(self, x):
         """
@@ -136,12 +138,12 @@ class Sphere(Set):
 
         if self.include_boundary:
             domain = (
-                sum([(x[i] - self.center[i]) ** 2 for i in range(self.dimension)])
+                sum([(x[i] - self.centre[i]) ** 2 for i in range(self.dimension)])
                 <= self.radius ** 2
             )
         else:
             domain = (
-                sum([(x[i] - self.center[i]) ** 2 for i in range(self.dimension)])
+                sum([(x[i] - self.centre[i]) ** 2 for i in range(self.dimension)])
                 < self.radius ** 2
             )
         return domain
@@ -151,8 +153,7 @@ class Sphere(Set):
         param batch_size: number of data points to generate
         returns: data points generated in relevant domain according to shape
         """
-        data = round_init_data(self.center, self.radius ** 2, batch_size)
-        return data.float()
+        return round_init_data(self.centre, self.radius ** 2, batch_size)
 
     def check_containment(
         self, x: np.ndarray | torch.Tensor, epsilon: float = 1e-6
@@ -172,7 +173,7 @@ class Sphere(Set):
             x = np.array([x[:, i] for i in self.dim_select])
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
-        c = torch.tensor(self.center).reshape(1, -1)
+        c = torch.tensor(self.centre).reshape(1, -1)
         return (x - c).norm(2, dim=-1) - self.radius ** 2 <= epsilon
 
 
@@ -196,10 +197,26 @@ class Union(Set):
         return fns["Or"](*[s.generate_domain(x) for s in self.sets])
 
     def generate_data(self, batch_size):
-        n_per_set = np.ceil(batch_size / len(self.sets)).astype(int)
-        s = torch.empty(0, self.dimension, dtype=torch.float32)
-        for set_i in self.sets:
-            s = torch.cat([s, set_i.generate_data(n_per_set)])
+        """
+        Sample data from each set, proportially to the volume if available.
+        """
+        volumes = [s.volume for s in self.sets if hasattr(s, "volume") or None]
+        nonz_volumes = [v for v in volumes if v is not None]
+
+        if len(nonz_volumes) > 0:
+            # if volume is not available, use average of other volumes
+            volumes = [v if v is not None else np.mean(nonz_volumes) for v in volumes]
+            # normalize volumes to value in 0..1 that sum up to 1
+            norm_volumes = np.array([v / sum(volumes) for v in volumes])
+            # compute the number of samples to take from each set
+            n_per_set = np.ceil(norm_volumes * batch_size).astype(int)
+        else:
+            # if no volume available, sample uniformly from each set
+            n_per_set = np.ceil([batch_size / len(self.sets)] * len(self.sets)).astype(int)
+
+        s = torch.empty(0, self.dimension)
+        for set_i, n_set_i in zip(self.sets, n_per_set):
+            s = torch.cat([s, set_i.generate_data(n_set_i)])
         return s[:batch_size]
 
 
@@ -233,7 +250,7 @@ class Intersection(Set):
         Returns:
             torch.Tensor: data points generated in the intersection of S1 and S2
         """
-        samples = torch.empty(0, self.dimension, dtype=torch.float32)
+        samples = torch.empty(0, self.dimension)
         while len(samples) < batch_size and max_iter > 0:
             rnd_set_id = np.random.randint(0, len(self.sets))
             s = self.sets[rnd_set_id].generate_data(batch_size=batch_size)

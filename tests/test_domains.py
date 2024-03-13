@@ -53,12 +53,23 @@ class TestDomains(unittest.TestCase):
         data = X.generate_data(1000)
         self.assertEqual(data.shape, (1000, 2))
 
+        data_in_1 = 0
+        data_in_2 = 0
         for sample in data:
             is_in_x1 = X1.check_containment(sample[None])
             is_in_x2 = X2.check_containment(sample[None])
+            data_in_1 += int(is_in_x1)
+            data_in_2 += int(is_in_x2)
             self.assertTrue(
                 is_in_x1 or is_in_x2, f"check containement failed for sample = {sample}"
             )
+
+        self.assertTrue((X1.volume > X2.volume and data_in_1 > data_in_2)
+                        or (X1.volume < X2.volume and data_in_1 < data_in_2),
+                        f"expected sampling proportionally to set volume, "
+                        f"got {data_in_1} and {data_in_2} instead for "
+                        f"volumes {X1.volume} and {X2.volume} respectively")
+
 
     def test_intersection(self):
         X1 = domains.Rectangle(vars=["x", "y"], lb=(-5.0, -5.0), ub=(5.0, 5.0))

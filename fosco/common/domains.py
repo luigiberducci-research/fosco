@@ -65,7 +65,7 @@ class Rectangle(Set):
         dim_selection = [i for i, vx in enumerate(x) if str(vx) in self.vars]
         fns = get_solver_fns(x=x)
         lower = fns["And"](
-            *[self.lower_bounds[i] <= x[v_id] for i, v_id in enumerate(dim_selection)]
+            *[x[v_id] >= self.lower_bounds[i] for i, v_id in enumerate(dim_selection)]
         )
         upper = fns["And"](
             *[x[v_id] <= self.upper_bounds[i] for i, v_id in enumerate(dim_selection)]
@@ -77,7 +77,7 @@ class Rectangle(Set):
         param x: data point x
         returns: data points generated in relevant domain according to shape
         """
-        return square_init_data([self.lower_bounds, self.upper_bounds], batch_size)
+        return square_init_data([self.lower_bounds, self.upper_bounds], batch_size).float()
 
     def get_vertices(self):
         """Returns vertices of the rectangle
@@ -112,13 +112,13 @@ class Rectangle(Set):
 class Sphere(Set):
     def __init__(
         self,
-        centre,
+        center,
         radius,
         vars: list[str],
         dim_select=None,
         include_boundary: bool = True,
     ):
-        self.centre = centre
+        self.center = center
         self.radius = radius
         self.include_boundary = include_boundary
         super().__init__(vars=vars)
@@ -126,7 +126,7 @@ class Sphere(Set):
         self.volume = math.pi ** (self.dimension / 2) / math.gamma(self.dimension/2 + 1)
 
     def __repr__(self) -> str:
-        return f"Sphere{self.centre, self.radius}"
+        return f"Sphere{self.center, self.radius}"
 
     def generate_domain(self, x):
         """
@@ -138,12 +138,12 @@ class Sphere(Set):
 
         if self.include_boundary:
             domain = (
-                sum([(x[i] - self.centre[i]) ** 2 for i in range(self.dimension)])
+                sum([(x[i] - self.center[i]) ** 2 for i in range(self.dimension)])
                 <= self.radius ** 2
             )
         else:
             domain = (
-                sum([(x[i] - self.centre[i]) ** 2 for i in range(self.dimension)])
+                sum([(x[i] - self.center[i]) ** 2 for i in range(self.dimension)])
                 < self.radius ** 2
             )
         return domain
@@ -153,7 +153,7 @@ class Sphere(Set):
         param batch_size: number of data points to generate
         returns: data points generated in relevant domain according to shape
         """
-        return round_init_data(self.centre, self.radius ** 2, batch_size)
+        return round_init_data(self.center, self.radius ** 2, batch_size)
 
     def check_containment(
         self, x: np.ndarray | torch.Tensor, epsilon: float = 1e-6
@@ -170,10 +170,10 @@ class Sphere(Set):
         """
         assert len(x.shape) == 2, f"Expected x to be 2D, got {x.shape}"
         if self.dim_select:
-            x = np.array([x[:, i] for i in self.dim_select])
+            x = np.stack([x[:, i] for i in self.dim_select]).T
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
-        c = torch.tensor(self.centre).reshape(1, -1)
+        c = torch.tensor(self.center).reshape(1, -1)
         return (x - c).norm(2, dim=-1) - self.radius ** 2 <= epsilon
 
 

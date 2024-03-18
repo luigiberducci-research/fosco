@@ -35,6 +35,8 @@ class Args:
     """the entity (team) of wandb's project"""
     capture_video: bool = True
     """whether to capture videos of the agent performances (check out `videos` folder)"""
+    capture_video_eval: bool = True
+    """whether to capture videos during evaluation"""
     render_mode: str = None
     """render mode during training if no capture video"""
     save_model: bool = True
@@ -63,6 +65,8 @@ class Args:
     """the number of parallel game environments"""
     num_steps: int = 2048
     """the number of steps to run in each environment per policy rollout"""
+    num_eval_episodes: int = 10
+    """the number of episodes to evaluate the policy at the end of training"""
     anneal_lr: bool = True
     """Toggle learning rate annealing for policy and value networks"""
     gamma: float = 0.99
@@ -114,6 +118,7 @@ def evaluate(
 
     obs, _ = envs.reset()
     episodic_returns = []
+    episodic_costs = []
     while len(episodic_returns) < eval_episodes:
         results = agent.get_action_and_value(torch.Tensor(obs).to(device))
         actions = results["action"]
@@ -122,11 +127,12 @@ def evaluate(
             for info in infos["final_info"]:
                 if "episode" not in info:
                     continue
-                print(f"eval_episode={len(episodic_returns)}, episodic_return={info['episode']['r']}")
+                print(f"eval_episode={len(episodic_returns)}, episodic_return={info['episode']['r']}, episodic_cost={info['episode']['c']}")
                 episodic_returns += [info["episode"]["r"]]
+                episodic_costs += [info["episode"]["c"]]
         obs = next_obs
 
-    return episodic_returns
+    return episodic_returns, episodic_costs
 
 def run(args):
     args.batch_size = int(args.num_envs * args.num_steps)
@@ -252,18 +258,21 @@ def run(args):
         agent = trainer.get_actor()
         agent.load(model_path=model_path, device=device)
 
-        episodic_returns = evaluate(
+        episodic_returns, episodic_costs = evaluate(
             make_env=make_env,
             env_id=args.env_id,
-            eval_episodes=10,
+            eval_episodes=args.num_eval_episodes,
             logdir=logdir,
+            capture_video=args.capture_video_eval,
             agent=agent,
             device=device,
             gamma=args.gamma,
         )
         print(f"eval episodic returns: {np.mean(episodic_returns)} +/- {np.std(episodic_returns)}")
-        for idx, episodic_return in enumerate(episodic_returns):
+        print(f"eval episodic costs: {np.mean(episodic_costs)} +/- {np.std(episodic_costs)}")
+        for idx, (episodic_return, episodic_cost) in enumerate(zip(episodic_returns, episodic_costs)):
             writer.add_scalar("eval/episodic_return", episodic_return, idx)
+            writer.add_scalar("eval/episodic_cost", episodic_cost, idx)
 
     envs.close()
     writer.close()

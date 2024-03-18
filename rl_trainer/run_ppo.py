@@ -153,19 +153,24 @@ def run(args):
 
     env_id = args.env_id if isinstance(args.env_id, str) else "env"
     run_name = f"{env_id}__{args.trainer_id}__{args.seed}__{int(time.time())}"
-    logdir = f"{args.logdir}/{run_name}"
+
+    logdir = None
+    if args.logdir:
+        logdir = f"{args.logdir}/{run_name}"
 
     if args.num_iterations == 0:
         raise ValueError(
             "Number of iterations = 0, maybe total timestep <= numenvs*numsteps?"
         )
 
-    writer = SummaryWriter(logdir)
-    writer.add_text(
-        "hyperparameters",
-        "|param|value|\n|-|-|\n%s"
-        % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
-    )
+    writer = None
+    if logdir is not None:
+        writer = SummaryWriter(logdir)
+        writer.add_text(
+            "hyperparameters",
+            "|param|value|\n|-|-|\n%s"
+            % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
+        )
     logging.info(f"Logdir {logdir}")
 
     # TRY NOT TO MODIFY: seeding
@@ -281,28 +286,31 @@ def run(args):
                         print(
                             f"global_step={global_step}, episodic_return={info['episode']['r']}, episodic_cost={info['episode']['c']}"
                         )
-                        writer.add_scalar(
-                            "charts/episodic_return", info["episode"]["r"], global_step
-                        )
-                        writer.add_scalar(
-                            "charts/episodic_cost", info["episode"]["c"], global_step
-                        )
-                        writer.add_scalar(
-                            "charts/episodic_length", info["episode"]["l"], global_step
-                        )
+                        if writer:
+                            writer.add_scalar(
+                                "charts/episodic_return", info["episode"]["r"], global_step
+                            )
+                            writer.add_scalar(
+                                "charts/episodic_cost", info["episode"]["c"], global_step
+                            )
+                            writer.add_scalar(
+                                "charts/episodic_length", info["episode"]["l"], global_step
+                            )
 
         # update agent
         train_infos = trainer.train(next_obs=next_obs, next_done=next_done,)
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
-        for k, v in train_infos.items():
-            writer.add_scalar(k, v, global_step)
-        print("SPS:", int(global_step / (time.time() - start_time)))
-        writer.add_scalar(
-            "charts/SPS", int(global_step / (time.time() - start_time)), global_step
-        )
+        sps = int(global_step / (time.time() - start_time))
+        print("SPS:", sps)
+        if writer:
+            for k, v in train_infos.items():
+                writer.add_scalar(k, v, global_step)
+            writer.add_scalar(
+                "charts/SPS", int(global_step / (time.time() - start_time)), global_step
+            )
 
-    if args.save_model:
+    if logdir and args.save_model:
         checkpoint_dir = pathlib.Path(f"{logdir}/checkpoints/")
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
@@ -314,6 +322,7 @@ def run(args):
         agent = trainer.get_actor()
         agent.load(model_path=model_path, device=device)
 
+    if args.num_eval_episodes > 0:
         episodic_returns, episodic_costs = evaluate(
             make_env=make_env,
             env_id=args.env_id,
@@ -330,14 +339,18 @@ def run(args):
         print(
             f"eval episodic costs: {np.mean(episodic_costs)} +/- {np.std(episodic_costs)}"
         )
-        for idx, (episodic_return, episodic_cost) in enumerate(
-            zip(episodic_returns, episodic_costs)
-        ):
-            writer.add_scalar("eval/episodic_return", episodic_return, idx)
-            writer.add_scalar("eval/episodic_cost", episodic_cost, idx)
+
+        if writer:
+            for idx, (episodic_return, episodic_cost) in enumerate(
+                zip(episodic_returns, episodic_costs)
+            ):
+                writer.add_scalar("eval/episodic_return", episodic_return, idx)
+                writer.add_scalar("eval/episodic_cost", episodic_cost, idx)
 
     envs.close()
-    writer.close()
+
+    if writer:
+        writer.close()
 
     return logdir
 

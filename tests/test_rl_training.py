@@ -1,4 +1,5 @@
 import unittest
+import shutil
 
 
 class TestRLTraining(unittest.TestCase):
@@ -27,6 +28,9 @@ class TestRLTraining(unittest.TestCase):
             f"We expect a positive trend in return (learning something), got slope={slope}",
         )
 
+        # delete logdir once test is done
+        shutil.rmtree(logdir)
+
     def test_safeppo_hopper(self):
         """
         Try to run safe-ppo in the mujoco hopper environment.
@@ -39,9 +43,13 @@ class TestRLTraining(unittest.TestCase):
         args.env_id = "Hopper-v4"
         args.trainer_id = "safe-ppo"
         args.total_timesteps = 7500
+        args.render_mode = "human"
 
         with self.assertRaises(TypeError):
             logdir = run(args=args)
+
+            # delete logdir once test is done
+            shutil.rmtree(logdir)
 
     def test_safeppo_single_integrator(self):
         """
@@ -56,7 +64,9 @@ class TestRLTraining(unittest.TestCase):
         args.seed = 0
         args.env_id = "fosco.systems:SingleIntegrator-GoToUnsafeReward-v0"
         args.trainer_id = "safe-ppo"
+        args.use_true_barrier = True
         args.total_timesteps = 7500
+        args.capture_video = args.capture_video_eval = False
 
         logdir = run(args=args)
         df = tflog2pandas(logdir)
@@ -72,6 +82,9 @@ class TestRLTraining(unittest.TestCase):
             f"We expect a positive trend in return (learning something), got slope={slope}",
         )
 
+        # delete logdir once test is done
+        shutil.rmtree(logdir)
+
     def test_evaluate_fn(self):
         from rl_trainer.run_ppo import Args, run
         from rl_trainer.common.utils import tflog2pandas
@@ -85,8 +98,13 @@ class TestRLTraining(unittest.TestCase):
         args.capture_video = args.capture_video_eval = False  # to make it faster
 
         logdir = run(args=args)
-        df = tflog2pandas(logdir)
+        self.assertTrue(
+            logdir is not None,
+            f"Expected to have a logdir where to store metrics, got {logdir}",
+        )
 
+        # tboard to df
+        df = tflog2pandas(logdir)
         returns = df[df["metric"] == "eval/episodic_return"]["value"]
         costs = df[df["metric"] == "eval/episodic_cost"]["value"]
 
@@ -96,3 +114,6 @@ class TestRLTraining(unittest.TestCase):
         self.assertTrue(
             len(costs) > 0, f"We expect to have some costs, got {len(costs)}",
         )
+
+        # delete logdir once test is done
+        shutil.rmtree(logdir)

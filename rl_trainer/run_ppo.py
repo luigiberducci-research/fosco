@@ -199,18 +199,33 @@ def run(args):
             next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(next_done).to(device)
             envs.envs[0].render()
 
+            if "final_info" not in infos:
+                cost = infos["costs"][0] if "costs" in infos else np.zeros(args.num_envs, dtype=np.float32)
+            else:
+                cost = []
+                for i, info in enumerate(infos["final_info"]):
+                    if info is None:
+                        c = infos["costs"][i] if "costs" in infos else np.zeros(args.num_envs, dtype=np.float32)
+                        cost.append(c)
+                    else:
+                        c = info["costs"] if "costs" in infos else np.zeros(args.num_envs, dtype=np.float32)
+                        cost.append(c)
+
+
             trainer.buffer.push(
                 obs=cur_obs,
                 done=next_done,
                 reward=torch.tensor(reward).to(device).view(-1),
+                cost=torch.tensor(cost).to(device).view(-1),
                 **results
             )
 
             if "final_info" in infos:
                 for info in infos["final_info"]:
                     if info and "episode" in info:
-                        print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
+                        print(f"global_step={global_step}, episodic_return={info['episode']['r']}, episodic_cost={info['episode']['c']}")
                         writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
+                        writer.add_scalar("charts/episodic_cost", info["episode"]["c"], global_step)
                         writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
 
         # update agent

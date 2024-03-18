@@ -87,6 +87,7 @@ class SafePPOTrainer(PPOTrainer):
             "logprob": (args.num_steps, args.num_envs),
             "classk_logprob": (args.num_steps, args.num_envs),
             "reward": (args.num_steps, args.num_envs),
+            "cost": (args.num_steps, args.num_envs),
             "done": (args.num_steps, args.num_envs),
             "value": (args.num_steps, args.num_envs),
         }

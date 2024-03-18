@@ -16,5 +16,5 @@ def main(args):
 if __name__=="__main__":
     args_ = Args
     args = tyro.cli(args_)
-    args.env_id = "systems:SingleIntegrator-GoToUnsafeReward-v0"
+    args.env_id = "fosco.systems:SingleIntegrator-GoToUnsafeReward-v0"
     main(args=args)

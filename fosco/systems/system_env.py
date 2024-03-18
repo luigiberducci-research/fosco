@@ -217,11 +217,11 @@ class SystemEnv(gymnasium.Env):
 
             # rewards and terminations
             rewards = self.reward_fn(actions, next_observs)
+            costs = self.system.unsafe_domain.check_containment(next_observs).float()
             timeouts = next_time > self.time_limit
             terminations = self.termination_fn(actions, next_observs).to(self._device)
             terminations |= timeouts
             truncations = torch.zeros_like(terminations, dtype=torch.bool)
-            infos = {}
 
             # update state
             self._current_obs = next_observs
@@ -231,8 +231,13 @@ class SystemEnv(gymnasium.Env):
             if self._return_as_np:
                 next_observs = next_observs.cpu().numpy()
                 rewards = rewards.cpu().numpy()
+                costs = costs.cpu().numpy()
                 terminations = terminations.cpu().numpy()
                 truncations = truncations.cpu().numpy()
+
+            infos = {
+                "costs": costs,
+            }
 
         if not return_batch:
             next_observs = next_observs[0]

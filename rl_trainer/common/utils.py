@@ -5,6 +5,8 @@ import gymnasium as gym
 import numpy as np
 import pandas as pd
 
+from rl_trainer.wrappers.record_episode_statistics import RecordEpisodeStatistics
+
 
 def make_env(
     env_id: str | Callable,
@@ -29,7 +31,7 @@ def make_env(
         env = gym.wrappers.FlattenObservation(
             env
         )  # deal with dm_control's Dict observation space
-        env = gym.wrappers.RecordEpisodeStatistics(env)
+        env = RecordEpisodeStatistics(env)
         env.action_space.seed(seed)
         # env = gym.wrappers.ClipAction(env)
         # env = gym.wrappers.NormalizeObservation(env)

@@ -75,8 +75,20 @@ class TestEnv(unittest.TestCase):
                 f"next_obss is not a numpy array, got {type(next_obss)}",
             )
             self.assertTrue(
+                isinstance(rewards, np.ndarray),
+                "rewards is not a numpy array",
+            )
+            self.assertTrue(
+                "costs" in infos and isinstance(infos["costs"], np.ndarray),
+                "costs not found in infos or it is not a numpy array",
+            )
+            self.assertTrue(
                 obss.shape[0] == actions.shape[0] == next_obss.shape[0],
                 "mismatch batch sizes",
+            )
+            self.assertTrue(
+                rewards.shape == infos["costs"].shape == (batch_size,),
+                f"wrong batch size for rewards or costs, got {rewards.shape}, {infos['costs'].shape}",
             )
 
     def test_tensor_batch_step(self):
@@ -107,12 +119,24 @@ class TestEnv(unittest.TestCase):
                 f"next_obss is not a torch tensor, got {type(next_obss)}",
             )
             self.assertTrue(
+                isinstance(rewards, torch.Tensor),
+                "rewards is not a torch tensor",
+            )
+            self.assertTrue(
+                isinstance(infos["costs"], torch.Tensor),
+                "costs not found in infos or it is not a torch tensor",
+            )
+            self.assertTrue(
                 len(obss.shape) == len(actions.shape) == len(next_obss.shape),
                 "mismatch batch dimensions",
             )
             self.assertTrue(
                 obss.shape[0] == actions.shape[0] == next_obss.shape[0],
                 "mismatch batch sizes",
+            )
+            self.assertTrue(
+                rewards.shape == infos["costs"].shape == (batch_size,),
+                f"wrong batch size for rewards or costs, got {rewards.shape}, {infos['costs'].shape}",
             )
 
     def test_sequential_step(self):

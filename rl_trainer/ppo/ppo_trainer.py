@@ -33,6 +33,7 @@ class PPOTrainer(RLTrainer):
             "action": (args.num_steps, args.num_envs) + single_env.action_space.shape,
             "logprob": (args.num_steps, args.num_envs),
             "reward": (args.num_steps, args.num_envs),
+            "cost": (args.num_steps, args.num_envs),
             "done": (args.num_steps, args.num_envs),
             "value": (args.num_steps, args.num_envs),
         }

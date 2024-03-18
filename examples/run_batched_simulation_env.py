@@ -27,7 +27,7 @@ def main():
         reward_fn=dummy_reward_fn,
         max_steps=max_steps,
         dt=dt,
-        render_mode="human"
+        render_mode="human",
     )
 
     # plotting
@@ -53,7 +53,6 @@ def main():
 
     plt.plot(xs, ys)
     plt.show()
-
 
 
 if __name__ == "__main__":

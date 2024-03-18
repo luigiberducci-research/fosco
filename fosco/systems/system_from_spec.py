@@ -15,7 +15,7 @@ class System(ControlAffineDynamics):
         variables: list[str],
         controls: list[str],
         domains: dict[str, Set],
-        dynamics: dict[str, Callable]
+        dynamics: dict[str, Callable],
     ):
         self._id = id
         self._variables = variables
@@ -23,8 +23,15 @@ class System(ControlAffineDynamics):
         self._domains = domains
         self._dynamics = dynamics
 
-        assert all([dname.value in self._domains for dname in [dn.XD, dn.UD, dn.XI, dn.XU]])
-        assert all([fname in self._dynamics for fname in ["fx_torch", "fx_smt", "gx_torch", "gx_smt"]])
+        assert all(
+            [dname.value in self._domains for dname in [dn.XD, dn.UD, dn.XI, dn.XU]]
+        )
+        assert all(
+            [
+                fname in self._dynamics
+                for fname in ["fx_torch", "fx_smt", "gx_torch", "gx_smt"]
+            ]
+        )
 
     @property
     def id(self) -> str:

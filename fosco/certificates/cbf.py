@@ -65,7 +65,9 @@ class ControlBarrierFunction(Certificate):
         self._logger.setLevel(LOGGING_LEVELS[verbose])
         self._logger.debug("CBF initialized")
 
-    def get_constraints(self, verifier, B, B_constr, sigma, sigma_constr, Bdot, Bdot_constr, *args) -> Generator:
+    def get_constraints(
+        self, verifier, B, B_constr, sigma, sigma_constr, Bdot, Bdot_constr, *args
+    ) -> Generator:
         """
         :param verifier: verifier object
         :param B: symbolic formula of the CBF

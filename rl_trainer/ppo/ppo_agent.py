@@ -31,7 +31,6 @@ class ActorCriticAgent(nn.Module):
         )
         self.actor_logstd = nn.Parameter(torch.zeros(1, self.output_size))
 
-
     def get_value(self, x):
         return self.critic(x)
 

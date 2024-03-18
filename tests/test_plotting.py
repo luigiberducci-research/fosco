@@ -11,9 +11,7 @@ class TestPlottingUtils(unittest.TestCase):
 
         n_dim = 2
         domain = Rectangle(
-            vars=[f"x{i}" for i in range(n_dim)],
-            lb=(-1.0,) * n_dim,
-            ub=(1.0,) * n_dim,
+            vars=[f"x{i}" for i in range(n_dim)], lb=(-1.0,) * n_dim, ub=(1.0,) * n_dim,
         )
         model = TorchMLP(
             input_size=domain.dimension,
@@ -38,9 +36,7 @@ class TestPlottingUtils(unittest.TestCase):
 
         n_dim = 3
         domain = Rectangle(
-            vars=[f"x{i}" for i in range(n_dim)],
-            lb=(-1.0,) * n_dim,
-            ub=(1.0,) * n_dim,
+            vars=[f"x{i}" for i in range(n_dim)], lb=(-1.0,) * n_dim, ub=(1.0,) * n_dim,
         )
         model = TorchMLP(
             input_size=domain.dimension,

@@ -113,6 +113,7 @@ def activation_der_sym(select, p):
     else:
         raise NotImplementedError(f"Activation {select} not implemented")
 
+
 def relu(x):
     y = x.copy()
     if isinstance(x[0, 0], z3.ArithRef):
@@ -143,6 +144,7 @@ def relu_square_z3(x):
 
 def requ_z3(x):
     return np.multiply(x, relu(x))
+
 
 def hyper_tan_dr(x):
     y = x.copy()
@@ -176,6 +178,7 @@ def cosh(x):
     for idx in range(len(y)):
         y[idx, 0] = dr.cosh(y[idx, 0]) - 1
     return y  # .reshape(original_shape)
+
 
 def poly3_sym(x):
     # linear - quadratic - cubic activation
@@ -287,12 +290,7 @@ def even_poly4_sym(x):
         x[:h],
         x[h:],
     )
-    return np.vstack(
-        [
-            np.power(x1, 2),
-            np.power(x2, 4),
-        ]
-    )
+    return np.vstack([np.power(x1, 2), np.power(x2, 4),])
 
 
 def even_poly6_sym(x):
@@ -302,13 +300,7 @@ def even_poly6_sym(x):
         x[h : 2 * h],
         x[2 * h :],
     )
-    return np.vstack(
-        [
-            np.power(x1, 2),
-            np.power(x2, 4),
-            np.power(x3, 6),
-        ]
-    )
+    return np.vstack([np.power(x1, 2), np.power(x2, 4), np.power(x3, 6),])
 
 
 def even_poly8_sym(x):
@@ -320,12 +312,7 @@ def even_poly8_sym(x):
         x[3 * h :],
     )
     return np.vstack(
-        [
-            np.power(x1, 2),
-            np.power(x2, 4),
-            np.power(x3, 6),
-            np.power(x4, 8),
-        ]
+        [np.power(x1, 2), np.power(x2, 4), np.power(x3, 6), np.power(x4, 8),]
     )
 
 
@@ -350,7 +337,7 @@ def even_poly10_sym(x):
 
 
 def rational_sym(x):
-    return x / (1 + (x**2) ** 0.5)
+    return x / (1 + (x ** 2) ** 0.5)
 
 
 ##############################
@@ -394,6 +381,7 @@ def relu_square_der_z3(x):
 def requ_der_z3(x):
     return 2 * relu(x)
 
+
 def hyper_tan_der_dr(x):
     y = x.copy()
     # original_shape = y.shape
@@ -417,6 +405,8 @@ def sigm_der_dr(x):
     for idx in range(len(y)):
         y[idx, 0] = dr.exp(-y[idx, 0]) / dr.pow((1 + dr.exp(-y[idx, 0])), 2)
     return y
+
+
 def poly3_der_sym(x):
     # linear - quadratic - cubic activation
     h = int(x.shape[0] / 3)
@@ -535,12 +525,7 @@ def even_poly4_der_sym(x):
         x[:h],
         x[h:],
     )
-    return np.vstack(
-        [
-            2 * x1,
-            4 * np.power(x2, 3),
-        ]
-    )
+    return np.vstack([2 * x1, 4 * np.power(x2, 3),])
 
 
 def even_poly6_der_sym(x):
@@ -550,13 +535,7 @@ def even_poly6_der_sym(x):
         x[h : 2 * h],
         x[2 * h :],
     )
-    return np.vstack(
-        [
-            2 * x1,
-            4 * np.power(x2, 3),
-            6 * np.power(x3, 5),
-        ]
-    )
+    return np.vstack([2 * x1, 4 * np.power(x2, 3), 6 * np.power(x3, 5),])
 
 
 def even_poly8_der_sym(x):
@@ -568,12 +547,7 @@ def even_poly8_der_sym(x):
         x[3 * h :],
     )
     return np.vstack(
-        [
-            2 * x1,
-            4 * np.power(x2, 3),
-            6 * np.power(x3, 5),
-            8 * np.power(x4, 7),
-        ]
+        [2 * x1, 4 * np.power(x2, 3), 6 * np.power(x3, 5), 8 * np.power(x4, 7),]
     )
 
 
@@ -598,4 +572,4 @@ def even_poly10_der_sym(x):
 
 
 def rational_der_sym(x):
-    return 1 / (1 + x**2)
+    return 1 / (1 + x ** 2)

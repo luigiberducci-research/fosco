@@ -91,10 +91,8 @@ class TestRLTraining(unittest.TestCase):
         costs = df[df["metric"] == "eval/episodic_cost"]["value"]
 
         self.assertTrue(
-            len(returns) > 0,
-            f"We expect to have some returns, got {len(returns)}",
+            len(returns) > 0, f"We expect to have some returns, got {len(returns)}",
         )
         self.assertTrue(
-            len(costs) > 0,
-            f"We expect to have some costs, got {len(costs)}",
+            len(costs) > 0, f"We expect to have some costs, got {len(costs)}",
         )

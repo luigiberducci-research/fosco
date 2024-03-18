@@ -77,7 +77,9 @@ class Rectangle(Set):
         param x: data point x
         returns: data points generated in relevant domain according to shape
         """
-        return square_init_data([self.lower_bounds, self.upper_bounds], batch_size).float()
+        return square_init_data(
+            [self.lower_bounds, self.upper_bounds], batch_size
+        ).float()
 
     def get_vertices(self):
         """Returns vertices of the rectangle
@@ -123,7 +125,9 @@ class Sphere(Set):
         self.include_boundary = include_boundary
         super().__init__(vars=vars)
         self.dim_select = dim_select
-        self.volume = math.pi ** (self.dimension / 2) / math.gamma(self.dimension/2 + 1)
+        self.volume = math.pi ** (self.dimension / 2) / math.gamma(
+            self.dimension / 2 + 1
+        )
 
     def __repr__(self) -> str:
         return f"Sphere{self.center, self.radius}"
@@ -212,7 +216,9 @@ class Union(Set):
             n_per_set = np.ceil(norm_volumes * batch_size).astype(int)
         else:
             # if no volume available, sample uniformly from each set
-            n_per_set = np.ceil([batch_size / len(self.sets)] * len(self.sets)).astype(int)
+            n_per_set = np.ceil([batch_size / len(self.sets)] * len(self.sets)).astype(
+                int
+            )
 
         s = torch.empty(0, self.dimension)
         for set_i, n_set_i in zip(self.sets, n_per_set):

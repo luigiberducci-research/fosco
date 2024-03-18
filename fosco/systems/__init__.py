@@ -1,9 +1,6 @@
 from typing import Type
 
-from fosco.systems.system import (
-    ControlAffineDynamics,
-    UncertainControlAffineDynamics
-)
+from fosco.systems.system import ControlAffineDynamics, UncertainControlAffineDynamics
 from fosco.systems.single_integrator import SingleIntegrator
 from fosco.systems.double_integrator import DoubleIntegrator
 from fosco.systems.unicycle_model import Unicycle
@@ -33,6 +30,6 @@ for system_id in ["SingleIntegrator", "DoubleIntegrator"]:
         rew_fn = REWARD_REGISTRY[reward_id](system=sys)
         gymnasium.register(
             id=env_id,
-            entry_point='fosco.systems.system_env:SystemEnv',
-            kwargs={"system": sys, 'reward_fn': rew_fn, "max_steps": 100}
+            entry_point="fosco.systems.system_env:SystemEnv",
+            kwargs={"system": sys, "reward_fn": rew_fn, "max_steps": 100},
         )

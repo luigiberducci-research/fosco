@@ -57,7 +57,7 @@ if __name__ == "__main__":
 
     def func(x):
         assert len(x.shape) == 2 and x.shape[1] == 2, "x must be a batch of 2d points"
-        return np.sin(x[:, 0]) #+ np.cos(x[:, 1])
+        return np.sin(x[:, 0])  # + np.cos(x[:, 1])
 
     fig = plot_surface(func, (-10, 10), (-5, 5), levels=[0], label="test")
 

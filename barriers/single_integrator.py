@@ -19,13 +19,13 @@ class SingleIntegratorCBF(TorchSymDiffModel):
         h(x) = | x - x_o |^2 - R^2
         """
         self._assert_forward_input(x=x)
-        hx = x[:, 0] ** 2 + x[:, 1] ** 2 - self._safety_dist**2
+        hx = x[:, 0] ** 2 + x[:, 1] ** 2 - self._safety_dist ** 2
         self._assert_forward_output(x=hx)
         return hx
 
     def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL]]:
         self._assert_forward_smt_input(x=x)
-        hx = x[0] ** 2 + x[1] ** 2 - self._safety_dist**2
+        hx = x[0] ** 2 + x[1] ** 2 - self._safety_dist ** 2
         self._assert_forward_smt_output(x=hx)
         return hx, []
 

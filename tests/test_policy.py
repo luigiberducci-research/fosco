@@ -30,11 +30,7 @@ class TestPolicy(unittest.TestCase):
         model.eval()
 
         # simulation
-        env = SystemEnv(
-            system=system,
-            max_steps=500,
-            dt=0.1,
-        )
+        env = SystemEnv(system=system, max_steps=500, dt=0.1,)
         obs, infos = env.reset(seed=seed)
         termination = truncation = False
 
@@ -44,7 +40,7 @@ class TestPolicy(unittest.TestCase):
         while not termination and not truncation:
             # get safety metric
             px, py = obs
-            safe = (px - obs_x) ** 2 + (py - obs_y) ** 2 - R**2
+            safe = (px - obs_x) ** 2 + (py - obs_y) ** 2 - R ** 2
 
             safety.append(safe)
             loc_x.append(px)
@@ -109,7 +105,7 @@ class TestPolicy(unittest.TestCase):
         while not termination and not truncation:
             # get safety metric
             px, py = obs
-            safe = (px - obs_x) ** 2 + (py - obs_y) ** 2 - R**2
+            safe = (px - obs_x) ** 2 + (py - obs_y) ** 2 - R ** 2
 
             safety.append(safe)
             loc_x.append(px)

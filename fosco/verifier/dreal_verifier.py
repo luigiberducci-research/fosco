@@ -16,10 +16,10 @@ class VerifierDR(Verifier):
 
     @staticmethod
     def new_vars(
-            n: int | None = None, var_names: list[str] | None = None, base: str = "x"
+        n: int | None = None, var_names: list[str] | None = None, base: str = "x"
     ) -> list[SYMBOL]:
         assert (
-                n is not None or var_names is not None
+            n is not None or var_names is not None
         ), "Must provide either n or var_names"
         assert n is None or var_names is None, f"Cannot provide both n and var_names"
         assert var_names is None or len(var_names) == len(
@@ -80,7 +80,9 @@ class VerifierDR(Verifier):
         except multiprocessing.context.TimeoutError:
             res = None
             timedout = True
-            self._logger.info(f"Timed out while solving, kill after {timeit.default_timer() - t0} sec")
+            self._logger.info(
+                f"Timed out while solving, kill after {timeit.default_timer() - t0} sec"
+            )
             return res, timedout
 
         if self.is_sat(res) and not self.within_bounds(res):

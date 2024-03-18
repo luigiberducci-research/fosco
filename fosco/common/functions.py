@@ -27,7 +27,7 @@ NP_FUNCTIONS = {
 
 
 FUNCTIONS = {
-    verifier_type.value: make_verifier(verifier_type).solver_fncts() for verifier_type in VerifierType.__members__.values()
+    verifier_type.value: make_verifier(verifier_type).solver_fncts()
+    for verifier_type in VerifierType.__members__.values()
 }
 FUNCTIONS["numerical"] = NP_FUNCTIONS
-

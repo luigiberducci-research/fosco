@@ -17,10 +17,7 @@ class Buffer(ABC):
 
 class CyclicBuffer(Buffer):
     def __init__(
-        self,
-        capacity: int,
-        feature_shapes: dict[str, tuple[int]],
-        device: torch.device
+        self, capacity: int, feature_shapes: dict[str, tuple[int]], device: torch.device
     ) -> None:
         self._capacity = capacity
         self._device = device
@@ -31,7 +28,6 @@ class CyclicBuffer(Buffer):
 
         self._step = 0
 
-
     def push(self, **kwargs) -> None:
         updated = {k: False for k in self._buffers}
         for feature, batch in kwargs.items():
@@ -41,7 +37,9 @@ class CyclicBuffer(Buffer):
             updated[feature] = True
 
         # check consistency: all buffers same size
-        assert all(updated.values()), f"expected all buffers to get updated, got {updated}"
+        assert all(
+            updated.values()
+        ), f"expected all buffers to get updated, got {updated}"
 
         self._step = (self._step + 1) % self._capacity
 

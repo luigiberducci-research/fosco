@@ -166,7 +166,7 @@ class TestVerifier(unittest.TestCase):
 
         self.assertTrue(
             elapsed_time <= timeout_s,
-            f"expected verifier to finish within the time limit, got elapsed time {elapsed_time} > {timeout_s}"
+            f"expected verifier to finish within the time limit, got elapsed time {elapsed_time} > {timeout_s}",
         )
 
     def test_timeout_z3(self):
@@ -200,5 +200,5 @@ class TestVerifier(unittest.TestCase):
 
         self.assertTrue(
             elapsed_time <= timeout_s,
-            f"expected verifier to finish within the time limit, got elapsed time {elapsed_time} > {timeout_s}"
+            f"expected verifier to finish within the time limit, got elapsed time {elapsed_time} > {timeout_s}",
         )

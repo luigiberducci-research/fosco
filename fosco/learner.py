@@ -16,7 +16,6 @@ from fosco.systems import UncertainControlAffineDynamics
 
 
 class LearnerNN(nn.Module):
-
     def __init__(self, verbose: int = 0):
         super().__init__()
 
@@ -48,21 +47,25 @@ class LearnerCT(LearnerNN):
     """
 
     def __init__(
-            self,
-            state_size,
-            learn_method,
-            hidden_sizes: tuple[int, ...],
-            activation: tuple[ActivationType, ...],
-            optimizer: str | None,
-            lr: float,
-            weight_decay: float,
-            initial_models: dict[str, nn.Module] | None = None,
-            verbose: int = 0
+        self,
+        state_size,
+        learn_method,
+        hidden_sizes: tuple[int, ...],
+        activation: tuple[ActivationType, ...],
+        optimizer: str | None,
+        lr: float,
+        weight_decay: float,
+        initial_models: dict[str, nn.Module] | None = None,
+        verbose: int = 0,
     ):
         super(LearnerCT, self).__init__(verbose=verbose)
 
         # certificate function
-        if initial_models and "net" in initial_models and initial_models["net"] is not None:
+        if (
+            initial_models
+            and "net" in initial_models
+            and initial_models["net"] is not None
+        ):
             self.net = initial_models["net"]
         else:
             self.net = TorchMLP(
@@ -89,11 +92,16 @@ class LearnerCT(LearnerNN):
         return output
 
     def save(self, model_path: str | pathlib.Path) -> None:
-        assert isinstance(model_path, str) or isinstance(model_path,
-                                                         pathlib.Path), f"wrong path type {type(model_path)}"
+        assert isinstance(model_path, str) or isinstance(
+            model_path, pathlib.Path
+        ), f"wrong path type {type(model_path)}"
 
-        model_path = pathlib.Path(model_path) if isinstance(model_path, str) else model_path
-        assert (model_path.is_dir() and model_path.exists()) or (model_path.suffix == ".pt"), f"expected dir or filepath with suffix .pt, got {model_path} with suffix {model_path.suffix}"
+        model_path = (
+            pathlib.Path(model_path) if isinstance(model_path, str) else model_path
+        )
+        assert (model_path.is_dir() and model_path.exists()) or (
+            model_path.suffix == ".pt"
+        ), f"expected dir or filepath with suffix .pt, got {model_path} with suffix {model_path.suffix}"
 
         if not model_path.suffix == ".pt":
             model_path = model_path / "learner.pt"
@@ -106,10 +114,13 @@ class LearnerCT(LearnerNN):
         self._logger.info(f"Saved learner to {model_path}")
 
     def load(self, model_path: pathlib.Path) -> None:
-        assert (isinstance(model_path, str) or
-                isinstance(model_path, pathlib.Path)), f"wrong path type {type(model_path)}"
+        assert isinstance(model_path, str) or isinstance(
+            model_path, pathlib.Path
+        ), f"wrong path type {type(model_path)}"
 
-        model_path = pathlib.Path(model_path) if isinstance(model_path, str) else model_path
+        model_path = (
+            pathlib.Path(model_path) if isinstance(model_path, str) else model_path
+        )
         if not model_path.exists():
             raise FileNotFoundError(f"learner checkpoint not found at {model_path}")
         learner_state = torch.load(model_path)
@@ -125,16 +136,16 @@ class LearnerRobustCT(LearnerCT):
     """
 
     def __init__(
-            self,
-            state_size,
-            learn_method,
-            hidden_sizes: tuple[int, ...],
-            activation: tuple[ActivationType, ...],
-            optimizer: str | None,
-            lr: float,
-            weight_decay: float,
-            initial_models: dict[str, nn.Module] | None = None,
-            verbose: int = 0
+        self,
+        state_size,
+        learn_method,
+        hidden_sizes: tuple[int, ...],
+        activation: tuple[ActivationType, ...],
+        optimizer: str | None,
+        lr: float,
+        weight_decay: float,
+        initial_models: dict[str, nn.Module] | None = None,
+        verbose: int = 0,
     ):
         super(LearnerRobustCT, self).__init__(
             state_size=state_size,
@@ -145,7 +156,7 @@ class LearnerRobustCT(LearnerCT):
             lr=lr,
             weight_decay=weight_decay,
             initial_models=initial_models,
-            verbose=verbose
+            verbose=verbose,
         )
 
         # compensator for additive state disturbances
@@ -168,14 +179,14 @@ class LearnerRobustCT(LearnerCT):
 
 
 def make_learner(
-        system: ControlAffineDynamics, time_domain: TimeDomain | str
+    system: ControlAffineDynamics, time_domain: TimeDomain | str
 ) -> Type[LearnerNN]:
     if isinstance(time_domain, str):
         time_domain = TimeDomain[time_domain]
 
     if (
-            isinstance(system, UncertainControlAffineDynamics)
-            and time_domain == TimeDomain.CONTINUOUS
+        isinstance(system, UncertainControlAffineDynamics)
+        and time_domain == TimeDomain.CONTINUOUS
     ):
         return LearnerRobustCT
     elif time_domain == TimeDomain.CONTINUOUS:

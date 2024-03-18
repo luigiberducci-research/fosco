@@ -80,9 +80,9 @@ class Unicycle(ControlAffineDynamics):
             cosx = torch.cos(x[:, 2, :])
             sinx = torch.sin(x[:, 2, :])
 
-            gx = torch.tensor([[[cosx[i][0], 0], [sinx[i][0], 0], [0, 1]] for i in range(x.shape[0])])
-
-
+            gx = torch.tensor(
+                [[[cosx[i][0], 0], [sinx[i][0], 0], [0, 1]] for i in range(x.shape[0])]
+            )
 
         return gx
 
@@ -90,7 +90,9 @@ class Unicycle(ControlAffineDynamics):
         assert isinstance(
             x, list
         ), "expected list of symbolic state variables, [x0, x1, ...]"
-        assert all([isinstance(xi, DRSYMBOL) for xi in x]), f"expected list of dreal variables, got {x}"
+        assert all(
+            [isinstance(xi, DRSYMBOL) for xi in x]
+        ), f"expected list of dreal variables, got {x}"
         fns = VerifierDR.solver_fncts()
         Sin_ = fns["Sin"]
         Cos_ = fns["Cos"]

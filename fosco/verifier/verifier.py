@@ -35,9 +35,15 @@ class Verifier(ABC):
         self._solver_timeout = solver_timeout
         self._rounding = rounding
 
-        assert self.counterexample_n > 0, f"Nr of counterexamples must be greater than 0, got {self.counterexample_n}"
-        assert self._solver_timeout > 0, f"Solver's timeout must be greater than 0, got {self._solver_timeout}"
-        assert isinstance(self._solver_timeout, int), "solver timeout must be an integer (in seconds)"
+        assert (
+            self.counterexample_n > 0
+        ), f"Nr of counterexamples must be greater than 0, got {self.counterexample_n}"
+        assert (
+            self._solver_timeout > 0
+        ), f"Solver's timeout must be greater than 0, got {self._solver_timeout}"
+        assert isinstance(
+            self._solver_timeout, int
+        ), "solver timeout must be an integer (in seconds)"
 
         self._logger = logging.getLogger(__name__)
         self._logger.setLevel(LOGGING_LEVELS[verbose])
@@ -155,7 +161,9 @@ class Verifier(ABC):
                     vars = self.xs
 
                 s = self.new_solver()
-                self._logger.debug(f"Constraint: {label}, Formula: {self.pretty_formula(fml=condition)}")
+                self._logger.debug(
+                    f"Constraint: {label}, Formula: {self.pretty_formula(fml=condition)}"
+                )
                 res, timedout = self._solver_solve(solver=s, fml=condition)
                 results[label] = res
                 solvers[label] = s

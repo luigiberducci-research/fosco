@@ -49,7 +49,7 @@ class Args:
     """the directory to save the logs"""
 
     # Algorithm specific arguments
-    env_id: str = "Hopper-v4" #"systems:SingleIntegrator-GoToUnsafeReward-v0"
+    env_id: str = "Hopper-v4"  # "systems:SingleIntegrator-GoToUnsafeReward-v0"
     """the id of the environment"""
     trainer_id: str = "ppo"
     """the id of the rl trainer"""
@@ -102,18 +102,27 @@ class Args:
 
 
 def evaluate(
-        make_env: Callable,
-        env_id: str,
-        eval_episodes: int,
-        logdir: str,
-        agent: torch.nn.Module,
-        device: torch.device = torch.device("cpu"),
-        capture_video: bool = True,
-        gamma: float = 0.99,
+    make_env: Callable,
+    env_id: str,
+    eval_episodes: int,
+    logdir: str,
+    agent: torch.nn.Module,
+    device: torch.device = torch.device("cpu"),
+    capture_video: bool = True,
+    gamma: float = 0.99,
 ):
-    envs = gym.vector.SyncVectorEnv([make_env(env_id=env_id, seed=None, idx=0,
-                                              capture_video=capture_video, logdir=f"{logdir}/eval",
-                                              gamma=gamma)])
+    envs = gym.vector.SyncVectorEnv(
+        [
+            make_env(
+                env_id=env_id,
+                seed=None,
+                idx=0,
+                capture_video=capture_video,
+                logdir=f"{logdir}/eval",
+                gamma=gamma,
+            )
+        ]
+    )
     agent.eval()
 
     obs, _ = envs.reset()
@@ -127,12 +136,15 @@ def evaluate(
             for info in infos["final_info"]:
                 if "episode" not in info:
                     continue
-                print(f"eval_episode={len(episodic_returns)}, episodic_return={info['episode']['r']}, episodic_cost={info['episode']['c']}")
+                print(
+                    f"eval_episode={len(episodic_returns)}, episodic_return={info['episode']['r']}, episodic_cost={info['episode']['c']}"
+                )
                 episodic_returns += [info["episode"]["r"]]
                 episodic_costs += [info["episode"]["c"]]
         obs = next_obs
 
     return episodic_returns, episodic_costs
+
 
 def run(args):
     args.batch_size = int(args.num_envs * args.num_steps)
@@ -144,12 +156,15 @@ def run(args):
     logdir = f"{args.logdir}/{run_name}"
 
     if args.num_iterations == 0:
-        raise ValueError("Number of iterations = 0, maybe total timestep <= numenvs*numsteps?")
+        raise ValueError(
+            "Number of iterations = 0, maybe total timestep <= numenvs*numsteps?"
+        )
 
     writer = SummaryWriter(logdir)
     writer.add_text(
         "hyperparameters",
-        "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
+        "|param|value|\n|-|-|\n%s"
+        % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
     )
     logging.info(f"Logdir {logdir}")
 
@@ -164,10 +179,22 @@ def run(args):
 
     # env setup
     envs = gym.vector.SyncVectorEnv(
-        [make_env(env_id=args.env_id, seed=args.seed, idx=i, capture_video=args.capture_video, logdir=logdir,
-                  gamma=args.gamma, render_mode=args.render_mode) for i in range(args.num_envs)]
+        [
+            make_env(
+                env_id=args.env_id,
+                seed=args.seed,
+                idx=i,
+                capture_video=args.capture_video,
+                logdir=logdir,
+                gamma=args.gamma,
+                render_mode=args.render_mode,
+            )
+            for i in range(args.num_envs)
+        ]
     )
-    assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
+    assert isinstance(
+        envs.single_action_space, gym.spaces.Box
+    ), "only continuous action space is supported"
 
     if args.trainer_id == "ppo":
         trainer = PPOTrainer(envs=envs, args=args, device=device)
@@ -194,57 +221,86 @@ def run(args):
             # ALGO LOGIC: action logic
             # note: we dont want to keep gradients of inference but we cannot use torch.nograd because we need
             # autograd for the barrier derivative
-            #with torch.no_grad():
+            # with torch.no_grad():
             results = agent.get_action_and_value(next_obs)
-            results = {k: v.detach() for k, v in results.items()}   # solution: detach all returned values
-            action = results["safe_action"] if "safe_action" in results else results["action"]
+            results = {
+                k: v.detach() for k, v in results.items()
+            }  # solution: detach all returned values
+            action = (
+                results["safe_action"]
+                if "safe_action" in results
+                else results["action"]
+            )
 
             # TRY NOT TO MODIFY: execute the game and log data.
-            next_obs, reward, terminations, truncations, infos = envs.step(action.cpu().numpy())
+            next_obs, reward, terminations, truncations, infos = envs.step(
+                action.cpu().numpy()
+            )
             next_done = np.logical_or(terminations, truncations)
-            next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(next_done).to(device)
+            next_obs, next_done = (
+                torch.Tensor(next_obs).to(device),
+                torch.Tensor(next_done).to(device),
+            )
             envs.envs[0].render()
 
             if "final_info" not in infos:
-                cost = infos["costs"][0] if "costs" in infos else np.zeros(args.num_envs, dtype=np.float32)
+                cost = (
+                    infos["costs"][0]
+                    if "costs" in infos
+                    else np.zeros(args.num_envs, dtype=np.float32)
+                )
             else:
                 cost = []
                 for i, info in enumerate(infos["final_info"]):
                     if info is None:
-                        c = infos["costs"][i] if "costs" in infos else np.zeros(args.num_envs, dtype=np.float32)
+                        c = (
+                            infos["costs"][i]
+                            if "costs" in infos
+                            else np.zeros(args.num_envs, dtype=np.float32)
+                        )
                         cost.append(c)
                     else:
-                        c = info["costs"] if "costs" in infos else np.zeros(args.num_envs, dtype=np.float32)
+                        c = (
+                            info["costs"]
+                            if "costs" in infos
+                            else np.zeros(args.num_envs, dtype=np.float32)
+                        )
                         cost.append(c)
-
 
             trainer.buffer.push(
                 obs=cur_obs,
                 done=next_done,
                 reward=torch.tensor(reward).to(device).view(-1),
                 cost=torch.tensor(cost).to(device).view(-1),
-                **results
+                **results,
             )
 
             if "final_info" in infos:
                 for info in infos["final_info"]:
                     if info and "episode" in info:
-                        print(f"global_step={global_step}, episodic_return={info['episode']['r']}, episodic_cost={info['episode']['c']}")
-                        writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
-                        writer.add_scalar("charts/episodic_cost", info["episode"]["c"], global_step)
-                        writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
+                        print(
+                            f"global_step={global_step}, episodic_return={info['episode']['r']}, episodic_cost={info['episode']['c']}"
+                        )
+                        writer.add_scalar(
+                            "charts/episodic_return", info["episode"]["r"], global_step
+                        )
+                        writer.add_scalar(
+                            "charts/episodic_cost", info["episode"]["c"], global_step
+                        )
+                        writer.add_scalar(
+                            "charts/episodic_length", info["episode"]["l"], global_step
+                        )
 
         # update agent
-        train_infos = trainer.train(
-            next_obs=next_obs,
-            next_done=next_done,
-        )
+        train_infos = trainer.train(next_obs=next_obs, next_done=next_done,)
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
         for k, v in train_infos.items():
             writer.add_scalar(k, v, global_step)
         print("SPS:", int(global_step / (time.time() - start_time)))
-        writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
+        writer.add_scalar(
+            "charts/SPS", int(global_step / (time.time() - start_time)), global_step
+        )
 
     if args.save_model:
         checkpoint_dir = pathlib.Path(f"{logdir}/checkpoints/")
@@ -268,9 +324,15 @@ def run(args):
             device=device,
             gamma=args.gamma,
         )
-        print(f"eval episodic returns: {np.mean(episodic_returns)} +/- {np.std(episodic_returns)}")
-        print(f"eval episodic costs: {np.mean(episodic_costs)} +/- {np.std(episodic_costs)}")
-        for idx, (episodic_return, episodic_cost) in enumerate(zip(episodic_returns, episodic_costs)):
+        print(
+            f"eval episodic returns: {np.mean(episodic_returns)} +/- {np.std(episodic_returns)}"
+        )
+        print(
+            f"eval episodic costs: {np.mean(episodic_costs)} +/- {np.std(episodic_costs)}"
+        )
+        for idx, (episodic_return, episodic_cost) in enumerate(
+            zip(episodic_returns, episodic_costs)
+        ):
             writer.add_scalar("eval/episodic_return", episodic_return, idx)
             writer.add_scalar("eval/episodic_cost", episodic_cost, idx)
 

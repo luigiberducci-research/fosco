@@ -18,6 +18,7 @@ def dummy_term_fn(actions, next_obss):
 def dummy_reward_fn(actions, next_obss):
     return torch.ones((next_obss.shape[0],), dtype=torch.float32)
 
+
 def main():
     system_id = "SingleIntegrator"
     batch_size = 10
@@ -25,7 +26,7 @@ def main():
     dt = 0.1
 
     # this seed will give a policy which navigates towards the obstacle (demo)
-    seed = 425 #np.random.randint(0, 1000)
+    seed = 425  # np.random.randint(0, 1000)
 
     # to ensure same policy
     np.random.seed(seed)
@@ -42,16 +43,15 @@ def main():
     )
 
     barrier = make_barrier(system=system)["barrier"]
-    pi = BarrierPolicy(
-        system=system,
-        barrier=barrier,
-    )
+    pi = BarrierPolicy(system=system, barrier=barrier,)
     print(f"Init time: {time.time() - t0} seconds")
 
     # simulation
     t0 = time.time()
     print(f"Seed {seed}")
-    obs, info = env.reset(seed=seed, options={"batch_size": batch_size, "return_as_np": False})
+    obs, info = env.reset(
+        seed=seed, options={"batch_size": batch_size, "return_as_np": False}
+    )
     terminations = truncations = np.zeros(batch_size, dtype=bool)
 
     traj = {"x": [obs], "u": [], "hx": [], "px": []}
@@ -89,7 +89,7 @@ def main():
         cx[0] + r * np.cos(np.linspace(0, 2 * np.pi, 25)),
         cx[1] + r * np.sin(np.linspace(0, 2 * np.pi, 25)),
         color="r",
-        linestyle="dashed"
+        linestyle="dashed",
     )
 
     ax3.set_title("Space Trajectories")
@@ -124,4 +124,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

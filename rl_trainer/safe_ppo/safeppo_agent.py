@@ -18,9 +18,7 @@ from fosco.systems.system_env import SystemEnv
 
 class SafeActorCriticAgent(ActorCriticAgent):
     def __init__(
-            self,
-            envs: SystemEnv,
-            barrier: TorchSymDiffModel | Callable,
+        self, envs: SystemEnv, barrier: TorchSymDiffModel | Callable,
     ):
         super().__init__(envs=envs)
         self.classk_size = 1
@@ -45,7 +43,9 @@ class SafeActorCriticAgent(ActorCriticAgent):
 
         # safety layer
         if not isinstance(envs.action_space, gymnasium.spaces.Box):
-            raise TypeError(f"This agent only supports continuous actions as Box type, got {envs.action_space}")
+            raise TypeError(
+                f"This agent only supports continuous actions as Box type, got {envs.action_space}"
+            )
         self.umin = envs.action_space.low
         self.umax = envs.action_space.high
         self.barrier = barrier
@@ -77,15 +77,19 @@ class SafeActorCriticAgent(ActorCriticAgent):
         constraints += [Lfhx + Lghx @ u + alphahx + slack >= 0.0]
 
         # objective: u.T Q u + p.T u
-        objective = 1 / 2 * cp.quad_form(u, Q) + px.T @ u + 1000 * slack**2
+        objective = 1 / 2 * cp.quad_form(u, Q) + px.T @ u + 1000 * slack ** 2
         problem = cp.Problem(cp.Minimize(objective), constraints)
 
-        return CvxpyLayer(problem, variables=[u, slack], parameters=[px, Lfhx, Lghx, alphahx])
+        return CvxpyLayer(
+            problem, variables=[u, slack], parameters=[px, Lfhx, Lghx, alphahx]
+        )
 
     def get_value(self, x):
         return self.critic(x)
 
-    def get_action_and_value(self, x, action=None, action_k=None, use_safety_layer: bool = True):
+    def get_action_and_value(
+        self, x, action=None, action_k=None, use_safety_layer: bool = True
+    ):
         # assert input is ok
         assert isinstance(x, torch.Tensor), f"Expected torch.Tensor, got {type(x)}"
         assert len(x.shape) == 2, f"Expected (batch, dim) got {x.shape}"
@@ -130,12 +134,7 @@ class SafeActorCriticAgent(ActorCriticAgent):
             alphahx = (alpha * hx).view(n_batch, 1)
 
             # note: no kwargs to cvxpylayer
-            (safe_action, slack) = self.safety_layer(
-                    action,
-                    Lfhx,
-                    Lghx,
-                    alphahx
-            )
+            (safe_action, slack) = self.safety_layer(action, Lfhx, Lghx, alphahx)
 
         log_probs = probs.log_prob(action).sum(1)
         entropy = probs.entropy().sum(1)
@@ -145,9 +144,9 @@ class SafeActorCriticAgent(ActorCriticAgent):
 
         results = {
             "safe_action": safe_action,
-            "action": action,   # this is px
-            "logprob": log_probs,   # this is logprob(px)
-            "entropy": entropy, # entropy of px
+            "action": action,  # this is px
+            "logprob": log_probs,  # this is logprob(px)
+            "entropy": entropy,  # entropy of px
             "classk": action_k,
             "classk_logprob": class_k_log_probs,
             "classk_entropy": class_k_entropy,
@@ -243,12 +242,7 @@ class BarrierPolicy(nn.Module):
         Lfhx = (dhdx @ fx).view(nBatch, 1)
         Lghx = (dhdx @ gx).view(nBatch, self.nCls)
         alphahx = (alphax * hx).view(nBatch, 1)
-        (u,) = self._safety_layer(
-            px,
-            Lfhx,
-            Lghx,
-            alphahx
-        )
+        (u,) = self._safety_layer(px, Lfhx, Lghx, alphahx)
 
         self.hx = hx
         self.px = px
@@ -292,5 +286,9 @@ class BarrierPolicy(nn.Module):
     def _assert_output(self, x, u):
         assert isinstance(x, torch.Tensor), f"Expected torch.Tensor, got {type(x)}"
         assert isinstance(u, torch.Tensor), f"Expected torch.Tensor, got {type(u)}"
-        assert len(x.shape) == len(u.shape), f"Expected same dimensions for x and u, got {x.shape} and {u.shape}"
-        assert x.shape[0] == u.shape[0], f"Expected return same batch as input, got {x.shape[0]} != {u.shape[0]}"
+        assert len(x.shape) == len(
+            u.shape
+        ), f"Expected same dimensions for x and u, got {x.shape} and {u.shape}"
+        assert (
+            x.shape[0] == u.shape[0]
+        ), f"Expected return same batch as input, got {x.shape[0]} != {u.shape[0]}"

@@ -91,7 +91,7 @@ class Cegis:
             lr=self.config.LEARNING_RATE,
             weight_decay=self.config.WEIGHT_DECAY,
             initial_models=initial_models,
-            verbose=self.verbose
+            verbose=self.verbose,
         )
         return learner_instance
 
@@ -353,7 +353,6 @@ class Cegis:
 
         self.tlogger.info(f"CEGIS finished after {iter} iterations")
         self.logger.log_model(tag="learner", model=self.learner, step=iter)
-
 
         infos = {"iter": iter}
         self._result = CegisResult(

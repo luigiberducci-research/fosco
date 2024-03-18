@@ -15,12 +15,13 @@ from rl_trainer.ppo.ppo_trainer import PPOTrainer
 from fosco.systems.system_env import SystemEnv
 from fosco.learner import make_learner
 
+
 class SafePPOTrainer(PPOTrainer):
     def __init__(
-            self,
-            envs: gymnasium.Env,
-            args: Namespace,
-            device: Optional[torch.device] = None,
+        self,
+        envs: gymnasium.Env,
+        args: Namespace,
+        device: Optional[torch.device] = None,
     ) -> None:
         if not args.use_true_barrier and not args.barrier_path:
             raise TypeError("safe ppo needs a cbf, either known or learned")
@@ -45,7 +46,9 @@ class SafePPOTrainer(PPOTrainer):
                 learner = learner_type(
                     state_size=system.n_vars,
                     learn_method=None,
-                    hidden_sizes=eval(config["N_HIDDEN_NEURONS"]),  # todo: load from cfg instead of hardcoding
+                    hidden_sizes=eval(
+                        config["N_HIDDEN_NEURONS"]
+                    ),  # todo: load from cfg instead of hardcoding
                     activation=eval(config["ACTIVATION"]),  # todo: load from cfg
                     optimizer=eval(config["OPTIMIZER"]),
                     lr=eval(config["LEARNING_RATE"]),
@@ -74,14 +77,12 @@ class SafePPOTrainer(PPOTrainer):
 
         agent_cls = partial(SafeActorCriticAgent, barrier=barrier)
         super().__init__(
-            envs=envs,
-            args=args,
-            agent_cls=agent_cls,
-            device=device,
+            envs=envs, args=args, agent_cls=agent_cls, device=device,
         )
 
         buffer_shapes = {
-            "obs": (args.num_steps, args.num_envs) + envs.single_observation_space.shape,
+            "obs": (args.num_steps, args.num_envs)
+            + envs.single_observation_space.shape,
             "action": (args.num_steps, args.num_envs) + envs.single_action_space.shape,
             "classk": (args.num_steps, args.num_envs) + (1,),
             "logprob": (args.num_steps, args.num_envs),
@@ -92,15 +93,11 @@ class SafePPOTrainer(PPOTrainer):
             "value": (args.num_steps, args.num_envs),
         }
         self.buffer = CyclicBuffer(
-            capacity=args.num_steps,
-            feature_shapes=buffer_shapes,
-            device=self.device
+            capacity=args.num_steps, feature_shapes=buffer_shapes, device=self.device
         )
 
     def train(
-            self,
-            next_obs: torch.Tensor,
-            next_done: Optional[torch.Tensor] = None,
+        self, next_obs: torch.Tensor, next_done: Optional[torch.Tensor] = None,
     ) -> dict[str, float]:
         data = self.buffer.sample()
         obs = data["obs"]
@@ -121,7 +118,9 @@ class SafePPOTrainer(PPOTrainer):
             self.optimizer.param_groups[0]["lr"] = lrnow
 
         # advantage estimation
-        advantages, returns = self._advantage_estimation(obs, actions, rewards, dones, next_obs, next_done, values)
+        advantages, returns = self._advantage_estimation(
+            obs, actions, rewards, dones, next_obs, next_done, values
+        )
 
         # flatten the batch
         b_obs = obs.reshape((-1,) + (self.agent.input_size,))
@@ -145,32 +144,48 @@ class SafePPOTrainer(PPOTrainer):
                 mb_inds = b_inds[start:end]
 
                 # note: logprob, entropy, newvalue do not depende on safe_action -> disable it
-                results = self.agent.get_action_and_value(x=b_obs[mb_inds],
-                                                          action=b_actions[mb_inds],
-                                                          action_k=b_classks[mb_inds],
-                                                          use_safety_layer=False)
+                results = self.agent.get_action_and_value(
+                    x=b_obs[mb_inds],
+                    action=b_actions[mb_inds],
+                    action_k=b_classks[mb_inds],
+                    use_safety_layer=False,
+                )
                 newlogprob = results["logprob"]
                 newclassklogprob = results["classk_logprob"]
                 entropy = results["entropy"]
                 classkentropy = results["classk_entropy"]
                 newvalue = results["value"]
 
-                logratio = newlogprob + newclassklogprob - b_logprobs[mb_inds] - b_classk_logprobs[mb_inds]
+                logratio = (
+                    newlogprob
+                    + newclassklogprob
+                    - b_logprobs[mb_inds]
+                    - b_classk_logprobs[mb_inds]
+                )
                 ratio = logratio.exp()
 
                 with torch.no_grad():
                     # calculate approx_kl http://joschu.net/blog/kl-approx.html
                     old_approx_kl = (-logratio).mean()
                     approx_kl = ((ratio - 1) - logratio).mean()
-                    clipfracs += [((ratio - 1.0).abs() > self.args.clip_coef).float().mean().item()]
+                    clipfracs += [
+                        ((ratio - 1.0).abs() > self.args.clip_coef)
+                        .float()
+                        .mean()
+                        .item()
+                    ]
 
                 mb_advantages = b_advantages[mb_inds]
                 if self.args.norm_adv:
-                    mb_advantages = (mb_advantages - mb_advantages.mean()) / (mb_advantages.std() + 1e-8)
+                    mb_advantages = (mb_advantages - mb_advantages.mean()) / (
+                        mb_advantages.std() + 1e-8
+                    )
 
                 # Policy loss
                 pg_loss1 = -mb_advantages * ratio
-                pg_loss2 = -mb_advantages * torch.clamp(ratio, 1 - self.args.clip_coef, 1 + self.args.clip_coef)
+                pg_loss2 = -mb_advantages * torch.clamp(
+                    ratio, 1 - self.args.clip_coef, 1 + self.args.clip_coef
+                )
                 pg_loss = torch.max(pg_loss1, pg_loss2).mean()
 
                 # Value loss
@@ -189,11 +204,17 @@ class SafePPOTrainer(PPOTrainer):
                     v_loss = 0.5 * ((newvalue - b_returns[mb_inds]) ** 2).mean()
 
                 entropy_loss = 0.5 * (entropy.mean() + classkentropy.mean())
-                loss = pg_loss - self.args.ent_coef * entropy_loss + v_loss * self.args.vf_coef
+                loss = (
+                    pg_loss
+                    - self.args.ent_coef * entropy_loss
+                    + v_loss * self.args.vf_coef
+                )
 
                 self.optimizer.zero_grad()
                 loss.backward()
-                nn.utils.clip_grad_norm_(self.agent.parameters(), self.args.max_grad_norm)
+                nn.utils.clip_grad_norm_(
+                    self.agent.parameters(), self.args.max_grad_norm
+                )
                 self.optimizer.step()
 
             if self.args.target_kl is not None and approx_kl > self.args.target_kl:

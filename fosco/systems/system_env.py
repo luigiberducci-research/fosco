@@ -51,6 +51,7 @@ class SystemEnv(gymnasium.Env):
         # todo
 
     """
+
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 30}
 
     def __init__(
@@ -67,16 +68,24 @@ class SystemEnv(gymnasium.Env):
         # todo: generator for seeding the environment
         # todo: device to run on gpu
         # todo: propagation method for uncertain dynamical systems (basic: unif random)
-        assert max_steps and isinstance(max_steps, int), f"max_steps must be a positive integer, got {max_steps}"
+        assert max_steps and isinstance(
+            max_steps, int
+        ), f"max_steps must be a positive integer, got {max_steps}"
         assert dt and isinstance(dt, float), f"dt must be a positive float, got {dt}"
 
         super(SystemEnv, self).__init__()
 
-        self.system = make_system(system_id=system)() if isinstance(system, str) else system
+        self.system = (
+            make_system(system_id=system)() if isinstance(system, str) else system
+        )
         self.max_steps = max_steps
         self.dt = dt
-        self.termination_fn = termination_fn or (lambda obs, act: torch.zeros(obs.shape[0], dtype=torch.bool))
-        self.reward_fn = reward_fn or (lambda obs, act: torch.zeros(obs.shape[0], dtype=torch.float32))
+        self.termination_fn = termination_fn or (
+            lambda obs, act: torch.zeros(obs.shape[0], dtype=torch.bool)
+        )
+        self.reward_fn = reward_fn or (
+            lambda obs, act: torch.zeros(obs.shape[0], dtype=torch.float32)
+        )
         self.time_limit = self.max_steps * self.dt
 
         self.observation_space = self.make_observation_space(system=self.system)
@@ -88,9 +97,12 @@ class SystemEnv(gymnasium.Env):
         self._return_as_np = return_np
 
         # rendering
-        domain_xy_size = (np.array(self.system.state_domain.upper_bounds[:2]) -
-                          np.array(self.system.state_domain.lower_bounds[:2]))
-        self.world_size = max(domain_xy_size)   # if different domain sizes, pick the largest
+        domain_xy_size = np.array(self.system.state_domain.upper_bounds[:2]) - np.array(
+            self.system.state_domain.lower_bounds[:2]
+        )
+        self.world_size = max(
+            domain_xy_size
+        )  # if different domain sizes, pick the largest
         self.collision_threshold = 1.0
 
         self.window_size = 1024
@@ -100,8 +112,8 @@ class SystemEnv(gymnasium.Env):
         self.screen = None
 
         assert (
-                self.render_mode in self.metadata["render_modes"]
-                or self.render_mode is None
+            self.render_mode in self.metadata["render_modes"]
+            or self.render_mode is None
         )
 
     @staticmethod
@@ -129,9 +141,7 @@ class SystemEnv(gymnasium.Env):
         )
 
     def reset(
-        self,
-        seed: int | None = None,
-        options: dict[str, Any] | None = None,
+        self, seed: int | None = None, options: dict[str, Any] | None = None,
     ) -> tuple[TensorType, dict[str, Any]]:
         if seed:
             super().reset(seed=seed)
@@ -148,8 +158,12 @@ class SystemEnv(gymnasium.Env):
         self._return_as_np = default_options["return_as_np"]
 
         # generate batch of tensor states
-        self._current_obs = init_domain.generate_data(batch_size=batch_size).to(self._device)
-        self._current_time = torch.zeros(batch_size, dtype=torch.float32).to(self._device)
+        self._current_obs = init_domain.generate_data(batch_size=batch_size).to(
+            self._device
+        )
+        self._current_time = torch.zeros(batch_size, dtype=torch.float32).to(
+            self._device
+        )
         info = {}
 
         # eventually convert to numpy array
@@ -166,8 +180,7 @@ class SystemEnv(gymnasium.Env):
         return obs_batch, info
 
     def step(
-        self,
-        actions: TensorType,
+        self, actions: TensorType,
     ) -> Tuple[TensorType, TensorType, TensorType, TensorType, Dict]:
         # todo: add deterministic or stochastic mode
         """
@@ -184,8 +197,12 @@ class SystemEnv(gymnasium.Env):
             (tuple): contains the predicted next observation, reward, termination, truncation flags and metadata.
             The done flag is computed using the termination_fn passed in the constructor.
         """
-        assert self._current_obs is not None, "current observation is None. Please call reset() first."
-        assert self._current_time is not None, "current time is None. Please call reset() first."
+        assert (
+            self._current_obs is not None
+        ), "current observation is None. Please call reset() first."
+        assert (
+            self._current_time is not None
+        ), "current time is None. Please call reset() first."
 
         # prepare action to batch
         assert (
@@ -319,10 +336,7 @@ class SystemEnv(gymnasium.Env):
         radius = self.system.unsafe_domain.radius * ppu
         color = [200, 0, 0]
         pygame.draw.circle(
-            canvas,
-            color,
-            (position * ppu).astype(int),
-            radius,
+            canvas, color, (position * ppu).astype(int), radius,
         )
 
         # Draw agents
@@ -335,10 +349,7 @@ class SystemEnv(gymnasium.Env):
                 color = [200, 0, 0]
 
             pygame.draw.circle(
-                canvas,
-                color,
-                (position * ppu).astype(int),
-                radius,
+                canvas, color, (position * ppu).astype(int), radius,
             )
             # add label in the center with agent index
             font = pygame.font.Font(None, 100)

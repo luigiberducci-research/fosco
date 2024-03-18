@@ -71,20 +71,28 @@ class Args:
 
 
 def evaluate(
-        model_path: str,
-        make_env: Callable,
-        env_id: str,
-        eval_episodes: int,
-        run_name: str,
-        Model: nn.Module,
-        device: torch.device = torch.device("cpu"),
-        capture_video: bool = True,
-        exploration_noise: float = 0.1,
+    model_path: str,
+    make_env: Callable,
+    env_id: str,
+    eval_episodes: int,
+    run_name: str,
+    Model: nn.Module,
+    device: torch.device = torch.device("cpu"),
+    capture_video: bool = True,
+    exploration_noise: float = 0.1,
 ):
     envs = gym.vector.SyncVectorEnv([make_env(env_id, 0, 0, capture_video, run_name)])
 
-    obs_space = envs.single_observation_space if hasattr(envs, "single_observation_space") else envs.observation_space
-    act_space = envs.single_action_space if hasattr(envs, "single_action_space") else envs.action_space
+    obs_space = (
+        envs.single_observation_space
+        if hasattr(envs, "single_observation_space")
+        else envs.observation_space
+    )
+    act_space = (
+        envs.single_action_space
+        if hasattr(envs, "single_action_space")
+        else envs.action_space
+    )
 
     actor = Model[0](observation_space=obs_space, action_space=act_space).to(device)
     qf1 = Model[1](observation_space=obs_space, action_space=act_space).to(device)
@@ -105,14 +113,20 @@ def evaluate(
         with torch.no_grad():
             actions = actor(torch.Tensor(obs).to(device))
             actions += torch.normal(0, actor.action_scale * exploration_noise)
-            actions = actions.cpu().numpy().clip(envs.single_action_space.low, envs.single_action_space.high)
+            actions = (
+                actions.cpu()
+                .numpy()
+                .clip(envs.single_action_space.low, envs.single_action_space.high)
+            )
 
         next_obs, _, _, _, infos = envs.step(actions)
         if "final_info" in infos:
             for info in infos["final_info"]:
                 if "episode" not in info:
                     continue
-                print(f"eval_episode={len(episodic_returns)}, episodic_return={info['episode']['r']}")
+                print(
+                    f"eval_episode={len(episodic_returns)}, episodic_return={info['episode']['r']}"
+                )
                 episodic_returns += [info["episode"]["r"]]
         obs = next_obs
 
@@ -146,7 +160,8 @@ poetry run pip install "stable_baselines3==2.0.0a1"
     writer = SummaryWriter(f"runs/{run_name}")
     writer.add_text(
         "hyperparameters",
-        "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
+        "|param|value|\n|-|-|\n%s"
+        % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
     )
 
     # TRY NOT TO MODIFY: seeding
@@ -158,9 +173,21 @@ poetry run pip install "stable_baselines3==2.0.0a1"
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
     # env setup
-    envs = gym.vector.SyncVectorEnv([make_env(env_id=args.env_id, seed=args.seed, idx=0,
-                                              capture_video=args.capture_video, logdir=run_name, gamma=args.gamma)])
-    assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
+    envs = gym.vector.SyncVectorEnv(
+        [
+            make_env(
+                env_id=args.env_id,
+                seed=args.seed,
+                idx=0,
+                capture_video=args.capture_video,
+                logdir=run_name,
+                gamma=args.gamma,
+            )
+        ]
+    )
+    assert isinstance(
+        envs.single_action_space, gym.spaces.Box
+    ), "only continuous action space is supported"
 
     trainer = TD3Trainer(envs=envs, args=args, device=device)
 
@@ -181,12 +208,18 @@ poetry run pip install "stable_baselines3==2.0.0a1"
 
         # ALGO LOGIC: put action logic here
         if global_step < args.learning_starts:
-            actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
+            actions = np.array(
+                [envs.single_action_space.sample() for _ in range(envs.num_envs)]
+            )
         else:
             with torch.no_grad():
                 actions = actor(torch.Tensor(obs).to(device))
                 actions += torch.normal(0, actor.action_scale * args.exploration_noise)
-                actions = actions.cpu().numpy().clip(envs.single_action_space.low, envs.single_action_space.high)
+                actions = (
+                    actions.cpu()
+                    .numpy()
+                    .clip(envs.single_action_space.low, envs.single_action_space.high)
+                )
 
         # TRY NOT TO MODIFY: execute the game and log data.
         next_obs, rewards, terminations, truncations, infos = envs.step(actions)
@@ -194,9 +227,15 @@ poetry run pip install "stable_baselines3==2.0.0a1"
         # TRY NOT TO MODIFY: record rewards for plotting purposes
         if "final_info" in infos:
             for info in infos["final_info"]:
-                print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
-                writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
-                writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
+                print(
+                    f"global_step={global_step}, episodic_return={info['episode']['r']}"
+                )
+                writer.add_scalar(
+                    "charts/episodic_return", info["episode"]["r"], global_step
+                )
+                writer.add_scalar(
+                    "charts/episodic_length", info["episode"]["l"], global_step
+                )
                 break
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
@@ -225,11 +264,18 @@ poetry run pip install "stable_baselines3==2.0.0a1"
                 for key, value in train_infos.items():
                     writer.add_scalar(key, value, global_step)
                 print("SPS:", int(global_step / (time.time() - start_time)))
-                writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
+                writer.add_scalar(
+                    "charts/SPS",
+                    int(global_step / (time.time() - start_time)),
+                    global_step,
+                )
 
     if args.save_model:
         model_path = f"runs/{run_name}/{args.exp_name}.cleanrl_model"
-        torch.save((actor.state_dict(), trainer.qf1.state_dict(), trainer.qf2.state_dict()), model_path)
+        torch.save(
+            (actor.state_dict(), trainer.qf1.state_dict(), trainer.qf2.state_dict()),
+            model_path,
+        )
         print(f"model saved to {model_path}")
 
         episodic_returns = evaluate(
@@ -242,7 +288,9 @@ poetry run pip install "stable_baselines3==2.0.0a1"
             device=device,
             exploration_noise=args.exploration_noise,
         )
-        print(f"eval episodic returns: {np.mean(episodic_returns)} +/- {np.std(episodic_returns)}")
+        print(
+            f"eval episodic returns: {np.mean(episodic_returns)} +/- {np.std(episodic_returns)}"
+        )
         for idx, episodic_return in enumerate(episodic_returns):
             writer.add_scalar("eval/episodic_return", episodic_return, idx)
 

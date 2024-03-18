@@ -13,11 +13,11 @@ from rl_trainer.trainer import RLTrainer
 
 class PPOTrainer(RLTrainer):
     def __init__(
-            self,
-            envs: gymnasium.Env,
-            args: Namespace,
-            agent_cls: Type[ActorCriticAgent] = None,
-            device: Optional[torch.device] = None,
+        self,
+        envs: gymnasium.Env,
+        args: Namespace,
+        agent_cls: Type[ActorCriticAgent] = None,
+        device: Optional[torch.device] = None,
     ) -> None:
         self.device = device or torch.device("cpu")
         self.args = args
@@ -38,19 +38,15 @@ class PPOTrainer(RLTrainer):
             "value": (args.num_steps, args.num_envs),
         }
         self.buffer = CyclicBuffer(
-            capacity=args.num_steps,
-            feature_shapes=buffer_shapes,
-            device=self.device
+            capacity=args.num_steps, feature_shapes=buffer_shapes, device=self.device
         )
 
-        self.optimizer = optim.Adam(self.agent.parameters(), lr=self.args.learning_rate, eps=1e-5)
+        self.optimizer = optim.Adam(
+            self.agent.parameters(), lr=self.args.learning_rate, eps=1e-5
+        )
         self.iteration = 0
 
-    def train(
-            self,
-            next_obs,
-            next_done,
-    ) -> dict[str, float]:
+    def train(self, next_obs, next_done,) -> dict[str, float]:
         data = self.buffer.sample()
         obs = data["obs"]
         logprobs = data["logprob"]
@@ -68,7 +64,9 @@ class PPOTrainer(RLTrainer):
             self.optimizer.param_groups[0]["lr"] = lrnow
 
         # advantage estimation
-        advantages, returns = self._advantage_estimation(obs, actions, rewards, dones, next_obs, next_done, values)
+        advantages, returns = self._advantage_estimation(
+            obs, actions, rewards, dones, next_obs, next_done, values
+        )
 
         # flatten the batch
         b_obs = obs.reshape((-1,) + (self.agent.input_size,))
@@ -89,7 +87,9 @@ class PPOTrainer(RLTrainer):
                 end = start + self.args.minibatch_size
                 mb_inds = b_inds[start:end]
 
-                results = self.agent.get_action_and_value(b_obs[mb_inds], b_actions[mb_inds])
+                results = self.agent.get_action_and_value(
+                    b_obs[mb_inds], b_actions[mb_inds]
+                )
                 newlogprob = results["logprob"]
                 entropy = results["entropy"]
                 newvalue = results["value"]
@@ -101,15 +101,24 @@ class PPOTrainer(RLTrainer):
                     # calculate approx_kl http://joschu.net/blog/kl-approx.html
                     old_approx_kl = (-logratio).mean()
                     approx_kl = ((ratio - 1) - logratio).mean()
-                    clipfracs += [((ratio - 1.0).abs() > self.args.clip_coef).float().mean().item()]
+                    clipfracs += [
+                        ((ratio - 1.0).abs() > self.args.clip_coef)
+                        .float()
+                        .mean()
+                        .item()
+                    ]
 
                 mb_advantages = b_advantages[mb_inds]
                 if self.args.norm_adv:
-                    mb_advantages = (mb_advantages - mb_advantages.mean()) / (mb_advantages.std() + 1e-8)
+                    mb_advantages = (mb_advantages - mb_advantages.mean()) / (
+                        mb_advantages.std() + 1e-8
+                    )
 
                 # Policy loss
                 pg_loss1 = -mb_advantages * ratio
-                pg_loss2 = -mb_advantages * torch.clamp(ratio, 1 - self.args.clip_coef, 1 + self.args.clip_coef)
+                pg_loss2 = -mb_advantages * torch.clamp(
+                    ratio, 1 - self.args.clip_coef, 1 + self.args.clip_coef
+                )
                 pg_loss = torch.max(pg_loss1, pg_loss2).mean()
 
                 # Value loss
@@ -128,11 +137,17 @@ class PPOTrainer(RLTrainer):
                     v_loss = 0.5 * ((newvalue - b_returns[mb_inds]) ** 2).mean()
 
                 entropy_loss = entropy.mean()
-                loss = pg_loss - self.args.ent_coef * entropy_loss + v_loss * self.args.vf_coef
+                loss = (
+                    pg_loss
+                    - self.args.ent_coef * entropy_loss
+                    + v_loss * self.args.vf_coef
+                )
 
                 self.optimizer.zero_grad()
                 loss.backward()
-                nn.utils.clip_grad_norm_(self.agent.parameters(), self.args.max_grad_norm)
+                nn.utils.clip_grad_norm_(
+                    self.agent.parameters(), self.args.max_grad_norm
+                )
                 self.optimizer.step()
 
             if self.args.target_kl is not None and approx_kl > self.args.target_kl:
@@ -154,7 +169,9 @@ class PPOTrainer(RLTrainer):
             "losses/explained_variance": explained_var,
         }
 
-    def _advantage_estimation(self, obs, actions, rewards, dones, next_obs, next_done, values):
+    def _advantage_estimation(
+        self, obs, actions, rewards, dones, next_obs, next_done, values
+    ):
         # bootstrap value if not done
         with torch.no_grad():
             next_value = self.agent.get_value(next_obs).reshape(1, -1)
@@ -167,14 +184,21 @@ class PPOTrainer(RLTrainer):
                 else:
                     nextnonterminal = 1.0 - dones[t + 1]
                     nextvalues = values[t + 1]
-                delta = rewards[t] + self.args.gamma * nextvalues * nextnonterminal - values[t]
-                advantages[
-                    t] = lastgaelam = delta + self.args.gamma * self.args.gae_lambda * nextnonterminal * lastgaelam
+                delta = (
+                    rewards[t]
+                    + self.args.gamma * nextvalues * nextnonterminal
+                    - values[t]
+                )
+                advantages[t] = lastgaelam = (
+                    delta
+                    + self.args.gamma
+                    * self.args.gae_lambda
+                    * nextnonterminal
+                    * lastgaelam
+                )
             returns = advantages + values
 
         return advantages, returns
 
     def get_actor(self) -> ActorCriticAgent:
         return self.agent
-
-

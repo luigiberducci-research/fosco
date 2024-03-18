@@ -4,6 +4,10 @@ import shutil
 
 class TestRLTraining(unittest.TestCase):
     def test_ppo_hopper(self):
+        """
+        Try to run ppo in the mujoco hopper environment.
+        Expected to run fine.
+        """
         from rl_trainer.run_ppo import Args, run
         from rl_trainer.common.utils import tflog2pandas
         import scipy
@@ -13,6 +17,9 @@ class TestRLTraining(unittest.TestCase):
         args.env_id = "Hopper-v4"
         args.trainer_id = "ppo"
         args.total_timesteps = 7500
+        args.update_epochs = 10
+        args.capture_video = args.capture_video_eval = False  # to make it faster
+        args.render_mode = "rgb_array"
 
         logdir = run(args=args)
         df = tflog2pandas(logdir)
@@ -41,9 +48,11 @@ class TestRLTraining(unittest.TestCase):
         args = Args
         args.seed = 0
         args.env_id = "Hopper-v4"
+        args.update_epochs = 10
         args.trainer_id = "safe-ppo"
         args.total_timesteps = 7500
-        args.render_mode = "human"
+        args.capture_video = args.capture_video_eval = False  # to make it faster
+        args.render_mode = "rgb_array"
 
         with self.assertRaises(TypeError):
             logdir = run(args=args)
@@ -65,13 +74,16 @@ class TestRLTraining(unittest.TestCase):
         args.env_id = "fosco.systems:SingleIntegrator-GoToUnsafeReward-v0"
         args.trainer_id = "safe-ppo"
         args.use_true_barrier = True
+        args.update_epochs = 10
         args.total_timesteps = 7500
         args.capture_video = args.capture_video_eval = False
+        args.render_mode = None
 
         logdir = run(args=args)
         df = tflog2pandas(logdir)
 
         returns = df[df["metric"] == "charts/episodic_return"]["value"]
+        costs = df[df["metric"] == "charts/episodic_cost"]["value"]
         steps = df[df["metric"] == "charts/episodic_return"]["step"]
 
         linreg = scipy.stats.linregress(steps, returns)
@@ -82,10 +94,19 @@ class TestRLTraining(unittest.TestCase):
             f"We expect a positive trend in return (learning something), got slope={slope}",
         )
 
+        self.assertTrue(
+            all(costs <= 0),
+            f"We expect costs to be 0, got {costs}",
+        )
+
         # delete logdir once test is done
         shutil.rmtree(logdir)
 
     def test_evaluate_fn(self):
+        """
+        Test the evaluate function from the ppo trainer and check logs returns and costs.
+        Expected to run fine.
+        """
         from rl_trainer.run_ppo import Args, run
         from rl_trainer.common.utils import tflog2pandas
 
@@ -96,6 +117,7 @@ class TestRLTraining(unittest.TestCase):
         args.update_epochs = 1  # to make it faster
         args.num_eval_episodes = 1  # to make it faster
         args.capture_video = args.capture_video_eval = False  # to make it faster
+        args.render_mode = None
 
         logdir = run(args=args)
         self.assertTrue(

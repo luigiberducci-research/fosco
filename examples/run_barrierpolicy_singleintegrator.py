@@ -3,11 +3,11 @@ import torch
 from matplotlib import pyplot as plt
 
 from barriers import make_barrier
+from fosco.systems.system_env import SystemEnv
 from rl_trainer.safe_ppo.safeppo_agent import BarrierPolicy
 
 from fosco.systems import make_system
 
-from fosco.systems import SystemEnv
 import time
 
 

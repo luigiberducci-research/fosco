@@ -166,10 +166,22 @@ def requ_z3(x):
 def hyper_tan(x):
     """
     Hyperbolic tangent f(x) = (e^x - e^-x)/(e^x + e^-x)
+
+    For z3, we use hard tanh instead.
+    hard-tanh(x) = max(-1, min(1, x))
     """
     y = x.copy()
     if isinstance(x[0, 0], Z3SYMBOL):
-        raise NotImplementedError("Z3 not implemented for hyperbolic tangent")
+        for idx in range(len(y)):
+            y[idx, 0] = z3.If(
+                y[idx, 0] > 1.0,
+                1.0,
+                z3.If(
+                    y[idx, 0] < -1.0,
+                    -1.0,
+                    y[idx, 0]
+                ),
+            )
     elif isinstance(x[0, 0], DRSYMBOL):
         for idx in range(len(y)):
             y[idx, 0] = dr.tanh(y[idx, 0])
@@ -445,9 +457,23 @@ def requ_der_z3(x):
 
 
 def hyper_tan_der(x):
+    """
+    Derivative of hyperbolic tangent f'(x) = 1 - (tanh(x))^2 = 1 / cosh(x)^2
+
+    For z3, we use hard tanh instead. f'(x) = 0 if x > 1 or x < -1, else 1
+    """
     y = x.copy()
     if isinstance(x[0, 0], Z3SYMBOL):
-        raise NotImplementedError("Z3 not implemented for hyperbolic tangent")
+        for idx in range(len(y)):
+            y[idx, 0] = z3.If(
+                y[idx, 0] > 1.0,
+                0.0,
+                z3.If(
+                    y[idx, 0] < -1.0,
+                    0.0,
+                    1.0
+                ),
+            )
     elif isinstance(x[0, 0], DRSYMBOL):
         for idx in range(len(y)):
             y[idx, 0] = 1 / dr.pow(dr.cosh(y[idx, 0]), 2)

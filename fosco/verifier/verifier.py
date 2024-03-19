@@ -25,29 +25,27 @@ class Verifier(ABC):
         self.xs = solver_vars
         self.n = len(solver_vars)
         self.constraints_method = constraints_method
+        self._solver_timeout = solver_timeout
+        self._rounding = rounding
 
         # internal vars
         self.iter = -1
         self._last_cex = []
 
-        # todo: move this to consolidator
-        self.counterexample_n = n_counterexamples
-        self._solver_timeout = solver_timeout
-        self._rounding = rounding
-
-        assert (
-            self.counterexample_n > 0
-        ), f"Nr of counterexamples must be greater than 0, got {self.counterexample_n}"
-        assert (
-            self._solver_timeout > 0
-        ), f"Solver's timeout must be greater than 0, got {self._solver_timeout}"
-        assert isinstance(
-            self._solver_timeout, int
-        ), "solver timeout must be an integer (in seconds)"
+        self._assert_state()
 
         self._logger = logging.getLogger(__name__)
         self._logger.setLevel(LOGGING_LEVELS[verbose])
         self._logger.debug("Verifier initialized")
+
+    def _assert_state(self) -> None:
+        assert (
+                self._solver_timeout > 0
+        ), f"Solver's timeout must be greater than 0, got {self._solver_timeout}"
+        assert isinstance(
+            self._solver_timeout, int
+        ), "solver timeout must be an integer (in seconds)"
+        assert isinstance(self._rounding, int) and self._rounding >= -1, "rounding must be an integer >= -1"
 
     @staticmethod
     @abstractmethod
@@ -207,7 +205,7 @@ class Verifier(ABC):
                             value = None
                         self._logger.debug(f"[cex] {sym_name}: {value}")
 
-                    ces[label] = self.randomise_counterex(original_point)
+                    ces[label] = original_point
                 else:
                     self._logger.info(f"{label}: {res}")
 
@@ -228,23 +226,4 @@ class Verifier(ABC):
         original_point = torch.tensor(temp)
         return original_point[None, :]
 
-    # given one ctx, useful to sample around it to increase data set
-    # these points might *not* be real ctx, but probably close to invalidity condition
-    # todo: this is not work of the consolidator?
-    def randomise_counterex(self, point):
-        """
-        :param point: tensor
-        :return: list of ctx
-        """
-        C = []
-        # dimensionality issue
-        shape = (1, max(point.shape[0], point.shape[1]))
-        point = point.reshape(shape)
-        for i in range(self.counterexample_n):
-            random_point = point + 5 * 1e-3 * torch.randn(
-                shape
-            )  # todo: parameterize this stddev
-            # if self.inner < torch.norm(random_point) < self.outer:
-            C.append(random_point)
-        C.append(point)
-        return torch.stack(C, dim=1)[0, :, :]
+

@@ -1,10 +1,12 @@
 import unittest
+from typing import Callable
 
 import numpy as np
 import torch
 
 import fosco
 from fosco.cegis import Cegis
+from fosco.common.domains import Set
 from fosco.config import CegisConfig
 from fosco.common.consts import (
     TimeDomain,
@@ -13,18 +15,20 @@ from fosco.common.consts import (
     CertificateType,
     DomainName,
 )
-from fosco.systems import SingleIntegrator
+from fosco.systems import SingleIntegrator, ControlAffineDynamics
 
 
 class TestCEGIS(unittest.TestCase):
     @staticmethod
-    def _get_single_integrator_config() -> CegisConfig:
-        system = SingleIntegrator
+    def _get_single_integrator_config() -> tuple[
+        ControlAffineDynamics, dict[str, Set], dict[str, Callable], CegisConfig
+    ]:
+        system = SingleIntegrator()
 
-        XD = system().state_domain
-        UD = system().input_domain
-        XI = system().init_domain
-        XU = system().unsafe_domain
+        XD = system.state_domain
+        UD = system.input_domain
+        XI = system.init_domain
+        XU = system.unsafe_domain
 
         dn = DomainName
         domains = {
@@ -43,31 +47,28 @@ class TestCEGIS(unittest.TestCase):
         }
 
         config = CegisConfig(
-            SYSTEM=SingleIntegrator,
-            DOMAINS=domains,
-            TIME_DOMAIN=TimeDomain.CONTINUOUS,
-            CERTIFICATE=CertificateType.CBF,
-            VERIFIER=VerifierType.Z3,
+            TIME_DOMAIN="continuous",
+            CERTIFICATE="cbf",
+            VERIFIER="z3",
             CEGIS_MAX_ITERS=5,
             ROUNDING=3,
-            DATA_GEN=data_gen,
             N_DATA=1000,
             LEARNING_RATE=1e-3,
             WEIGHT_DECAY=1e-4,
             N_HIDDEN_NEURONS=(5, 5,),
-            ACTIVATION=(ActivationType.RELU, ActivationType.LINEAR),
+            ACTIVATION=("relu", "linear"),
             SEED=0,
         )
 
-        return config
+        return system, domains, data_gen, config
 
     def test_loop(self):
-        config = self._get_single_integrator_config()
+        system, domains, data_gen, config = self._get_single_integrator_config()
         config.N_EPOCHS = (
             0  # make sure we don't train to check correctness of the cegis loop
         )
 
-        c = Cegis(config=config, verbose=0)
+        c = Cegis(system=system, domains=domains, config=config, data_gen=data_gen, verbose=0)
         results = c.solve()
 
         infos = results.infos
@@ -80,12 +81,11 @@ class TestCEGIS(unittest.TestCase):
         """
         Test the single integrator example. We expect to find a certificate in a couple of iterations.
         """
-        import fosco
 
-        config = self._get_single_integrator_config()
+        system, domains, data_gen, config = self._get_single_integrator_config()
         config.SEED = 916104
 
-        cegis = fosco.cegis.Cegis(config=config, verbose=0)
+        cegis = Cegis(system=system, domains=domains, config=config, data_gen=data_gen, verbose=0)
 
         result = cegis.solve()
 
@@ -109,15 +109,14 @@ class TestCEGIS(unittest.TestCase):
 
         seed = 916104
         system_name = "SingleIntegrator"
-        n_hidden_neurons = 5
-        activations = (ActivationType.RELU, ActivationType.LINEAR)
+        activations = ("relu", "linear")
         n_data_samples = 1000
-        n_hidden_neurons = (n_hidden_neurons,) * len(activations)
-        certificate_type = CertificateType.RCBF
+        n_hidden_neurons = (5,) * len(activations)
+        certificate_type = "rcbf"
         verbose = 0
 
         system = make_system(system_id=system_name)
-        system = add_uncertainty(uncertainty_type="AdditiveBounded", system_fn=system)
+        system = add_uncertainty(uncertainty_type="AdditiveBounded", system_fn=system)()
 
         XD = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
         UD = domains.Rectangle(vars=["u0", "u1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
@@ -146,21 +145,18 @@ class TestCEGIS(unittest.TestCase):
         }
 
         config = fosco.cegis.CegisConfig(
-            SYSTEM=system,
-            DOMAINS=sets,
-            DATA_GEN=data_gen,
             CERTIFICATE=certificate_type,
-            TIME_DOMAIN=TimeDomain.CONTINUOUS,
-            VERIFIER=VerifierType.Z3,
+            TIME_DOMAIN="continuous",
+            VERIFIER="z3",
             ACTIVATION=activations,
             N_HIDDEN_NEURONS=n_hidden_neurons,
-            LOSS_RELU=fosco.common.consts.LossReLUType.SOFTPLUS,
+            LOSS_RELU="softplus",
             N_EPOCHS=1000,
             CEGIS_MAX_ITERS=20,
             N_DATA=n_data_samples,
             SEED=seed,
         )
-        cegis = fosco.cegis.Cegis(config=config, verbose=verbose)
+        cegis = Cegis(system=system, domains=sets, config=config, data_gen=data_gen, verbose=0)
 
         result = cegis.solve()
 
@@ -180,21 +176,21 @@ class TestCEGIS(unittest.TestCase):
             print("Random Seed:", seed)
 
             # first iter
-            config = self._get_single_integrator_config()
+            system, domains, data_gen, config = self._get_single_integrator_config()
             config.SEED = seed
             config.CEGIS_MAX_ITERS = 1
-            cegis = fosco.cegis.Cegis(config=config, verbose=0)
+            cegis = fosco.cegis.Cegis(system=system, domains=domains, config=config, data_gen=data_gen, verbose=0)
             results = cegis.solve()
             model = results.net
             params = list(model.parameters())
 
             for run_id in range(3):
                 print(f"Running {run_id}")
-                config = self._get_single_integrator_config()
+                system, domains, data_gen, config = self._get_single_integrator_config()
                 config.SEED = seed
                 config.CEGIS_MAX_ITERS = 1
 
-                cegis = fosco.cegis.Cegis(config=config, verbose=0)
+                cegis = fosco.cegis.Cegis(system=system, domains=domains, config=config, data_gen=data_gen, verbose=0)
                 results = cegis.solve()
                 model = results.net
                 new_params = list(model.parameters())

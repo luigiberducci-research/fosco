@@ -201,7 +201,7 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
             verbose: int = 0,
     ):
         # loss parameters
-        self.loss_keys = [DomainName.XI.value, DomainName.XU.value, DomainName.XD.value]
+        self.loss_keys = [DomainName.XI.value, DomainName.XU.value, DomainName.XD.value, "conservative_b"]
         self.loss_relu = LossReLUType[config.LOSS_RELU.upper()]
         self.epochs = config.N_EPOCHS
 

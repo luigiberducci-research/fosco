@@ -128,14 +128,11 @@ class TestModel(unittest.TestCase):
         }
 
         cfg = CegisConfig(
-            SYSTEM=system_fn,
-            DOMAINS=sets,
-            DATA_GEN=data_gen,
             USE_INIT_MODELS=True,
             CEGIS_MAX_ITERS=10,
         )
 
-        cegis = Cegis(config=cfg, verbose=2)
+        cegis = Cegis(system=system_fn(), domains=sets, config=cfg, data_gen=data_gen)
 
         self.assertTrue(
             isinstance(cegis.learner.net, type(init_barrier)), "type mismatch"

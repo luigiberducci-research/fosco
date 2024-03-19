@@ -173,11 +173,11 @@ class Sphere(Set):
             torch.Tensor: boolean tensor with True for points contained in the sphere
         """
         assert len(x.shape) == 2, f"Expected x to be 2D, got {x.shape}"
-        if self.dim_select:
-            x = np.stack([x[:, i] for i in self.dim_select]).T
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
-        c = torch.tensor(self.center).reshape(1, -1)
+        if self.dim_select:
+            x = x[:, self.dim_select]
+        c = torch.tensor(self.center).reshape(1, -1).to(x.device)
         return (x - c).norm(2, dim=-1) - self.radius ** 2 <= epsilon
 
 

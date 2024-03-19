@@ -270,19 +270,22 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
         )
 
         # add extra loss margin for uncertainty loss
-        self.loss_keys = self.loss_keys + ["robust"]
+        self.loss_keys = self.loss_keys + ["robust", "conservative_sigma"]
         if isinstance(config.LOSS_MARGINS, float):
-            self.loss_margins["robust"] = config.LOSS_MARGINS
+            for loss_k in ["robust", "conservative_sigma"]:
+                self.loss_margins[loss_k] = config.LOSS_MARGINS
         else:
             assert "robust" in config.LOSS_MARGINS, f"Missing loss margin 'robust', got {config.LOSS_MARGINS}"
+            assert "conservative_sigma" in config.LOSS_MARGINS, f"Missing loss margin 'conservative_sigma', got {config.LOSS_MARGINS}"
             self.loss_margins["robust"] = config.LOSS_MARGINS["robust"]
+            self.loss_margins["conservative_sigma"] = config.LOSS_MARGINS["conservative_sigma"]
 
         # add extra loss weight for uncertainty loss
         if isinstance(config.LOSS_WEIGHTS, float):
-            for loss in ["robust", "conservative_b", "conservative_sigma"]:
+            for loss in ["robust", "conservative_sigma"]:
                 self.loss_weights[loss] = config.LOSS_WEIGHTS
         else:
-            for loss in ["robust", "conservative_b", "conservative_sigma"]:
+            for loss in ["robust", "conservative_sigma"]:
                 assert loss in config.LOSS_WEIGHTS, f"Missing loss weight {loss}, got {config.LOSS_WEIGHTS}"
                 self.loss_weights[loss] = config.LOSS_WEIGHTS[loss]
 

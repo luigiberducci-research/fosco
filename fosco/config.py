@@ -1,54 +1,45 @@
 import pathlib
 from collections import namedtuple
 from dataclasses import dataclass, asdict
-from typing import Type, Any
+from typing import Type, Any, Iterable
 
-from fosco.common.consts import (
-    TimeDomain,
-    CertificateType,
-    VerifierType,
-    ActivationType,
-    LossReLUType,
+CegisResult = namedtuple(
+    "CegisResult",
+    ["found", "net", "infos"]
 )
-from fosco.logger import LoggerType
-from fosco.systems import ControlAffineDynamics
-
-CegisResult = namedtuple("CegisResult", ["found", "net", "infos"])
 
 
 @dataclass
 class CegisConfig:
     # system
-    SYSTEM: Type[ControlAffineDynamics] = None
-    DOMAINS: dict[str, Any] = None
-    TIME_DOMAIN: TimeDomain = TimeDomain.CONTINUOUS
+    TIME_DOMAIN: str = "continuous"
     # fosco
-    CERTIFICATE: CertificateType = CertificateType.CBF
-    VERIFIER: VerifierType = VerifierType.Z3
+    CERTIFICATE: str = "CBF"
+    VERIFIER: str = "Z3"
     VERIFIER_TIMEOUT: int = 30
-    VERIFIER_N_CEX: int = 20
+    RESAMPLING_N: int = 20
+    RESAMPLING_STDDEV: float = 5e-3
     CEGIS_MAX_ITERS: int = 10
     ROUNDING: int = 3
     USE_INIT_MODELS: bool = False
     # training
-    DATA_GEN: dict[str, callable] = None
     N_DATA: int = 500
     LEARNING_RATE: float = 1e-3
     WEIGHT_DECAY: float = 1e-4
     # net architecture
-    N_HIDDEN_NEURONS: tuple[int, ...] = (10,)
-    ACTIVATION: tuple[ActivationType, ...] = (ActivationType.SQUARE,)
+    N_HIDDEN_NEURONS: Iterable[int] = (10,)
+    ACTIVATION: Iterable[str] = ("relu",)
     # loss
-    OPTIMIZER: str | None = None
+    OPTIMIZER: str = "adam"
     LOSS_MARGINS: dict[str, float] | float = 0.0
     LOSS_WEIGHTS: dict[str, float] | float = 1.0
-    LOSS_RELU: LossReLUType = LossReLUType.SOFTPLUS
+    LOSS_RELU: str = "relu"
     N_EPOCHS: int = 100
     # seeding
     SEED: int = None
     # logging
     MODEL_DIR: str = "logs/models"
-    LOGGER: LoggerType = None
+    LOGGER: str = None
     EXP_NAME: str = None
 
     def __getitem__(self, item):
@@ -56,4 +47,4 @@ class CegisConfig:
 
     def dict(self):
         self.MODEL_DIR = str(pathlib.Path(self.MODEL_DIR).absolute())
-        return {k: str(v) for k, v in asdict(self).items()}
+        return {k: v for k, v in asdict(self).items()}

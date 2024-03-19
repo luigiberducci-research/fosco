@@ -42,7 +42,7 @@ def main(args):
         DOMAINS=sets,
         DATA_GEN=data_gen,
         VERIFIER=verifier_type,
-        VERIFIER_N_CEX=verifier_n_cex,
+        RESAMPLING_N=verifier_n_cex,
         ACTIVATION=activations,
         N_HIDDEN_NEURONS=n_hidden_neurons,
         CEGIS_MAX_ITERS=max_iters,

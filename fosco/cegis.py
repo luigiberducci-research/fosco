@@ -1,14 +1,15 @@
 import logging
 from datetime import datetime
+from typing import Callable
 
 import numpy as np
 import torch
 
 from barriers import make_barrier
-from fosco.certificates import make_certificate
-from fosco.common.domains import Rectangle
+from fosco.certificates import make_certificate, Certificate
+from fosco.common.domains import Rectangle, Set
 from fosco.config import CegisConfig, CegisResult
-from fosco.consolidator import make_consolidator
+from fosco.consolidator import make_consolidator, Consolidator
 from fosco.common.consts import DomainName, CertificateType
 from fosco.learner import make_learner, LearnerNN
 from fosco.plotting.data import scatter_datasets
@@ -17,15 +18,27 @@ from fosco.plotting.utils import (
     lie_derivative_fn,
     cbf_condition_fn,
 )
-from fosco.translator import make_translator
-from fosco.verifier import make_verifier
+from fosco.translator import make_translator, Translator
+from fosco.verifier import make_verifier, Verifier
 from fosco.logger import make_logger, Logger, LOGGING_LEVELS
-from fosco.systems import UncertainControlAffineDynamics
+from fosco.systems import UncertainControlAffineDynamics, ControlAffineDynamics
+from fosco.verifier.types import SYMBOL
 
 
 class Cegis:
-    def __init__(self, config: CegisConfig, verbose: int = 0):
+    def __init__(
+            self,
+            system: ControlAffineDynamics,
+            domains: dict[str, Set],
+            config: CegisConfig,
+            data_gen: dict[str, Callable[[int], torch.Tensor]],
+            verbose: int = 0,
+    ):
+        self.f = system
+        self.domains = domains
         self.config = config
+        self.data_gen = data_gen
+        self.verbose = min(max(verbose, 0), len(LOGGING_LEVELS) - 1)
 
         # seeding
         if self.config.SEED is None:
@@ -33,24 +46,22 @@ class Cegis:
         torch.manual_seed(self.config.SEED)
         np.random.seed(self.config.SEED)
 
-        # system intialization
-        self.f = self.config.SYSTEM()
-
         # logging
-        self.verbose = min(max(verbose, 0), len(LOGGING_LEVELS) - 1)
         self.logger, self.tlogger = self._initialise_logger()
 
         # domains, dynamics, data
-        self.x, self.x_map, self.domains = self._initialise_domains()
+        self.x, self.x_map = self._initialise_variables()
         self.xdot, self.xdotz = self._initialise_dynamics()
         self.datasets = self._initialise_data()
 
+        # cegis components
         self.certificate = self._initialise_certificate()
         self.learner = self._initialise_learner()
         self.verifier = self._initialise_verifier()
         self.consolidator = self._initialise_consolidator()
         self.translator = self._initialise_translator()
 
+        # sanity check
         self._result = None
         self._assert_state()
         self.tlogger.info(f"Seed: {self.config.SEED}")
@@ -58,7 +69,7 @@ class Cegis:
     def _initialise_logger(self) -> Logger:
         # make experiment name
         datetime_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-        exp_name = f"{self.f.id}_{self.config.CERTIFICATE.value}_{self.config.EXP_NAME}_Seed{self.config.SEED}_{datetime_str}"
+        exp_name = f"{self.f.id}_{self.config.CERTIFICATE}_{self.config.EXP_NAME}_Seed{self.config.SEED}_{datetime_str}"
         self.config.EXP_NAME = exp_name
 
         config = self.config.dict()
@@ -96,18 +107,18 @@ class Cegis:
         return learner_instance
 
     def _initialise_verifier(self):
-        verifier_type = make_verifier(self.config.VERIFIER)
+        verifier_type = make_verifier(type=self.config.VERIFIER)
         verifier_instance = verifier_type(
             solver_vars=self.x,
             constraints_method=self.certificate.get_constraints,
             rounding=self.config.ROUNDING,
             solver_timeout=self.config.VERIFIER_TIMEOUT,
-            n_counterexamples=self.config.VERIFIER_N_CEX,
+            n_counterexamples=self.config.RESAMPLING_N,
             verbose=self.verbose,
         )
         return verifier_instance
 
-    def _initialise_domains(self):
+    def _initialise_variables(self):
         verifier_type = make_verifier(type=self.config.VERIFIER)
         x = verifier_type.new_vars(var_names=self.f.vars)
         u = verifier_type.new_vars(var_names=self.f.controls)
@@ -125,17 +136,7 @@ class Cegis:
             x_map = {"v": x, "u": u}
             x = x + u
 
-        # create domains
-        domains = {
-            label: domain.generate_domain(x)
-            for label, domain in self.config.DOMAINS.items()
-        }
-
-        self.tlogger.debug(
-            "\n".join(["Domains"] + [f"{k}: {v}" for k, v in domains.items()]) + "\n"
-        )
-
-        return x, x_map, domains
+        return x, x_map
 
     def _initialise_dynamics(self):
         if isinstance(self.f, UncertainControlAffineDynamics):
@@ -154,10 +155,10 @@ class Cegis:
 
         return xdot, xdotz
 
-    def _initialise_data(self):
+    def _initialise_data(self) -> dict[str, torch.Tensor]:
         datasets = {}
-        for label in self.config.DATA_GEN.keys():
-            datasets[label] = self.config.DATA_GEN[label](self.config.N_DATA)
+        for label, generator in self.data_gen.items():
+            datasets[label] = generator(self.config.N_DATA)
 
         self.tlogger.debug(
             "\n".join(
@@ -168,20 +169,24 @@ class Cegis:
 
         return datasets
 
-    def _initialise_certificate(self):
+    def _initialise_certificate(self) -> Certificate:
         certificate_type = make_certificate(certificate_type=self.config.CERTIFICATE)
         return certificate_type(
             system=self.f,
-            vars=self.x_map,
-            domains=self.config.DOMAINS,
-            verbose=self.verbose,
+            variables=self.x_map,
+            domains=self.domains,
             config=self.config,
+            verbose=self.verbose,
         )
 
-    def _initialise_consolidator(self):
-        return make_consolidator(verbose=self.verbose)
+    def _initialise_consolidator(self) -> Consolidator:
+        return make_consolidator(
+            resampling_n=self.config.RESAMPLING_N,
+            resampling_stddev=self.config.RESAMPLING_STDDEV,
+            verbose=self.verbose
+        )
 
-    def _initialise_translator(self):
+    def _initialise_translator(self) -> Translator:
         return make_translator(
             certificate_type=self.config.CERTIFICATE,
             verifier_type=self.config.VERIFIER,
@@ -239,18 +244,17 @@ class Cegis:
             )
 
             # Logging
-            # logging data distribution
-            # for each of them, scatter the counter-examples with different color than the rest of the data
+            # data distr: for each of them, scatter the counter-examples with different color than the rest of the data
             fig = scatter_datasets(
                 datasets=self.datasets, counter_examples=state["cex"]
             )
             self.logger.log_image(tag="datasets", image=fig, step=iter)
 
             # logging learned functions
-            in_domain = self.config.DOMAINS[DomainName.XD.value]
+            in_domain: Rectangle = self.domains[DomainName.XD.value]
             other_domains = {
                 k: v
-                for k, v in self.config.DOMAINS.items()
+                for k, v in self.domains.items()
                 if k in [DomainName.XI.value, DomainName.XU.value]
             }
             fig = plot_func_and_domains(
@@ -278,7 +282,7 @@ class Cegis:
                     context={"dimension": dim},
                 )
 
-            u_domain = self.config.DOMAINS[DomainName.UD.value]
+            u_domain = self.domains[DomainName.UD.value]
             assert isinstance(
                 u_domain, Rectangle
             ), "only rectangular domains are supported for u"
@@ -288,7 +292,7 @@ class Cegis:
                 u = (lb + ub) / 2.0 + u_norm * (ub - lb) / 2.0
                 ctrl = (
                     lambda x: torch.ones((x.shape[0], self.f.n_controls))
-                    * torch.tensor(u).float()
+                              * torch.tensor(u).float()
                 )
                 if isinstance(self.f, UncertainControlAffineDynamics):
                     f = lambda x, u: self.f._f_torch(
@@ -394,9 +398,21 @@ class Cegis:
         return self._result
 
     def _assert_state(self):
-        assert self.config.LEARNING_RATE > 0
-        assert self.config.CEGIS_MAX_ITERS > 0
+        assert isinstance(self.f, ControlAffineDynamics), f"expected control affine dynamics, got {type(self.f)}"
+        assert isinstance(self.domains, dict), f"expected dictionary of domains, got {type(self.domains)}"
+        assert all([isinstance(dom, Set) for dom in self.domains.values()]), f"expected dictionary of Set, got {self.domains}"
+        assert all([isinstance(v, SYMBOL) for v in self.x]), f"expected symbolic variables, got {self.x}"
+
+        assert isinstance(self.certificate, Certificate), f"expected Certificate, got {type(self.certificate)}"
+        assert isinstance(self.verifier, Verifier), f"expected Verifier, got {type(self.verifier)}"
+        assert isinstance(self.learner, LearnerNN), f"expected Verifier, got {type(self.learner)}"
+        assert isinstance(self.translator, Translator), f"expected Translator, got {type(self.translator)}"
+        assert isinstance(self.consolidator, Consolidator), f"expected Consolidator, got {type(self.consolidator)}"
+
+        assert self.config.LEARNING_RATE > 0, f"expected positive learning rate, got {self.config.LEARNING_RATE}"
+        assert self.config.CEGIS_MAX_ITERS > 0, f"expected positive max iterations, got {self.config.CEGIS_MAX_ITERS}"
+        assert self.config.N_DATA >= 0, f"expected non-negative number of data samples, got {self.config.N_DATA}"
         assert (
-            self.x is self.verifier.xs
+                self.x is self.verifier.xs
         ), "expected same variables in fosco and verifier"
-        self.certificate._assert_state(self.domains, self.datasets)
+

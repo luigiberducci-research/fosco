@@ -1,4 +1,6 @@
 import pathlib
+from types import NoneType
+from typing import Any, Iterable
 
 import aim
 import torch.nn
@@ -7,11 +9,30 @@ from fosco.logger.logger import Logger, VideoType, ImageType
 
 
 class AimLogger(Logger):
-    def __init__(self, config: dict = None, experiment: str = None):
-        super().__init__(config)
+
+    def __init__(self, config: dict = None, experiment: str = None, verbose: int = 0):
+        super().__init__(config=config, verbose=verbose)
         self._run = aim.Run(experiment=experiment)
 
         self._run["config"] = self.config
+
+    def _assert_state(self) -> None:
+        for k, v in self.config.items():
+            self._assert_supported_types(k, v)
+
+
+    def _assert_supported_types(self, k: str, v: Any) -> None:
+        supported_types = [int, float, str, bool, NoneType]
+        if type(v) in supported_types:
+            return
+
+        try:
+            for vi in v:
+                self._assert_supported_types(k, vi)
+        except TypeError:
+            raise TypeError(f"Unsupported type {type(v)} for key {k}")
+
+
 
     def log_scalar(self, tag: str, value: float, step: int, context: dict = None):
         self._run.track(value, name=tag, step=step, context=context)

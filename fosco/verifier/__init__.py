@@ -4,7 +4,10 @@ from fosco.common.consts import VerifierType
 from fosco.verifier.verifier import Verifier
 
 
-def make_verifier(type: VerifierType) -> Type[Verifier]:
+def make_verifier(type: str | VerifierType) -> Type[Verifier]:
+    if isinstance(type, str):
+        type = VerifierType[type.upper()]
+
     if type == VerifierType.Z3:
         from fosco.verifier.z3_verifier import VerifierZ3
 

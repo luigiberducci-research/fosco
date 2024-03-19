@@ -1,7 +1,7 @@
 import logging
 import pathlib
 from abc import abstractmethod
-from typing import Type
+from typing import Type, Callable
 
 import torch
 from torch import nn
@@ -22,6 +22,10 @@ class LearnerNN(nn.Module):
         self._logger = logging.getLogger(__name__)
         self._logger.setLevel(LOGGING_LEVELS[verbose])
         self._logger.debug("Learner initialized")
+
+    @abstractmethod
+    def _assert_state(self) -> None:
+        raise NotImplementedError("")
 
     @abstractmethod
     def pretrain(self, **kwargs) -> dict:
@@ -47,24 +51,24 @@ class LearnerCT(LearnerNN):
     """
 
     def __init__(
-        self,
-        state_size,
-        learn_method,
-        hidden_sizes: tuple[int, ...],
-        activation: tuple[ActivationType, ...],
-        optimizer: str | None,
-        lr: float,
-        weight_decay: float,
-        initial_models: dict[str, nn.Module] | None = None,
-        verbose: int = 0,
+            self,
+            state_size,
+            learn_method,
+            hidden_sizes: tuple[int, ...],
+            activation: tuple[ActivationType, ...],
+            optimizer: str | None,
+            lr: float,
+            weight_decay: float,
+            initial_models: dict[str, nn.Module] | None = None,
+            verbose: int = 0,
     ):
         super(LearnerCT, self).__init__(verbose=verbose)
 
         # certificate function
         if (
-            initial_models
-            and "net" in initial_models
-            and initial_models["net"] is not None
+                initial_models
+                and "net" in initial_models
+                and initial_models["net"] is not None
         ):
             self.net = initial_models["net"]
         else:
@@ -82,9 +86,17 @@ class LearnerCT(LearnerNN):
             )
 
         self.learn_method = learn_method
+    def _assert_state(self) -> None:
+        assert isinstance(self.net, nn.Module), f"Expected nn.Module, got {type(self.net)}"
+        assert isinstance(self.optimizers, dict), f"Expected dict, got {type(self.optimizers)}"
+        assert all(
+            [isinstance(v, torch.optim.Optimizer) for v in self.optimizers.values()]
+        ), f"Expected dict of optimizers, got {self.optimizers}"
+        assert isinstance(self.learn_method, Callable), f"Expected callable, got {self.learn_method}"
+
 
     def pretrain(self, **kwargs) -> dict:
-        pass
+        raise NotImplementedError
 
     @timed
     def update(self, datasets, xdot_func, **kwargs) -> dict:
@@ -100,7 +112,7 @@ class LearnerCT(LearnerNN):
             pathlib.Path(model_path) if isinstance(model_path, str) else model_path
         )
         assert (model_path.is_dir() and model_path.exists()) or (
-            model_path.suffix == ".pt"
+                model_path.suffix == ".pt"
         ), f"expected dir or filepath with suffix .pt, got {model_path} with suffix {model_path.suffix}"
 
         if not model_path.suffix == ".pt":
@@ -136,16 +148,16 @@ class LearnerRobustCT(LearnerCT):
     """
 
     def __init__(
-        self,
-        state_size,
-        learn_method,
-        hidden_sizes: tuple[int, ...],
-        activation: tuple[ActivationType, ...],
-        optimizer: str | None,
-        lr: float,
-        weight_decay: float,
-        initial_models: dict[str, nn.Module] | None = None,
-        verbose: int = 0,
+            self,
+            state_size,
+            learn_method,
+            hidden_sizes: tuple[int, ...],
+            activation: tuple[ActivationType, ...],
+            optimizer: str | None,
+            lr: float,
+            weight_decay: float,
+            initial_models: dict[str, nn.Module] | None = None,
+            verbose: int = 0,
     ):
         super(LearnerRobustCT, self).__init__(
             state_size=state_size,
@@ -173,20 +185,28 @@ class LearnerRobustCT(LearnerCT):
 
         # overriden optimizer with all module parameters
         if len(list(self.xsigma.parameters())) > 0:
-            self.optimizers["barrier"] = make_optimizer(
-                optimizer, params=self.parameters(), lr=lr, weight_decay=weight_decay
+            #self.optimizers["barrier"] = make_optimizer(
+            #    optimizer, params=self.parameters(), lr=lr, weight_decay=weight_decay
+            #)
+            self.optimizers["xsigma"] = make_optimizer(
+                optimizer, params=self.xsigma.parameters(), lr=lr, weight_decay=weight_decay
             )
+
+    def _assert_state(self) -> None:
+        super()._assert_state()
+        assert isinstance(self.xsigma, nn.Module), f"Expected nn.Module, got {type(self.xsigma)}"
+
 
 
 def make_learner(
-    system: ControlAffineDynamics, time_domain: TimeDomain | str
+        system: ControlAffineDynamics, time_domain: TimeDomain | str
 ) -> Type[LearnerNN]:
     if isinstance(time_domain, str):
-        time_domain = TimeDomain[time_domain]
+        time_domain = TimeDomain[time_domain.upper()]
 
     if (
-        isinstance(system, UncertainControlAffineDynamics)
-        and time_domain == TimeDomain.CONTINUOUS
+            isinstance(system, UncertainControlAffineDynamics)
+            and time_domain == TimeDomain.CONTINUOUS
     ):
         return LearnerRobustCT
     elif time_domain == TimeDomain.CONTINUOUS:

@@ -4,15 +4,23 @@ from typing import Callable
 import z3
 
 from fosco.common.utils import contains_object
-from fosco.verifier.types import Z3SYMBOL, SYMBOL
+from fosco.verifier.types import Z3SYMBOL
 from fosco.verifier.verifier import Verifier
 
 
 class VerifierZ3(Verifier):
+
+    def _assert_state(self) -> None:
+        super()._assert_state()
+        assert all([isinstance(x, Z3SYMBOL) for x in self.xs]), f"Expected z3 variables, got {self.xs}"
+        assert isinstance(self.constraints_method, Callable), f"Expected callable, got {self.constraints_method}"
+
+
+
     @staticmethod
     def new_vars(
         n: int | None = None, var_names: list[str] | None = None, base: str = "x"
-    ) -> list[SYMBOL]:
+    ) -> list[Z3SYMBOL]:
         assert (
             n is not None or var_names is not None
         ), "Must provide either n or var_names"

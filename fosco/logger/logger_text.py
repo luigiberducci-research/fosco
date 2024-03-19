@@ -9,7 +9,8 @@ class TextLogger(Logger):
     def __init__(self, config: dict = None, **kwargs):
         super().__init__(config)
 
-        self._logger = logging.getLogger(__name__)
+    def _assert_state(self) -> None:
+        pass
 
     def log_scalar(self, tag: str, value: float, step: int, **kwargs):
         self._logger.info(msg=f"step: {step}, tag: {tag}, value: {value}")

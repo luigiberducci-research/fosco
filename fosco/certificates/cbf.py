@@ -9,7 +9,7 @@ from torch.optim import Optimizer
 from fosco.config import CegisConfig
 from fosco.certificates.certificate import Certificate, TrainableCertificate
 from fosco.common.domains import Set, Rectangle
-from fosco.common.consts import DomainName
+from fosco.common.consts import DomainName, LossReLUType
 from fosco.common.utils import _set_assertion
 from fosco.learner import LearnerNN
 from fosco.verifier.types import SYMBOL
@@ -35,19 +35,15 @@ class ControlBarrierFunction(Certificate):
     """
 
     def __init__(
-        self,
-        system: ControlAffineDynamics,
-        vars: dict[str, list],
-        domains: dict[str, Set],
-        config: CegisConfig,
-        verbose: int = 0,
+            self,
+            system: ControlAffineDynamics,
+            variables: dict[str, list],
+            domains: dict[str, Set],
+            verbose: int = 0,
     ) -> None:
         # todo rename vars to x, u
-        assert all(
-            [sv in vars for sv in ["v", "u"]]
-        ), f"Missing symbolic variables, got {vars}"
-        self.x_vars = vars["v"]
-        self.u_vars = vars["u"]
+        self.x_vars = variables["v"]
+        self.u_vars = variables["u"]
 
         self.x_domain: SYMBOL = domains[XD].generate_domain(self.x_vars)
         self.u_set: Rectangle = domains[UD]
@@ -55,18 +51,33 @@ class ControlBarrierFunction(Certificate):
         self.initial_domain: SYMBOL = domains[XI].generate_domain(self.x_vars)
         self.unsafe_domain: SYMBOL = domains[XU].generate_domain(self.x_vars)
 
-        assert isinstance(
-            self.u_set, Rectangle
-        ), f"CBF only works with rectangular input domains, got {self.u_set}"
         self.n_vars = len(self.x_vars)
         self.n_controls = len(self.u_vars)
 
-        self._logger = logging.getLogger(__name__)
-        self._logger.setLevel(LOGGING_LEVELS[verbose])
-        self._logger.debug("CBF initialized")
+        super(ControlBarrierFunction, self).__init__(
+            system=system, variables=variables, domains=domains, verbose=verbose
+        )
+
+    def _assert_state(self) -> None:
+        dn = DomainName
+        domain_labels = set(self.domains.keys())
+
+        _set_assertion(
+            {dn.XD.value, dn.UD.value, dn.XI.value, dn.XU.value},
+            domain_labels,
+            "Symbolic Domains",
+        )
+
+        assert all(
+            [sv in self.variables for sv in ["v", "u"]]
+        ), f"Missing symbolic variables, got {self.variables}"
+
+        assert isinstance(
+            self.u_set, Rectangle
+        ), f"CBF only works with rectangular input domains, got {self.u_set}"
 
     def get_constraints(
-        self, verifier, B, B_constr, sigma, sigma_constr, Bdot, Bdot_constr, *args
+            self, verifier, B, B_constr, sigma, sigma_constr, Bdot, Bdot_constr, *args
     ) -> Generator:
         """
         :param verifier: verifier object
@@ -107,8 +118,8 @@ class ControlBarrierFunction(Certificate):
         logging.debug(f"lie_constr: {feasible_constr}")
 
         for cs in (
-            {XI: (initial_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
-            {XD: (feasible_constr, self.x_vars + self.u_vars)},
+                {XI: (initial_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
+                {XD: (feasible_constr, self.x_vars + self.u_vars)},
         ):
             yield cs
 
@@ -149,7 +160,7 @@ class ControlBarrierFunction(Certificate):
         return unsafe_constr
 
     def _feasibility_constraint_smt(
-        self, verifier, B, B_constr, Bdot, Bdot_constr, alpha
+            self, verifier, B, B_constr, Bdot, Bdot_constr, alpha
     ) -> SYMBOL:
         """
         Feasibility constraint
@@ -179,65 +190,57 @@ class ControlBarrierFunction(Certificate):
 
         return lie_constr
 
-    @staticmethod
-    def _assert_state(domains, data):
-        dn = DomainName
-        domain_labels = set(domains.keys())
-        data_labels = set(data.keys())
-        _set_assertion(
-            {dn.XD.value, dn.UD.value, dn.XI.value, dn.XU.value},
-            domain_labels,
-            "Symbolic Domains",
-        )
-        _set_assertion(
-            {dn.XD.value, dn.XI.value, dn.XU.value}, data_labels, "Data Sets"
-        )
-
 
 class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
     def __init__(
-        self,
-        system: ControlAffineDynamics,
-        vars: dict[str, list],
-        domains: dict[str, Set],
-        config: CegisConfig,
-        verbose: int = 0,
+            self,
+            system: ControlAffineDynamics,
+            variables: dict[str, list],
+            domains: dict[str, Set],
+            config: CegisConfig,
+            verbose: int = 0,
     ):
-        super(TrainableCBF, self).__init__(
-            system=system, vars=vars, domains=domains, config=config, verbose=verbose
-        )
-
         # loss parameters
-        self.loss_relu = config.LOSS_RELU
+        self.loss_keys = [DomainName.XI.value, DomainName.XU.value, DomainName.XD.value]
+        self.loss_relu = LossReLUType[config.LOSS_RELU.upper()]
         self.epochs = config.N_EPOCHS
 
         # process loss margins
-        loss_keys = ["init", "unsafe", "lie"]
         if isinstance(config.LOSS_MARGINS, float):
-            loss_margins = {k: config.LOSS_MARGINS for k in loss_keys}
+            self.loss_margins = {k: config.LOSS_MARGINS for k in self.loss_keys}
         else:
-            assert all(
-                [k in config.LOSS_MARGINS for k in loss_keys]
-            ), f"Missing loss margin, got {config.LOSS_MARGINS}"
-            loss_margins = config.LOSS_MARGINS
-        self.loss_margins = loss_margins
+            self.loss_margins = config.LOSS_MARGINS
 
         # process loss weights
         if isinstance(config.LOSS_WEIGHTS, float):
-            loss_weights = {k: config.LOSS_WEIGHTS for k in loss_keys}
+            self.loss_weights = {k: config.LOSS_WEIGHTS for k in self.loss_keys}
         else:
-            assert all(
-                [k in config.LOSS_WEIGHTS for k in loss_keys]
-            ), f"Missing loss weight, got {config.LOSS_WEIGHTS}"
-            loss_weights = config.LOSS_WEIGHTS
-        self.loss_weights = loss_weights
+            self.loss_weights = config.LOSS_WEIGHTS
+
+        super(TrainableCBF, self).__init__(
+            system=system, variables=variables, domains=domains, config=config, verbose=verbose
+        )
+
+    def _assert_state(self) -> None:
+        super()._assert_state()
+
+        assert isinstance(self.loss_relu, LossReLUType), f"Expected LossReLUType, got {type(self.loss_relu)}"
+        assert isinstance(self.epochs, int) and self.epochs >= 0, f"Expected non-neg int for epochs, got {self.epochs}"
+
+        assert all(
+            [k in self.loss_margins for k in self.loss_keys]
+        ), f"Missing loss margin for any {self.loss_keys}, got {self.loss_margins}"
+
+        assert all(
+            [k in self.loss_weights for k in self.loss_keys]
+        ), f"Missing loss weight for any {self.loss_keys}, got {self.loss_weights}"
 
     def learn(
-        self,
-        learner: LearnerNN,
-        optimizers: Optimizer,
-        datasets: dict,
-        f_torch: callable,
+            self,
+            learner: LearnerNN,
+            optimizers: Optimizer,
+            datasets: dict,
+            f_torch: callable,
     ) -> dict[str, float | np.ndarray]:
         """
         Updates the CBF model.
@@ -260,7 +263,7 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
         state_samples = torch.cat(
             [datasets[label][:, : self.n_vars] for label in label_order]
         )
-        U_d = datasets[XD][:, self.n_vars : self.n_vars + self.n_controls]
+        U_d = datasets[XD][:, self.n_vars: self.n_vars + self.n_controls]
 
         losses, accuracies, infos = {}, {}, {}
         for t in range(self.epochs):
@@ -271,12 +274,12 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
             gradB = learner.net.gradient(state_samples)
 
             B_d = B[:i1, 0]
-            B_i = B[i1 : i1 + i2, 0]
-            B_u = B[i1 + i2 :, 0]
+            B_i = B[i1: i1 + i2, 0]
+            B_u = B[i1 + i2:, 0]
 
             # compute lie derivative
             assert (
-                B_d.shape[0] == U_d.shape[0]
+                    B_d.shape[0] == U_d.shape[0]
             ), f"expected pairs of state,input data. Got {B_d.shape[0]} and {U_d.shape[0]}"
             X_d = state_samples[:i1]
             gradB_d = gradB[:i1]
@@ -313,12 +316,12 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
         }
 
     def compute_loss(
-        self,
-        B_i: torch.Tensor,
-        B_u: torch.Tensor,
-        B_d: torch.Tensor,
-        Bdot_d: torch.Tensor,
-        alpha: torch.Tensor | float,
+            self,
+            B_i: torch.Tensor,
+            B_u: torch.Tensor,
+            B_d: torch.Tensor,
+            Bdot_d: torch.Tensor,
+            alpha: torch.Tensor | float,
     ) -> tuple[torch.Tensor, dict, dict]:
         # todo make this private
         """Computes loss function for CBF and its accuracy w.r.t. the batch of data.
@@ -334,7 +337,7 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
             tuple[torch.Tensor, float]: loss and accuracy
         """
         assert (
-            Bdot_d is None or B_d.shape == Bdot_d.shape
+                Bdot_d is None or B_d.shape == Bdot_d.shape
         ), f"B_d and Bdot_d must have the same shape, got {B_d.shape} and {Bdot_d.shape}"
         assert isinstance(
             self.loss_margins, dict
@@ -350,6 +353,7 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
         weight_init = self.loss_weights["init"]
         weight_unsafe = self.loss_weights["unsafe"]
         weight_lie = self.loss_weights["lie"]
+        weight_conservative_b = self.loss_weights["conservative_b"]
 
         accuracy_i = (B_i >= margin_init).count_nonzero().item()
         accuracy_u = (B_u < -margin_unsafe).count_nonzero().item()
@@ -363,12 +367,23 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
         init_loss = weight_init * (self.loss_relu(margin_init - B_i)).mean()
         # penalize B_u > 0
         unsafe_loss = weight_unsafe * (self.loss_relu(B_u + margin_unsafe)).mean()
-        # penalize dB_d + alpha * B_d < 0
+        # penalize when B_d > 0 and dB_d + alpha * B_d < 0
+        loss_cond = torch.min(
+            B_d - margin_lie,
+            margin_lie -(Bdot_d + alpha * B_d)
+        )
         lie_loss = (
-            weight_lie * (self.loss_relu(margin_lie - (Bdot_d + alpha * B_d))).mean()
+                weight_lie * (self.loss_relu(loss_cond)).mean()
         )
 
-        loss = init_loss + unsafe_loss + lie_loss
+        # regularization losses
+        # penalize negative B (conservative)
+        loss_B_neg = self.loss_relu(-B_d).mean()  # penalize B_d < 0
+        loss_B_conservative = (
+                weight_conservative_b * loss_B_neg
+        )
+
+        loss = init_loss + unsafe_loss + lie_loss + loss_B_conservative
 
         losses = {
             "init_loss": init_loss.item(),

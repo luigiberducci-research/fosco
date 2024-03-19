@@ -7,17 +7,22 @@ import dreal
 
 from fosco.common.utils import contains_object
 from fosco.verifier import Verifier
-from fosco.verifier.types import SYMBOL
+from fosco.verifier.types import DRSYMBOL
 
 
 class VerifierDR(Verifier):
     INFINITY: float = 1e300
     SECOND_CHANCE_BOUND: float = 1e3
 
+    def _assert_state(self) -> None:
+        super()._assert_state()
+        assert all([isinstance(x, DRSYMBOL) for x in self.xs]), f"Expected z3 variables, got {self.xs}"
+        assert isinstance(self.constraints_method, Callable), f"Expected callable, got {self.constraints_method}"
+
     @staticmethod
     def new_vars(
         n: int | None = None, var_names: list[str] | None = None, base: str = "x"
-    ) -> list[SYMBOL]:
+    ) -> list[DRSYMBOL]:
         assert (
             n is not None or var_names is not None
         ), "Must provide either n or var_names"

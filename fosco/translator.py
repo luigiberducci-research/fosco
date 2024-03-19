@@ -16,6 +16,17 @@ class Translator(ABC):
     Abstract class for symbolic translators.
     """
 
+    def __init__(self, verbose: int = 0):
+        self._assert_state()
+
+        self._logger = logging.getLogger(__name__)
+        self._logger.setLevel(verbose)
+        self._logger.debug("Translator initialized")
+
+    @abstractmethod
+    def _assert_state(self) -> None:
+        raise NotImplementedError("")
+
     @abstractmethod
     def translate(self, **kwargs) -> dict:
         """
@@ -32,10 +43,9 @@ class MLPTranslator(Translator):
     Translate a network forward pass and gradients into a symbolic expression.
     """
 
-    def __init__(self, verbose: int = 0):
-        self._logger = logging.getLogger(__name__)
-        self._logger.setLevel(LOGGING_LEVELS[verbose])
-        self._logger.debug("Translator initialized")
+    def _assert_state(self) -> None:
+        pass
+
 
     @timed
     def translate(
@@ -148,14 +158,21 @@ class RobustMLPTranslator(MLPTranslator):
 
 
 def make_translator(
-    certificate_type: CertificateType,
-    verifier_type: VerifierType,
-    time_domain: TimeDomain,
+    certificate_type: str | CertificateType,
+    verifier_type: str | VerifierType,
+    time_domain: str | TimeDomain,
     **kwargs,
 ) -> Translator:
     """
     Factory function for translators.
     """
+    if isinstance(certificate_type, str):
+        certificate_type = CertificateType[certificate_type.upper()]
+    if isinstance(verifier_type, str):
+        verifier_type = VerifierType[verifier_type.upper()]
+    if isinstance(time_domain, str):
+        time_domain = TimeDomain[time_domain.upper()]
+
     if time_domain == TimeDomain.CONTINUOUS and verifier_type in [
         VerifierType.Z3,
         VerifierType.DREAL,

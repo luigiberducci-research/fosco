@@ -6,9 +6,12 @@
 import logging
 
 import numpy as np
-import z3
 
-from fosco.verifier.types import Z3SYMBOL, DRSYMBOL
+
+from fosco.verifier.types import Z3SYMBOL, DRSYMBOL, SPSYMBOL
+
+import z3
+import sympy
 
 try:
     import dreal as dr
@@ -26,13 +29,13 @@ def activation_sym(select, p):
     elif select == consts.ActivationType.LINEAR:
         return p
     elif select == consts.ActivationType.SQUARE:
-        return square_z3(p)
+        return square_sym(p)
     elif select == consts.ActivationType.POLY_2:
-        return lin_square_z3(p)
+        return lin_square_sym(p)
     elif select == consts.ActivationType.RELU_SQUARE:
-        return relu_square_z3(p)
+        return relu_square_sym(p)
     elif select == consts.ActivationType.REQU:
-        return requ_z3(p)
+        return requ_sym(p)
     elif select == consts.ActivationType.TANH:
         return hyper_tan(p)
     elif select == consts.ActivationType.SIGMOID:
@@ -128,17 +131,21 @@ def relu(x):
         _max = dr.Max
         for idx in range(len(y)):
             y[idx, 0] = _max(y[idx, 0], 0)
+
+    elif isinstance(x[0, 0], SPSYMBOL):
+        for idx in range(len(y)):
+            y[idx, 0] = sympy.Max(y[idx, 0], 0)
     return y
 
 
-def square_z3(x):
+def square_sym(x):
     """
     Square activation f(x) = x^2
     """
     return np.power(x, 2)
 
 
-def lin_square_z3(x):
+def lin_square_sym(x):
     """
     Linear - quadratic activation f(x) = [x, x^2]
     """
@@ -147,7 +154,7 @@ def lin_square_z3(x):
     return np.vstack((x1, np.power(x2, 2)))
 
 
-def relu_square_z3(x):
+def relu_square_sym(x):
     """
     ReLU - square activation f(x) = [max(0, x), x^2]
     """
@@ -156,7 +163,7 @@ def relu_square_z3(x):
     return np.vstack((relu(x1), np.power(x2, 2)))
 
 
-def requ_z3(x):
+def requ_sym(x):
     """
     Requ is f(x) = x^2/(1 + x^2)
     """

@@ -410,3 +410,28 @@ class TestTranslator(unittest.TestCase):
             verifier_type=VerifierType.Z3,
             time_domain=TimeDomain.DISCRETE,
         )
+
+    def test_sympy_activation(self):
+        """
+        Test activation functions in sympy
+        """
+        from fosco.common.consts import ActivationType
+        from fosco.common.activations_symbolic import activation_sym
+
+        import z3
+        import sympy
+        import dreal
+
+        spx = np.array(sympy.symbols("x y")).reshape(-1, 1)
+        z3x = np.array(z3.Real("x y")).reshape(-1, 1)
+        drx = np.array([dreal.Variable(v) for v in ["x", "y"]]).reshape(-1, 1)
+        for act in ActivationType:
+            act_sp = activation_sym(act, spx)
+            act_z3 = activation_sym(act, z3x)
+            act_dr = activation_sym(act, drx)
+
+            print(act)
+            print("sympy", act_sp)
+            print("z3", act_z3)
+            print("dreal", act_dr)
+            print("")

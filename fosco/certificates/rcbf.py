@@ -85,8 +85,8 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
             sigma_constr,
             Bdot,
             Bdot_constr,
-            Bdotz,
-            Bdotz_constr,
+            Bdot_residual,
+            Bdot_residual_constr,
     ) -> Generator:
         """
         Returns the constraints for the CBF problem.
@@ -139,8 +139,8 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
             sigma_constr=sigma_constr,
             Bdot=Bdot,
             Bdot_constr=Bdot_constr,
-            Bdotz=Bdotz,
-            Bdotz_constr=Bdotz_constr,
+            Bdot_residual=Bdot_residual,
+            Bdot_residual_constr=Bdot_residual_constr,
             alpha=alpha,
         )
 
@@ -202,8 +202,8 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
             sigma_constr,
             Bdot,
             Bdot_constr,
-            Bdotz,
-            Bdotz_constr,
+            Bdot_residual,
+            Bdot_residual_constr,
             alpha,
     ) -> SYMBOL:
         """
@@ -216,7 +216,7 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
         _And = verifier.solver_fncts()["And"]
 
         # precondition: we are in the belt of the barrier
-        belt_constr = _And(B > 0, B < 0.5)
+        belt_constr = _And(B >= 0, B < 0.5)
         for c in B_constr:
             belt_constr = _And(belt_constr, c)
 
@@ -227,9 +227,9 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
 
         pre_constr = _And(belt_constr, feas_constr)
 
-        # sigma is not compensating enough
-        robust_constr = _And(pre_constr, sigma < -(Bdotz - Bdot))
-        for c in Bdotz_constr + Bdot_constr + sigma_constr:
+        # sigma is not compensating enough, sigma < - Bdot_residual
+        robust_constr = _And(pre_constr, sigma < -Bdot_residual)
+        for c in Bdot_residual_constr + sigma_constr:
             robust_constr = _And(robust_constr, c)
 
         # add domain constraints
@@ -307,7 +307,6 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
         :param datasets: dictionary of (string,torch.Tensor) pairs
         :param f_torch: callable
         """
-        # todo extend signature with **kwargs
 
         if not optimizers:
             return {}
@@ -318,7 +317,6 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
         i1 = datasets[XD].shape[0]
         i2 = datasets[XI].shape[0]
         i3 = datasets[XU].shape[0]
-
 
         states_d = torch.cat(
             [datasets[label][:, : self.n_vars] for label in [XD, XI, XU]]
@@ -442,38 +440,23 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
         ), f"B_d and Bdotz_dz must have the same shape, got {B_dz.shape} and {Bdotz_dz.shape}"
 
         belt_margin = 0.5
-        margin_lie = self.loss_margins["lie"]
-        weight_lie = self.loss_weights["lie"]
         margin_robust = self.loss_margins["robust"]
         weight_robust = self.loss_weights["robust"]
         weight_conservative_s = self.loss_weights["conservative_sigma"]
 
-        # lie loss to make sigma aware of feasibility
-        loss_cond = torch.min(
-            B_dz - margin_lie,
-            margin_lie - (Bdot_dz + alpha * B_dz)
-        )
-        lie_loss = (
-                weight_lie * (self.loss_relu(loss_cond)).mean()
-        )
-
-        accuracy_d = (Bdot_dz - sigma_dz + alpha * B_dz >= margin_lie).count_nonzero().item()
         accuracy_z = torch.logical_and(
-                torch.abs(B_dz) < belt_margin,
+                B_dz < belt_margin,
                 sigma_dz + Bdotz_dz - Bdot_dz >= 0,
             ).count_nonzero().item()
 
-        percent_accuracy_lie = 100 * accuracy_d / Bdot_dz.shape[0]
         percent_accuracy_robust = 100 * accuracy_z / Bdot_dz.shape[0]
 
         # robust loss to make sigma robust to uncertainty
-        compensator_term = torch.min(
-            belt_margin - torch.abs(B_dz),
-            - (sigma_dz + Bdotz_dz - Bdot_dz)
-        )
+        belt_mask = (B_dz < belt_margin).float()
+        compensator_term = belt_mask * (margin_robust - (sigma_dz + Bdotz_dz - Bdot_dz))
 
         robust_loss = (
-                weight_robust * self.loss_relu(compensator_term + margin_robust).mean()
+                weight_robust * self.loss_relu(compensator_term).mean()
         )
 
         # regularization losses
@@ -483,17 +466,15 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
                 weight_conservative_s * loss_sigma_pos
         )
 
-        sigma_loss = lie_loss + robust_loss + loss_sigma_conservative
+        sigma_loss = robust_loss + loss_sigma_conservative
 
         losses = {
-            "robust_lie_loss": robust_loss.item(),
             "robust_loss": robust_loss.item(),
             "conservative_sigma_loss": loss_sigma_conservative.item(),
             "sigma_loss": sigma_loss.item(),
         }
 
         accuracy = {
-            "accuracy_lie_robust": percent_accuracy_lie,
             "accuracy_robust": percent_accuracy_robust,
         }
 

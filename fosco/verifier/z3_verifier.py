@@ -1,3 +1,4 @@
+import time
 import timeit
 from typing import Callable
 
@@ -83,6 +84,7 @@ class VerifierZ3(Verifier):
         except:
             pass
 
+        fml = z3.simplify(fml)
         if self._rounding > 0:
             fml = self.round_expr(fml, rounding=self._rounding)
 
@@ -92,6 +94,12 @@ class VerifierZ3(Verifier):
         timer = timeit.default_timer() - timer
 
         timedout = timer >= self._solver_timeout
+        if timedout:
+            #with open(f"timeout_z3_{int(time.time())}.txt", "w") as f:
+            #    f.write(str(fml))
+            self._logger.debug(fml.sexpr())
+            self._logger.info(f"Timed out while solving, kill after {timer:.2f} sec")
+
         return res, timedout
 
     def _solver_model(self, solver, res):

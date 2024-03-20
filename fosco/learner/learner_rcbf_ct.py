@@ -46,9 +46,9 @@ class LearnerRobustCT(LearnerCT):
             # xsigma(x) = xsigma(h(x))
             head_mlp = TorchMLP(
                 input_size=1,
-                hidden_sizes=hidden_sizes,
+                hidden_sizes=(5,),
                 output_size=1,
-                activation=activation,
+                activation=("tanh",),
                 output_activation="relu"
             )
             self.xsigma = SequentialTorchMLP(

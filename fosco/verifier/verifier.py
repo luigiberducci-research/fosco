@@ -17,7 +17,6 @@ class Verifier(ABC):
         constraints_method: Callable[..., Generator],
         solver_vars: list[SYMBOL],
         solver_timeout: int,
-        n_counterexamples: int,
         rounding: int = -1,
         verbose: int = 0,
     ):
@@ -118,8 +117,8 @@ class Verifier(ABC):
         sigma_symbolic_constr: Iterable[SYMBOL],
         Vdot_symbolic: SYMBOL,
         Vdot_symbolic_constr: Iterable[SYMBOL],
-        Vdotz_symbolic: SYMBOL | None,
-        Vdotz_symbolic_constr: Iterable[SYMBOL],
+        Vdot_residual_symbolic: SYMBOL | None,
+        Vdot_residual_symbolic_constr: Iterable[SYMBOL],
         **kwargs,
     ):
         """
@@ -141,8 +140,8 @@ class Verifier(ABC):
             sigma_symbolic_constr,
             Vdot_symbolic,
             Vdot_symbolic_constr,
-            Vdotz_symbolic,
-            Vdotz_symbolic_constr,
+            Vdot_residual_symbolic,
+            Vdot_residual_symbolic_constr,
         )
         results = {}
         solvers = {}
@@ -159,20 +158,20 @@ class Verifier(ABC):
                     vars = self.xs
 
                 s = self.new_solver()
-                self._logger.debug(
-                    f"Constraint: {label}, Formula: {self.pretty_formula(fml=condition)}"
-                )
+                #self._logger.debug(
+                #    f"Constraint: {label}, Formula: {self.pretty_formula(fml=condition)}"
+                #)
                 res, timedout = self._solver_solve(solver=s, fml=condition)
                 results[label] = res
                 solvers[label] = s
-                solver_vars[label] = vars  # todo: select diff vars for input and state
+                solver_vars[label] = vars
                 # if sat, found counterexample; if unsat, C is lyap
                 if timedout:
                     self._logger.info(label + "timed out")
             if any(self.is_sat(res) for res in results.values()):
                 break
 
-        ces = {label: [] for label in results.keys()}  # [[] for res in results.keys()]
+        ces = {label: [] for label in results.keys()}
 
         if all(self.is_unsat(res) for res in results.values()):
             self._logger.info("No counterexamples found!")
@@ -190,8 +189,8 @@ class Verifier(ABC):
 
                     # debug
                     for sym_name, sym in zip(
-                        ["V", "Sigma", "Vdot", "Vdotz"],
-                        [V_symbolic, sigma_symbolic, Vdot_symbolic, Vdotz_symbolic],
+                        ["V", "Sigma", "Vdot", "Vdot_residual"],
+                        [V_symbolic, sigma_symbolic, Vdot_symbolic, Vdot_residual_symbolic],
                     ):
                         if sym is None:
                             continue
@@ -203,7 +202,7 @@ class Verifier(ABC):
                             value = float(fraction.numerator / fraction.denominator)
                         else:
                             value = None
-                        self._logger.debug(f"[cex] {sym_name}: {value}")
+                        self._logger.info(f"[cex] {sym_name}: {value}")
 
                     ces[label] = original_point
                 else:

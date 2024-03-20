@@ -23,3 +23,23 @@ def get_solver_fns(x: list[SYMBOL]) -> dict[str, Callable]:
         return VerifierDR.solver_fncts()
     else:
         raise NotImplementedError(f"Unsupported type {type(x)}")
+
+
+def get_solver_simplify(x: list[SYMBOL]) -> Callable:
+    """
+    Given a list of symbolic variables, it returns the simplify function supported for the type of variables.
+
+    Args:
+        x: list of symbolic variables
+
+    Returns:
+        Callable: simplify function
+    """
+    if all([isinstance(xi, Z3SYMBOL) for xi in x]):
+        import z3
+        return z3.simplify
+    elif all([isinstance(xi, DRSYMBOL) for xi in x]):
+        # no simplify function for dreal
+        return lambda x: x
+    else:
+        raise NotImplementedError(f"Unsupported type {type(x)}")

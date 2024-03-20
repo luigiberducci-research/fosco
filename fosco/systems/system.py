@@ -7,6 +7,7 @@ import torch
 from fosco.common.consts import DomainName
 from fosco.common.domains import Set
 from fosco.common.utils import contains_object
+from fosco.verifier.utils import get_solver_simplify
 from fosco.verifier.verifier import SYMBOL
 
 SYSTEM_REGISTRY = {}
@@ -101,7 +102,8 @@ class ControlAffineDynamics(ABC):
             return self._f_torch(v, u)
         elif contains_object(v, SYMBOL):
             dvs = self.fx_smt(v) + self.gx_smt(v) @ u
-            return dvs
+            simplify_fn = get_solver_simplify(v)
+            return np.array([simplify_fn(dv) for dv in dvs])
         else:
             raise NotImplementedError(f"Unsupported type {type(v)}")
 
@@ -170,6 +172,7 @@ class UncertainControlAffineDynamics(ControlAffineDynamics):
         if torch.is_tensor(v) or isinstance(v, np.ndarray):
             return self._f_torch(v=v, u=u, z=z, only_nominal=only_nominal)
         elif contains_object(v, SYMBOL):
+            # todo: simplify these expression before returning them
             if only_nominal:
                 dvs = self._base_system.fx_smt(v) + self._base_system.gx_smt(v) @ u
             else:
@@ -179,7 +182,8 @@ class UncertainControlAffineDynamics(ControlAffineDynamics):
                     + self.fz_smt(v, z)
                     + self.gz_smt(v, z) @ u
                 )
-            return dvs
+            simplify_fn = get_solver_simplify(v)
+            return np.array([simplify_fn(dv) for dv in dvs])
         else:
             raise NotImplementedError(f"Unsupported type {type(v)}")
 

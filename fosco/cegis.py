@@ -51,7 +51,7 @@ class Cegis:
 
         # domains, dynamics, data
         self.x, self.x_map = self._initialise_variables()
-        self.xdot, self.xdotz = self._initialise_dynamics()
+        self.xdot, self.xdotz, self.xdot_residual = self._initialise_dynamics()
         self.datasets = self._initialise_data()
 
         # cegis components
@@ -113,7 +113,6 @@ class Cegis:
             constraints_method=self.certificate.get_constraints,
             rounding=self.config.ROUNDING,
             solver_timeout=self.config.VERIFIER_TIMEOUT,
-            n_counterexamples=self.config.RESAMPLING_N,
             verbose=self.verbose,
         )
         return verifier_instance
@@ -141,19 +140,22 @@ class Cegis:
     def _initialise_dynamics(self):
         if isinstance(self.f, UncertainControlAffineDynamics):
             xdot = self.f(**self.x_map, only_nominal=True)
-            xdotz = self.f(**self.x_map)
+            xdotz = None #self.f(**self.x_map)
+            v, u, z = self.x_map["v"], self.x_map["u"], self.x_map["z"]
+            xdot_residual = self.f.fz_smt(v, z) + self.f.gz_smt(v, z) @ u
         else:
             xdot = self.f(**self.x_map)
             xdotz = None
+            xdot_residual = None
 
         self.tlogger.debug(
             f"Nominal Dynamics: {'initialized' if xdot is not None else 'not initialized'}"
         )
         self.tlogger.debug(
-            f"Uncertain Dynamics: {'initialized' if xdotz is not None else 'not initialized'}"
+            f"Uncertain Dynamics: {'initialized' if xdot_residual is not None else 'not initialized'}"
         )
 
-        return xdot, xdotz
+        return xdot, xdotz, xdot_residual
 
     def _initialise_data(self) -> dict[str, torch.Tensor]:
         datasets = {}
@@ -384,10 +386,10 @@ class Cegis:
             "sigma_symbolic_constr": None,  # extra constraints to use with sigma_symbolic (eg., extra vars)
             "Vdot_symbolic": None,  # symbolic expression of lie derivative w.r.t. nominal dynamics
             "Vdot_symbolic_constr": None,  # extra constraints to use with Vdot_symbolic (eg., extra vars)
-            "Vdotz_symbolic": None,  # symbolic expression of lie derivative w.r.t. uncertain dynamics
-            "Vdotz_symbolic_constr": None,  # extra constraints to use with Vdotz_symbolic (eg., extra vars)
+            "Vdot_residual_symbolic": None,  # symbolic expression of lie derivative residual (Vdotz - Vdot)
+            "Vdot_residual_symbolic_constr": None,  # extra constraints to use with Vdot_residual_symbolic
             "xdot": self.xdot,  # symbolic expression of nominal dynamics
-            "xdotz": self.xdotz,  # symbolic expression of uncertain dynamics
+            "xdot_residual": self.xdot_residual,  # symbolic expression of dynamics residual (xdotz - xdot)
             "cex": None,  # counterexamples
         }
 

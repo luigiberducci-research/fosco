@@ -228,6 +228,10 @@ class SequentialTorchMLP(TorchSymDiffModel):
         self.input_size: int = mlps[0].input_size
         self.output_size: int = mlps[-1].output_size
 
+        # register models
+        for idx, mlp in enumerate(self.mlps):
+            self.add_module(f"mlp_{idx}", mlp)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         y = x
         for mlp in self.mlps:

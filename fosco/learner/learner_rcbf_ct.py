@@ -1,9 +1,11 @@
+import torch.nn
 from torch import nn
 
 from fosco.common.consts import ActivationType
 from fosco.learner import make_optimizer
 from fosco.learner.learner_cbf_ct import LearnerCT
 from fosco.models import TorchMLP
+from fosco.models.network import SequentialTorchMLP
 
 
 class LearnerRobustCT(LearnerCT):
@@ -40,22 +42,27 @@ class LearnerRobustCT(LearnerCT):
         if "xsigma" in initial_models and initial_models["xsigma"] is not None:
             self.xsigma = initial_models["xsigma"]
         else:
-            self.xsigma = TorchMLP(
-                input_size=state_size,
+            # we design the compensator to depend on the barrier function
+            # xsigma(x) = xsigma(h(x))
+            head_mlp = TorchMLP(
+                input_size=1,
                 hidden_sizes=hidden_sizes,
-                activation=activation,
                 output_size=1,
-                output_activation="relu",
+                activation=activation,
+                output_activation="relu"
+            )
+            self.xsigma = SequentialTorchMLP(
+                mlps=[self.net, head_mlp]
             )
 
         # overriden optimizer with all module parameters
-        if len(list(self.xsigma.parameters())) > 0:
+        if len(list(head_mlp.parameters())) > 0:
             # self.optimizers["barrier"] = make_optimizer(
             #    optimizer, params=self.parameters(), lr=lr, weight_decay=weight_decay
             # )
             self.optimizers["xsigma"] = make_optimizer(
                 optimizer,
-                params=self.xsigma.parameters(),
+                params=head_mlp.parameters(),
                 lr=lr,
                 weight_decay=weight_decay,
             )

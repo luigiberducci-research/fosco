@@ -312,7 +312,7 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
         if not optimizers:
             return {}
         assert "barrier" in optimizers, f"Missing optimizer 'barrier', got {optimizers}"
-        assert "xsigma" in optimizers, f"Missing optimizer 'sigma', got {optimizers}"
+        assert "xsigma" in optimizers, f"Missing optimizer 'xsigma', got {optimizers}"
 
         condition_old = False
         i1 = datasets[XD].shape[0]

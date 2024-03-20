@@ -1,6 +1,6 @@
 from typing import Callable
 
-from fosco.verifier.types import SYMBOL, Z3SYMBOL, DRSYMBOL
+from fosco.verifier.types import SYMBOL, Z3SYMBOL, DRSYMBOL, SPSYMBOL
 
 
 def get_solver_fns(x: list[SYMBOL]) -> dict[str, Callable]:
@@ -15,12 +15,13 @@ def get_solver_fns(x: list[SYMBOL]) -> dict[str, Callable]:
     """
     if all([isinstance(xi, Z3SYMBOL) for xi in x]):
         from fosco.verifier.z3_verifier import VerifierZ3
-
         return VerifierZ3.solver_fncts()
     elif all([isinstance(xi, DRSYMBOL) for xi in x]):
         from fosco.verifier.dreal_verifier import VerifierDR
-
         return VerifierDR.solver_fncts()
+    elif all([isinstance(xi, SPSYMBOL) for xi in x]):
+        from fosco.verifier.sympy_fns import SYMPY_FNS
+        return SYMPY_FNS
     else:
         raise NotImplementedError(f"Unsupported type {type(x)}")
 

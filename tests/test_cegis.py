@@ -68,7 +68,9 @@ class TestCEGIS(unittest.TestCase):
             0  # make sure we don't train to check correctness of the cegis loop
         )
 
-        c = Cegis(system=system, domains=domains, config=config, data_gen=data_gen, verbose=0)
+        c = Cegis(
+            system=system, domains=domains, config=config, data_gen=data_gen, verbose=0
+        )
         results = c.solve()
 
         infos = results.infos
@@ -85,7 +87,9 @@ class TestCEGIS(unittest.TestCase):
         system, domains, data_gen, config = self._get_single_integrator_config()
         config.SEED = 916104
 
-        cegis = Cegis(system=system, domains=domains, config=config, data_gen=data_gen, verbose=0)
+        cegis = Cegis(
+            system=system, domains=domains, config=config, data_gen=data_gen, verbose=0
+        )
 
         result = cegis.solve()
 
@@ -156,7 +160,9 @@ class TestCEGIS(unittest.TestCase):
             N_DATA=n_data_samples,
             SEED=seed,
         )
-        cegis = Cegis(system=system, domains=sets, config=config, data_gen=data_gen, verbose=0)
+        cegis = Cegis(
+            system=system, domains=sets, config=config, data_gen=data_gen, verbose=0
+        )
 
         result = cegis.solve()
 
@@ -179,7 +185,13 @@ class TestCEGIS(unittest.TestCase):
             system, domains, data_gen, config = self._get_single_integrator_config()
             config.SEED = seed
             config.CEGIS_MAX_ITERS = 1
-            cegis = fosco.cegis.Cegis(system=system, domains=domains, config=config, data_gen=data_gen, verbose=0)
+            cegis = fosco.cegis.Cegis(
+                system=system,
+                domains=domains,
+                config=config,
+                data_gen=data_gen,
+                verbose=0,
+            )
             results = cegis.solve()
             model = results.net
             params = list(model.parameters())
@@ -190,7 +202,13 @@ class TestCEGIS(unittest.TestCase):
                 config.SEED = seed
                 config.CEGIS_MAX_ITERS = 1
 
-                cegis = fosco.cegis.Cegis(system=system, domains=domains, config=config, data_gen=data_gen, verbose=0)
+                cegis = fosco.cegis.Cegis(
+                    system=system,
+                    domains=domains,
+                    config=config,
+                    data_gen=data_gen,
+                    verbose=0,
+                )
                 results = cegis.solve()
                 model = results.net
                 new_params = list(model.parameters())

@@ -73,4 +73,5 @@ class TestLearner(unittest.TestCase):
 
         # remove tmp dir
         import shutil
+
         shutil.rmtree("tmp")

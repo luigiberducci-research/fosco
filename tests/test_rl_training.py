@@ -95,8 +95,7 @@ class TestRLTraining(unittest.TestCase):
         )
 
         self.assertTrue(
-            all(costs <= 0),
-            f"We expect costs to be 0, got {costs}",
+            all(costs <= 0), f"We expect costs to be 0, got {costs}",
         )
 
         # delete logdir once test is done

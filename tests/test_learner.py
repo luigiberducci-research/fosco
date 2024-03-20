@@ -70,3 +70,7 @@ class TestLearner(unittest.TestCase):
                 torch.allclose(state1[k], state2[k]),
                 f"expected the same parameters before loading, got {learner1.parameters()} and {learner2.parameters()}",
             )
+
+        # remove tmp dir
+        import shutil
+        shutil.rmtree("tmp")

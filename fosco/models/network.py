@@ -12,11 +12,11 @@ from fosco.models.torchsym import TorchSymDiffModel
 
 
 def make_mlp(
-    input_size: int,
-    hidden_sizes: tuple[int, ...],
-    hidden_activation: tuple[str | ActivationType, ...],
-    output_size: int,
-    output_activation: str | ActivationType,
+        input_size: int,
+        hidden_sizes: tuple[int, ...],
+        hidden_activation: tuple[str | ActivationType, ...],
+        output_size: int,
+        output_activation: str | ActivationType,
 ):
     """
     Make a multi-layer perceptron model.
@@ -49,7 +49,7 @@ def make_mlp(
 
     assert len(layers) == len(acts), "layers and activations must have the same length"
     assert (
-        output_size == layers[-1].out_features
+            output_size == layers[-1].out_features
     ), "output size does not match last layer size"
 
     return layers, acts
@@ -57,12 +57,12 @@ def make_mlp(
 
 class TorchMLP(TorchSymDiffModel):
     def __init__(
-        self,
-        input_size: int,
-        hidden_sizes: tuple[int, ...],
-        activation: tuple[str | ActivationType, ...],
-        output_size: int = 1,
-        output_activation: str | ActivationType = "linear",
+            self,
+            input_size: int,
+            hidden_sizes: tuple[int, ...],
+            activation: tuple[str | ActivationType, ...],
+            output_size: int = 1,
+            output_activation: str | ActivationType = "linear",
     ):
         super(TorchMLP, self).__init__()
         assert len(hidden_sizes) == len(
@@ -89,7 +89,7 @@ class TorchMLP(TorchSymDiffModel):
             self.acts
         ), "layers and activations must have the same length"
         assert (
-            self.output_size == self.layers[-1].out_features
+                self.output_size == self.layers[-1].out_features
         ), "output size does not match last layer size"
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -110,12 +110,18 @@ class TorchMLP(TorchSymDiffModel):
         if self.layers[-1].bias is not None:
             z += self.layers[-1].bias.data.numpy()[:, None]
 
-        assert z.shape == (1, 1), f"Wrong shape of z, expected (1, 1), got {z.shape}"
+        assert z.shape == (self.output_size, 1), f"Wrong shape of z, expected ({self.output_size}, 1), got {z.shape}"
 
         # last activation
         z = activation_sym(self.acts[-1], z)
 
-        return z[0, 0], []
+        # if z is 1d, squeeze it and return symbolic expression
+        if isinstance(z, np.ndarray):
+            z = z.squeeze()
+            if z.shape == ():
+                z = z.item()
+
+        return z, []
 
     def gradient(self, x: torch.Tensor) -> torch.Tensor:
         x_clone = torch.clone(x).requires_grad_()
@@ -130,7 +136,7 @@ class TorchMLP(TorchSymDiffModel):
         return dydx
 
     def gradient_smt(
-        self, x: Iterable[SYMBOL]
+            self, x: Iterable[SYMBOL]
     ) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL]]:
         input_vars = np.array(x).reshape(-1, 1)
 
@@ -158,7 +164,7 @@ class TorchMLP(TorchSymDiffModel):
 
         return gradV, []
 
-    def save(self, outdir: str):
+    def save(self, outdir: str, model_name: str = "model"):
         import pathlib
         import yaml
 
@@ -166,7 +172,8 @@ class TorchMLP(TorchSymDiffModel):
         outdir.mkdir(parents=True, exist_ok=True)
 
         # save model.pt
-        torch.save(self.state_dict(), outdir / "model.pt")
+        model_path = outdir / f"{model_name}.pt"
+        torch.save(self.state_dict(), model_path)
 
         # save params.yaml with net configuration
         params = {
@@ -176,11 +183,13 @@ class TorchMLP(TorchSymDiffModel):
             "output_size": self.layers[-1].out_features,
             "output_activation": self.acts[-1].name,
         }
-        with open(outdir / "params.yaml", "w") as f:
+
+        param_path = model_path.parent / f"{model_name}.yaml"
+        with open(param_path, "w") as f:
             yaml.dump(params, f)
 
     @staticmethod
-    def load(logdir: str):
+    def load(logdir: str, model_name: str = "model"):
         import pathlib
         import yaml
 
@@ -188,17 +197,131 @@ class TorchMLP(TorchSymDiffModel):
         assert logdir.exists(), f"directory {logdir} does not exist"
 
         # load params.yaml
-        with open(logdir / "params.yaml", "r") as f:
+        params_path = logdir / f"{model_name}.yaml"
+        with open(params_path, "r") as f:
             params = yaml.load(f, Loader=yaml.FullLoader)
 
         # load model.pt
+        model_path = logdir / f"{model_name}.pt"
         model = TorchMLP(**params)
-        model.load_state_dict(torch.load(logdir / "model.pt"))
+        model.load_state_dict(torch.load(model_path))
+        return model
+
+
+class SequentialTorchMLP(TorchSymDiffModel):
+
+
+    def __init__(
+            self,
+            mlps: list[TorchMLP],
+    ):
+        super(SequentialTorchMLP, self).__init__()
+
+        for idx, mlp in enumerate(mlps[:-1]):
+            curr_output_size = mlp.output_size
+            next_input_size = mlps[idx + 1].input_size
+            assert (
+                curr_output_size == next_input_size
+            ), f"Output size of MLP {idx} does not match input size of MLP {idx + 1}"
+
+        self.mlps = mlps
+        self.input_size: int = mlps[0].input_size
+        self.output_size: int = mlps[-1].output_size
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        y = x
+        for mlp in self.mlps:
+            y = mlp(y)
+        return y
+
+    def forward_smt(self, x: Iterable[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL]]:
+        input_vars = np.array(x).reshape(-1, 1)
+
+        z = input_vars
+        z_constraints = []
+        for mlp in self.mlps:
+            z, new_constr = mlp.forward_smt(z)
+            z_constraints.extend(new_constr)
+
+        # if z is 1d, squeeze it and return symbolic expression
+        if isinstance(z, np.ndarray):
+            z = z.squeeze()
+            if z.shape == ():
+                z = z.item()
+
+        return z, z_constraints
+
+    def gradient(self, x: torch.Tensor) -> torch.Tensor:
+        x_clone = torch.clone(x).requires_grad_()
+        y = self(x_clone)
+        dydx = torch.autograd.grad(
+            outputs=y,
+            inputs=x_clone,
+            grad_outputs=torch.ones_like(y),
+            create_graph=True,
+            retain_graph=True,
+        )[0]
+        return dydx
+
+    def gradient_smt(self, x: Iterable[SYMBOL]) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL]]:
+        input_vars = np.array(x).reshape(-1, 1)
+
+        z = input_vars
+        jacobian = np.eye(self.input_size, self.input_size)
+        z_constraints = []
+        for mlp in self.mlps:
+            z, new_jacobian = network_until_last_layer(mlp, z)
+            z_constraints.extend(new_jacobian)
+            jacobian = new_jacobian @ jacobian
+
+        return jacobian, z_constraints
+
+    def save(self, outdir: str, model_name: str = "model"):
+        import pathlib
+        import yaml
+
+        outdir = pathlib.Path(outdir)
+        outdir.mkdir(parents=True, exist_ok=True)
+
+        # save mlp models
+        for idx, mlp in enumerate(self.mlps):
+            submodel_name = f"{model_name}_{idx}"
+            mlp.save(outdir=str(outdir), model_name=submodel_name)
+
+        # save params.yaml with net configuration
+        params = {
+            "mlps": [f"{model_name}_{idx}" for idx in range(len(self.mlps))],
+        }
+
+        param_path = outdir / f"{model_name}.yaml"
+        with open(param_path, "w") as f:
+            yaml.dump(params, f)
+
+    @staticmethod
+    def load(logdir: str, model_name: str = "model"):
+        import pathlib
+        import yaml
+
+        logdir = pathlib.Path(logdir)
+        assert logdir.exists(), f"directory {logdir} does not exist"
+
+        # load params.yaml
+        params_path = logdir / f"{model_name}.yaml"
+        with open(params_path, "r") as f:
+            params = yaml.load(f, Loader=yaml.FullLoader)
+
+        # load models
+        mlps = []
+        for model_name in params["mlps"]:
+            mlp = TorchMLP.load(logdir=logdir, model_name=model_name)
+            mlps.append(mlp)
+
+        model = SequentialTorchMLP(mlps=mlps)
         return model
 
 
 def network_until_last_layer(
-    net: TorchMLP, input_vars: Iterable[SYMBOL]
+        net: TorchMLP, input_vars: Iterable[SYMBOL]
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Utility for symbolic forward pass excluding the last layer.

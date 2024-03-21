@@ -39,6 +39,56 @@ class Set:
         raise NotImplementedError
 
 
+class SumToOneSet(Set):
+    """
+    A set whose elements are positive and sum up to one.
+    """
+    def __repr__(self):
+        """
+        Return a string representation of the domain.
+        e.g., print(SumToOneSet()) => 'SumToOneSet()'
+        """
+        return f"SumToOneSet{self.vars}"
+
+    def generate_domain(self, z) -> verifier.SYMBOL:
+        """
+        Generates symbolic domain.
+
+        :param z: symbolic variables
+        :return: symbolic expression
+        """
+        f = verifier.FUNCTIONS
+        z_dim = [i for i, vz in enumerate(z) if str(vz) in self.vars]
+        positivity = f["And"](*[0.0 <= z[v_id] for v_id in z_dim])
+        z_sum = 0.0
+        for v_id in z_dim:
+            z_sum += z[v_id]
+        return f["And"](positivity, z_sum == 1)
+
+    def generate_data(self, batch_size) -> torch.Tensor:
+        """
+        Generates data samples in the domain.
+
+        :param batch_size: number of samples
+        :return: batch of data
+        """
+        sum_to_one_data = torch.rand(batch_size, len(self.vars))
+        sum_to_one_data /= sum_to_one_data.sum(dim=-1).unsqueeze(-1)
+        return sum_to_one_data
+
+    def check_containment(self, z: np.ndarray | torch.Tensor) -> torch.Tensor:
+        """
+        Checks if the given batch of samples is contained in the domain.
+
+        :param z: batch of data samples
+        :return: boolean batch
+        """
+        batch_size = z.shape[0]
+        assert z.shape[1] == len(self.vars)
+        contain_validity = torch.sum(z, sum=1) == torch.ones(batch_size)
+        return contain_validity
+
+
 class Rectangle(Set):
     def __init__(
         self,

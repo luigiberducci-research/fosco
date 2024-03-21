@@ -88,7 +88,7 @@ class Cegis:
 
         initial_models = {}
         if self.config.USE_INIT_MODELS:
-            known_fns = make_barrier(system=self.f)
+            known_fns = make_barrier(system=self.f, uncertainty=self.config.UNCERTAINTY)
             initial_models["net"] = known_fns["barrier"]
             if self.config.CERTIFICATE == CertificateType.RCBF:
                 initial_models["xsigma"] = known_fns["compensator"]
@@ -298,7 +298,7 @@ class Cegis:
                 )
                 if isinstance(self.f, UncertainControlAffineDynamics):
                     f = lambda x, u: self.f._f_torch(
-                        x, u, z=torch.zeros((x.shape[0], self.f.n_uncertain))
+                        x, u, z=None, only_nominal=True
                     )
                 else:
                     f = lambda x, u: self.f._f_torch(x, u)

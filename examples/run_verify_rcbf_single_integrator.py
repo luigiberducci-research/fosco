@@ -48,6 +48,7 @@ def main(args):
         CERTIFICATE=CertificateType.RCBF,
         USE_INIT_MODELS=True,
         CEGIS_MAX_ITERS=1,
+        #LOGGER=LoggerType.AIM
     )
     cegis = Cegis(config=config, verbose=verbose)
 

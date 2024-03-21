@@ -39,6 +39,7 @@ class VerifierDR(Verifier):
     @staticmethod
     def solver_fncts() -> dict[str, Callable]:
         return {
+            "RealVar": dreal.Variable,
             "Sin": dreal.sin,
             "Cos": dreal.cos,
             "Exp": dreal.exp,

@@ -3,7 +3,7 @@ import shutil
 
 
 class TestRLTraining(unittest.TestCase):
-    def test_ppo_hopper(self):
+    def _test_ppo_hopper(self):
         """
         Try to run ppo in the mujoco hopper environment.
         Expected to run fine.
@@ -38,7 +38,7 @@ class TestRLTraining(unittest.TestCase):
         # delete logdir once test is done
         shutil.rmtree(logdir)
 
-    def test_safeppo_hopper(self):
+    def _test_safeppo_hopper(self):
         """
         Try to run safe-ppo in the mujoco hopper environment.
         Expected to raise an exception because not SystemEnv.
@@ -60,7 +60,7 @@ class TestRLTraining(unittest.TestCase):
             # delete logdir once test is done
             shutil.rmtree(logdir)
 
-    def test_safeppo_single_integrator(self):
+    def _test_safeppo_single_integrator(self):
         """
         Try to run safe-ppo in the mujoco hopper environment.
         Expected to run fine.

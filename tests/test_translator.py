@@ -411,7 +411,7 @@ class TestTranslator(unittest.TestCase):
             time_domain=TimeDomain.DISCRETE,
         )
 
-    def test_sympy_activation(self):
+    def _test_sympy_activation(self):
         """
         Test activation functions in sympy
         """

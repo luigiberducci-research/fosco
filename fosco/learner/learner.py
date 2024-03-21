@@ -31,7 +31,7 @@ class LearnerNN(nn.Module, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def save(self, model_path: str | pathlib.Path) -> None:
+    def save(self, outdir: str, model_name: str = "model") -> None:
         raise NotImplementedError
 
     @abstractmethod

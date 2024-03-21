@@ -1,6 +1,6 @@
 import logging
 from abc import abstractmethod, ABC
-from typing import Callable, Generator, Iterable, Type, Any
+from typing import Callable, Generator, Iterable, Any
 
 import torch
 

@@ -17,7 +17,8 @@ def main(args):
     verifier_type = args.verifier
     resampling_n = args.resampling_n
     resampling_std = args.resampling_std
-    use_init_models = args.use_init_models
+    barrier_to_load = args.barrier_to_load
+    sigma_to_load = args.sigma_to_load
     activations = args.activations
     n_hidden_neurons = args.n_hiddens
     n_data_samples = args.n_data_samples
@@ -81,7 +82,8 @@ def main(args):
     config = fosco.cegis.CegisConfig(
         EXP_NAME=exp_name,
         CERTIFICATE=certificate_type,
-        USE_INIT_MODELS=use_init_models,
+        BARRIER_TO_LOAD=barrier_to_load,
+        SIGMA_TO_LOAD=sigma_to_load,
         VERIFIER=verifier_type,
         RESAMPLING_N=resampling_n,
         RESAMPLING_STDDEV=resampling_std,
@@ -134,11 +136,13 @@ if __name__ == "__main__":
     parser.add_argument("--uncertainty", type=str, default=None, choices=uncertainties)
 
     parser.add_argument("--certificate", type=str, default="cbf")
+    parser.add_argument("--barrier-to-load", type=str, default=None)
+    parser.add_argument("--sigma-to-load", type=str, default=None)
+
     parser.add_argument("--verifier", type=str, default="z3")
     parser.add_argument("--resampling-n", type=int, default=100)
     parser.add_argument("--resampling-std", type=float, default=5e-3)
 
-    parser.add_argument("--use-init-models", action="store_true")
     parser.add_argument(
         "--activations", type=str, nargs="+", default=["square", "linear"]
     )

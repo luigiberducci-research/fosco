@@ -12,9 +12,9 @@ def main(args):
 
     exp_name = args.exp_name
     seed = args.seed
-    verifier_type = VerifierType[args.verifier.upper()]
+    verifier_type = args.verifier
     verifier_n_cex = args.n_cex
-    activations = tuple([ActivationType[a.upper()] for a in args.activations])
+    activations = args.activations
     n_hidden_neurons = args.n_hiddens
     n_data_samples = args.n_data_samples
     optimizer = args.optimizer
@@ -23,9 +23,10 @@ def main(args):
     max_iters = args.max_iters
     n_epochs = args.n_epochs
     verbose = args.verbose
+    logger_type = None  #"aim"
 
-    system = make_system(system_id=system_type)
-    sets = system().domains
+    system = make_system(system_id=system_type)()
+    sets = system.domains
 
     # data generator
     data_gen = {
@@ -38,9 +39,6 @@ def main(args):
 
     config = CegisConfig(
         EXP_NAME=exp_name,
-        SYSTEM=system,
-        DOMAINS=sets,
-        DATA_GEN=data_gen,
         VERIFIER=verifier_type,
         RESAMPLING_N=verifier_n_cex,
         ACTIVATION=activations,
@@ -48,14 +46,21 @@ def main(args):
         CEGIS_MAX_ITERS=max_iters,
         N_DATA=n_data_samples,
         SEED=seed,
-        LOGGER=LoggerType.AIM,
+        LOGGER=logger_type,
         N_EPOCHS=n_epochs,
         OPTIMIZER=optimizer,
         LEARNING_RATE=learning_rate,
         WEIGHT_DECAY=weight_decay,
     )
-    cegis = Cegis(config=config, verbose=verbose)
+    cegis = Cegis(
+        system=system,
+        domains=sets,
+        data_gen=data_gen,
+        config=config,
+        verbose=verbose
+    )
     result = cegis.solve()
+    print("result: ", result)
 
 
 if __name__ == "__main__":

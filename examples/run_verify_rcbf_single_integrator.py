@@ -13,11 +13,12 @@ from fosco.systems.uncertainty import add_uncertainty
 def main(args):
     system_id = "SingleIntegrator"
     uncertainty_id = "AdditiveBounded"
+    model_to_load = "default" #"tunable"
     verbose = 1
 
     system_fn = make_system(system_id=system_id)
     system_fn = add_uncertainty(uncertainty_type=uncertainty_id, system_fn=system_fn)
-    sets = system_fn().domains()
+    sets = system_fn().domains
 
     # data generator
     data_gen = {
@@ -42,17 +43,23 @@ def main(args):
     }
 
     config = CegisConfig(
-        SYSTEM=system_fn,
-        DOMAINS=sets,
-        DATA_GEN=data_gen,
-        CERTIFICATE=CertificateType.RCBF,
-        USE_INIT_MODELS=True,
+        CERTIFICATE="rcbf",
+        VERIFIER="dreal",
+        MODEL_TO_LOAD=model_to_load,
         CEGIS_MAX_ITERS=1,
-        #LOGGER=LoggerType.AIM
+        LOGGER="aim",
+        EXP_NAME=f"RCBF_{model_to_load}",
     )
-    cegis = Cegis(config=config, verbose=verbose)
+    cegis = Cegis(
+        system=system_fn(),
+        domains=sets,
+        data_gen=data_gen,
+        config=config,
+        verbose=verbose
+    )
 
     result = cegis.solve()
+    print("result: ", result)
 
 
 if __name__ == "__main__":

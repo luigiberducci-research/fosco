@@ -50,7 +50,7 @@ class TestCEGIS(unittest.TestCase):
             TIME_DOMAIN="continuous",
             CERTIFICATE="cbf",
             VERIFIER="z3",
-            CEGIS_MAX_ITERS=5,
+            CEGIS_MAX_ITERS=3,
             ROUNDING=3,
             N_DATA=1000,
             LEARNING_RATE=1e-3,

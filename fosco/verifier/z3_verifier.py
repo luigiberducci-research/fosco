@@ -123,6 +123,7 @@ class VerifierZ3(Verifier):
     @staticmethod
     def solver_fncts() -> dict[str, Callable]:
         return {
+            "RealVar": z3.Real,
             "And": z3.And,
             "Or": z3.Or,
             "If": z3.If,

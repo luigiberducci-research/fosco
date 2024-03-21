@@ -28,9 +28,9 @@ import numpy as np
 import torch
 import pygame
 
-from fosco.common.domains import Rectangle
+from fosco.common.domains import Rectangle, Sphere
 from fosco.systems import make_system
-from fosco.systems.system import ControlAffineDynamics
+from fosco.systems.system import ControlAffineDynamics, UncertainControlAffineDynamics
 from fosco.systems.rewards import RewardFnType
 
 
@@ -228,7 +228,16 @@ class SystemEnv(gymnasium.Env):
                 actions = torch.from_numpy(actions).to(self._device)
 
             # step
-            dxdt = self.system.f(v=self._current_obs, u=actions)
+            if isinstance(self.system, UncertainControlAffineDynamics):
+                batch_size = self._current_obs.shape[0]
+                z = self.system.uncertainty_domain.generate_data(batch_size)
+                dxdt = self.system.f(
+                    v=self._current_obs,
+                    u=actions,
+                    z=z
+                )
+            else:
+                dxdt = self.system.f(v=self._current_obs, u=actions)
             next_observs = self._current_obs + self.dt * dxdt
             next_time = self._current_time + self.dt
 
@@ -332,12 +341,26 @@ class SystemEnv(gymnasium.Env):
 
         # Draw origin
         origin_translation = np.array(self.system.state_domain.lower_bounds[:2])
-        position = np.array(self.system.unsafe_domain.center) - origin_translation
-        radius = self.system.unsafe_domain.radius * ppu
-        color = [200, 0, 0]
-        pygame.draw.circle(
-            canvas, color, (position * ppu).astype(int), radius,
-        )
+
+        if isinstance(self.system.unsafe_domain, Rectangle):
+            position = np.array(self.system.unsafe_domain.lower_bounds[:2]) - origin_translation
+            size = np.array(self.system.unsafe_domain.upper_bounds[:2]) - np.array(self.system.unsafe_domain.lower_bounds[:2])
+            color = [200, 0, 0]
+            pygame.draw.rect(
+                canvas,
+                color,
+                (
+                    (position * ppu).astype(int),
+                    (size * ppu).astype(int),
+                ),
+            )
+        elif isinstance(self.system.unsafe_domain, Sphere):
+            position = np.array(self.system.unsafe_domain.center) - origin_translation
+            radius = self.system.unsafe_domain.radius * ppu
+            color = [200, 0, 0]
+            pygame.draw.circle(
+                canvas, color, (position * ppu).astype(int), radius,
+            )
 
         # Draw agents
         position = self._current_obs.squeeze()[:2].numpy() - origin_translation

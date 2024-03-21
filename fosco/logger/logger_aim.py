@@ -20,7 +20,6 @@ class AimLogger(Logger):
         for k, v in self.config.items():
             self._assert_supported_types(k, v)
 
-
     def _assert_supported_types(self, k: str, v: Any) -> None:
         supported_types = [int, float, str, bool, NoneType]
         if type(v) in supported_types:
@@ -31,8 +30,6 @@ class AimLogger(Logger):
                 self._assert_supported_types(k, vi)
         except TypeError:
             raise TypeError(f"Unsupported type {type(v)} for key {k}")
-
-
 
     def log_scalar(self, tag: str, value: float, step: int, context: dict = None):
         self._run.track(value, name=tag, step=step, context=context)
@@ -47,10 +44,10 @@ class AimLogger(Logger):
     def log_model(self, tag: str, model: torch.nn.Module, step: int, **kwargs):
         model_dir = pathlib.Path(self.config["MODEL_DIR"]) / self.config["EXP_NAME"]
         model_dir.mkdir(exist_ok=True, parents=True)
-        model_path = model_dir / f"{tag}_{step}.pt"
-        model.save(model_path=model_path)
+        model_path = model.save(outdir=model_dir, model_name=f"{tag}_{step}")
         aim_string = aim.Text(str(model_path))
         self._run.track(aim_string, name=tag, step=step, context={"model": True})
+        return model_path
 
     def __close__(self):
         self._run.close()

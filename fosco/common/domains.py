@@ -50,14 +50,14 @@ class SumToOneSet(Set):
         """
         return f"SumToOneSet{self.vars}"
 
-    def generate_domain(self, z) -> verifier.SYMBOL:
+    def generate_domain(self, z) -> SYMBOL:
         """
         Generates symbolic domain.
 
         :param z: symbolic variables
         :return: symbolic expression
         """
-        f = verifier.FUNCTIONS
+        f = get_solver_fns(x=z)
         z_dim = [i for i, vz in enumerate(z) if str(vz) in self.vars]
         positivity = f["And"](*[0.0 <= z[v_id] for v_id in z_dim])
         z_sum = 0.0

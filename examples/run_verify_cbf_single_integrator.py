@@ -26,16 +26,21 @@ def main(args):
     }
 
     config = CegisConfig(
-        SYSTEM=system_fn,
-        DOMAINS=sets,
-        DATA_GEN=data_gen,
-        CERTIFICATE=CertificateType.CBF,
-        USE_INIT_MODELS=True,
+        CERTIFICATE="cbf",
+        MODEL_TO_LOAD="default",
         CEGIS_MAX_ITERS=1,
     )
-    cegis = Cegis(config=config, verbose=verbose)
+    cegis = Cegis(
+        system=system_fn(),
+        domains=sets,
+        data_gen=data_gen,
+        config=config,
+        verbose=verbose
+    )
 
     result = cegis.solve()
+
+    print("result: ", result)
 
 
 if __name__ == "__main__":

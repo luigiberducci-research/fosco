@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 
-from barriers import make_barrier
+from barriers import make_barrier, make_compensator
 from fosco.models import TorchSymDiffModel, TorchSymModel
 from fosco.systems import make_system
 from fosco.systems.uncertainty import add_uncertainty
@@ -14,8 +14,7 @@ class TestBarriers(unittest.TestCase):
     def test_single_integrator_cbf_torch(self):
         system = make_system("SingleIntegrator")()
 
-        barrier_dict = make_barrier(system=system)
-        cbf = barrier_dict["barrier"]
+        cbf = make_barrier(system=system)
         assert isinstance(
             cbf, TorchSymDiffModel
         ), f"expected TorchSymModel, got {type(cbf)}"
@@ -41,8 +40,7 @@ class TestBarriers(unittest.TestCase):
 
         system = make_system("SingleIntegrator")()
 
-        barrier_dict = make_barrier(system=system)
-        cbf = barrier_dict["barrier"]
+        cbf = make_barrier(system=system)
         assert isinstance(
             cbf, TorchSymDiffModel
         ), f"expected TorchSymModel, got {type(cbf)}"
@@ -66,8 +64,7 @@ class TestBarriers(unittest.TestCase):
         system_fn = add_uncertainty("AdditiveBounded", system_fn=system_fn)
         system = system_fn()
 
-        barrier_dict = make_barrier(system=system)
-        sigma = barrier_dict["compensator"]
+        sigma = make_compensator(system=system)
         assert isinstance(
             sigma, TorchSymModel
         ), f"expected TorchSymModel, got {type(sigma)}"
@@ -97,8 +94,7 @@ class TestBarriers(unittest.TestCase):
         system_fn = add_uncertainty("AdditiveBounded", system_fn=system_fn)
         system = system_fn()
 
-        barrier_dict = make_barrier(system=system)
-        sigma = barrier_dict["compensator"]
+        sigma = make_compensator(system=system)
         assert isinstance(
             sigma, TorchSymModel
         ), f"expected TorchSymModel, got {type(sigma)}"

@@ -5,13 +5,12 @@ import torch
 import numpy as np
 
 from fosco.cegis import Cegis
-from fosco.common.consts import CertificateType
 from fosco.config import CegisConfig
-from fosco.common import domains
 from fosco.logger import LoggerType
-from systems import make_system, make_domains
-from systems.uncertainty import add_uncertainty
-from models.torchsym import TorchSymFn
+from fosco.models import TorchSymFn
+from fosco.systems import make_system
+from fosco.systems.uncertainty import add_uncertainty
+
 
 # we are instaniating this class one by one, or by batch?
 class UncertainFunc(TorchSymFn):
@@ -42,25 +41,8 @@ def main(args):
 
     system_fn = make_system(system_id=system_id)
     system_fn = add_uncertainty(uncertainty_type=uncertainty_id, system_fn=system_fn, f_uncertainty=f_uncertainty)
-    
-    xvars = ["x0", "x1"]
-    uvars = ["u0", "u1"]
-    zvars = ["z0", "z1", "z2"]
 
-    XD = domains.Rectangle(vars=xvars, lb=(-5.0, -5.0), ub=(5.0, 5.0))
-    UD = domains.Rectangle(vars=uvars, lb=(-5.0, -5.0), ub=(5.0, 5.0))
-    XI = domains.Rectangle(vars=xvars, lb=(-5.0, -5.0), ub=(-4.0, -4.0))
-    XU = domains.Sphere(
-        vars=xvars, centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1], include_boundary=False
-    )
-    ZD = domains.SumToOneSet(vars=zvars) # uncertain variables should sum to be 1
-
-
-    sets ={"init": XI, 
-           "unsafe": XU,
-           "lie": XD,
-           "uncertainty": ZD,
-           "input": UD}
+    sets = system_fn().domains
 
     # data generator
     data_gen = {
@@ -85,17 +67,21 @@ def main(args):
     }
 
     config = CegisConfig(
-        SYSTEM=system_fn,
-        DOMAINS=sets,
-        DATA_GEN=data_gen,
-        CERTIFICATE=CertificateType.RCBF,
-        USE_INIT_MODELS=True,
+        CERTIFICATE="rcbf",
+        MODEL_TO_LOAD="default",
         CEGIS_MAX_ITERS=1,
-        LOGGER=LoggerType.AIM
+        #LOGGER="aim"
     )
-    cegis = Cegis(config=config, verbose=verbose)
+    cegis = Cegis(
+        system=system_fn,
+        domains=sets,
+        data_gen=data_gen,
+        config=config,
+        verbose=verbose
+    )
 
     result = cegis.solve()
+    print("result: ", result)
 
 
 if __name__ == "__main__":

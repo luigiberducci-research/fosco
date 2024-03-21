@@ -65,7 +65,7 @@ class TestModel(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(tmp_dir, "model.yaml")))
 
         # try to load model
-        model2 = TorchMLP.load(logdir=tmp_dir)
+        model2 = TorchMLP.load(config_path=os.path.join(tmp_dir, "model.yaml"))
         self.assertEqual(model.input_size, model2.input_size)
         self.assertEqual(model.output_size, model2.output_size)
         self.assertEqual(model.acts, model2.acts)
@@ -110,8 +110,7 @@ class TestModel(unittest.TestCase):
 
         system_type = "SingleIntegrator"
         system_fn = make_system(system_type)
-        barrier_dict = make_barrier(system=system_fn())
-        init_barrier = barrier_dict["barrier"]
+        init_barrier = make_barrier(system=system_fn(), model_to_load="default")
 
         sets = system_fn().domains
         assert all(
@@ -130,7 +129,7 @@ class TestModel(unittest.TestCase):
             ),
         }
 
-        cfg = CegisConfig(USE_INIT_MODELS=True, CEGIS_MAX_ITERS=10,)
+        cfg = CegisConfig(BARRIER_TO_LOAD="default", CEGIS_MAX_ITERS=10,)
 
         cegis = Cegis(system=system_fn(), domains=sets, config=cfg, data_gen=data_gen)
 
@@ -238,8 +237,8 @@ class TestModel(unittest.TestCase):
             output_size=1,
             output_activation="linear",
         )
-        model = SequentialTorchMLP(mlps=[mlp1, mlp2],)
-        model.save(outdir=tmp_dir)
+        model = SequentialTorchMLP(mlps=[mlp1, mlp2])
+        model.save(outdir=tmp_dir, model_name="model")
 
         # check if model saved
         self.assertTrue(os.path.exists(tmp_dir))
@@ -250,7 +249,8 @@ class TestModel(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(tmp_dir, "model_1.yaml")))
 
         # try to load model
-        model2 = SequentialTorchMLP.load(logdir=tmp_dir)
+        config_path = os.path.join(tmp_dir, "model.yaml")
+        model2 = SequentialTorchMLP.load(config_path=config_path)
         self.assertEqual(model.input_size, model2.input_size)
         self.assertEqual(model.output_size, model2.output_size)
         for mlp1, mlp2 in zip(model.mlps, model2.mlps):

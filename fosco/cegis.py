@@ -87,11 +87,10 @@ class Cegis:
         learner_type = make_learner(system=self.f, time_domain=self.config.TIME_DOMAIN)
 
         initial_models = {}
-        if self.config.USE_INIT_MODELS:
-            known_fns = make_barrier(system=self.f, uncertainty=self.config.UNCERTAINTY)
-            initial_models["net"] = known_fns["barrier"]
-            if self.config.CERTIFICATE == CertificateType.RCBF:
-                initial_models["xsigma"] = known_fns["compensator"]
+        if self.config.BARRIER_TO_LOAD is not None:
+            initial_models["net"] = make_barrier(system=self.f, model_to_load=self.config.BARRIER_TO_LOAD)
+        if self.config.SIGMA_TO_LOAD is not None:
+            initial_models["xsigma"] = make_barrier(system=self.f, model_to_load=self.config.SIGMA_TO_LOAD)
 
         learner_instance = learner_type(
             state_size=self.f.n_vars,
@@ -140,7 +139,7 @@ class Cegis:
     def _initialise_dynamics(self):
         if isinstance(self.f, UncertainControlAffineDynamics):
             xdot = self.f(**self.x_map, only_nominal=True)
-            xdotz = None #self.f(**self.x_map)
+            xdotz = None  # self.f(**self.x_map)
             v, u, z = self.x_map["v"], self.x_map["u"], self.x_map["z"]
             xdot_residual = self.f.fz_smt(v, z) + self.f.gz_smt(v, z) @ u
         else:
@@ -352,23 +351,25 @@ class Cegis:
                 )
                 self.logger.log_image(tag="compensator", image=fig, step=iter)
 
+            self.logger.log_model(tag="learner", model=self.learner, step=iter)
+
             # Check termination
             if state["found"]:
                 self.tlogger.debug("found valid certificate")
                 break
 
         self.tlogger.info(f"CEGIS finished after {iter} iterations")
-        self.logger.log_model(tag="learner", model=self.learner, step=iter)
+        self.logger.log_model(tag="learner_final", model=self.learner, step=iter)
 
         infos = {"iter": iter}
         self._result = CegisResult(
-            found=state["found"], net=state["V_net"], infos=infos
+            found=state["found"], barrier=state["V_net"], compensator=state["sigma_net"],
+            infos=infos
         )
 
         return self._result
 
     def init_state(self) -> dict:
-        # todo: extend to multiplicative uncertainty too
         xsigma = self.learner.xsigma if hasattr(self.learner, "xsigma") else None
 
         state = {
@@ -402,7 +403,8 @@ class Cegis:
     def _assert_state(self):
         assert isinstance(self.f, ControlAffineDynamics), f"expected control affine dynamics, got {type(self.f)}"
         assert isinstance(self.domains, dict), f"expected dictionary of domains, got {type(self.domains)}"
-        assert all([isinstance(dom, Set) for dom in self.domains.values()]), f"expected dictionary of Set, got {self.domains}"
+        assert all(
+            [isinstance(dom, Set) for dom in self.domains.values()]), f"expected dictionary of Set, got {self.domains}"
         assert all([isinstance(v, SYMBOL) for v in self.x]), f"expected symbolic variables, got {self.x}"
 
         assert isinstance(self.certificate, Certificate), f"expected Certificate, got {type(self.certificate)}"
@@ -417,4 +419,3 @@ class Cegis:
         assert (
                 self.x is self.verifier.xs
         ), "expected same variables in fosco and verifier"
-

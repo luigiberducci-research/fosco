@@ -75,29 +75,12 @@ class LearnerCT(LearnerNN):
         output = self.learn_method(self, self.optimizers, datasets, xdot_func)
         return output
 
-    def save(self, model_path: str | pathlib.Path) -> None:
-        assert isinstance(model_path, str) or isinstance(
-            model_path, pathlib.Path
-        ), f"wrong path type {type(model_path)}"
-
-        model_path = (
-            pathlib.Path(model_path) if isinstance(model_path, str) else model_path
-        )
-        assert (model_path.is_dir() and model_path.exists()) or (
-            model_path.suffix == ".pt"
-        ), f"expected dir or filepath with suffix .pt, got {model_path} with suffix {model_path.suffix}"
-
-        if not model_path.suffix == ".pt":
-            model_path = model_path / "learner.pt"
-        else:
-            model_path.parent.mkdir(parents=True, exist_ok=True)
-
-        learner_state = self.state_dict()
-        torch.save(learner_state, model_path)
-
-        self._logger.info(f"Saved learner to {model_path}")
+    def save(self, outdir: str, model_name: str = "model") -> None:
+        net_path = self.net.save(outdir=outdir, model_name=f"{model_name}_barrier")
+        self._logger.info(f"Saved learner barrier to {net_path}")
 
     def load(self, model_path: pathlib.Path) -> None:
+        raise NotImplementedError("To be fixed to match the new save method")
         assert isinstance(model_path, str) or isinstance(
             model_path, pathlib.Path
         ), f"wrong path type {type(model_path)}"

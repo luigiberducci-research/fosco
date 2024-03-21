@@ -165,6 +165,7 @@ class BarrierPolicy(nn.Module):
         self,
         system: ControlAffineDynamics,
         barrier: TorchSymDiffModel | Callable,
+        compensator: TorchSymDiffModel | Callable = None,
         nHidden1=64,
         nHidden21=32,
         nHidden22=32,
@@ -190,6 +191,7 @@ class BarrierPolicy(nn.Module):
 
         # system specific
         self.barrier = barrier
+        self.xsigma = compensator
         self.fx = system.fx_torch
         self.gx = system.gx_torch
 
@@ -242,6 +244,12 @@ class BarrierPolicy(nn.Module):
         Lfhx = (dhdx @ fx).view(nBatch, 1)
         Lghx = (dhdx @ gx).view(nBatch, self.nCls)
         alphahx = (alphax * hx).view(nBatch, 1)
+
+        # add compensation term if available
+        if self.xsigma is not None:
+            sigmax = self.xsigma(x0).view(nBatch, 1)
+            Lfhx = Lfhx - sigmax
+
         (u,) = self._safety_layer(px, Lfhx, Lghx, alphahx)
 
         self.hx = hx

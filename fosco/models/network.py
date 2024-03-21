@@ -1,4 +1,5 @@
-from typing import Iterable
+import pathlib
+from typing import Iterable, Optional
 
 import numpy as np
 import torch
@@ -164,7 +165,7 @@ class TorchMLP(TorchSymDiffModel):
 
         return gradV, []
 
-    def save(self, outdir: str, model_name: str = "model"):
+    def save(self, outdir: str, model_name: str = "model") -> str:
         import pathlib
         import yaml
 
@@ -177,34 +178,46 @@ class TorchMLP(TorchSymDiffModel):
 
         # save params.yaml with net configuration
         params = {
-            "input_size": self.input_size,
-            "hidden_sizes": [layer.out_features for layer in self.layers[:-1]],
-            "activation": [act.name for act in self.acts[:-1]],
-            "output_size": self.layers[-1].out_features,
-            "output_activation": self.acts[-1].name,
+            "module": self.__module__,
+            "class": self.__class__.__name__,
+            "kwargs": {
+                "input_size": self.input_size,
+                "hidden_sizes": [layer.out_features for layer in self.layers[:-1]],
+                "activation": [act.name for act in self.acts[:-1]],
+                "output_size": self.layers[-1].out_features,
+                "output_activation": self.acts[-1].name,
+            }
         }
 
         param_path = model_path.parent / f"{model_name}.yaml"
         with open(param_path, "w") as f:
             yaml.dump(params, f)
 
+        return str(param_path)
+
     @staticmethod
-    def load(logdir: str, model_name: str = "model"):
+    def load(config_path: str | pathlib.Path):
         import pathlib
         import yaml
 
-        logdir = pathlib.Path(logdir)
-        assert logdir.exists(), f"directory {logdir} does not exist"
+        config_path = pathlib.Path(config_path)
+        assert config_path.exists(), f"config file {config_path} does not exist"
+        assert config_path.suffix == ".yaml", f"expected .yaml file, got {config_path.suffix}"
 
         # load params.yaml
-        params_path = logdir / f"{model_name}.yaml"
-        with open(params_path, "r") as f:
+        with open(config_path, "r") as f:
             params = yaml.load(f, Loader=yaml.FullLoader)
 
+        assert all([k in params for k in ["module", "class", "kwargs"]]), f"Missing keys in {params.keys()}"
+        assert params["module"] == "fosco.models.network", f"Expected fosco.models.network, got {params['module']}"
+        assert params["class"] == "TorchMLP", f"Expected TorchMLP, got {params['class']}"
+
         # load model.pt
-        model_path = logdir / f"{model_name}.pt"
-        model = TorchMLP(**params)
+        model_path = config_path.parent / f"{config_path.stem}.pt"
+        kwargs = params["kwargs"]
+        model = TorchMLP(**kwargs)
         model.load_state_dict(torch.load(model_path))
+
         return model
 
 
@@ -213,23 +226,39 @@ class SequentialTorchMLP(TorchSymDiffModel):
 
     def __init__(
             self,
-            mlps: list[TorchMLP],
+            mlps: list[TorchMLP | pathlib.Path],
+            register_module: list[bool] = None,
+            model_dir: Optional[str] = None,
     ):
         super(SequentialTorchMLP, self).__init__()
 
+        # load models if paths are given
+        for idx, mlp_or_path in enumerate(mlps):
+            if isinstance(mlp_or_path, pathlib.Path) or isinstance(mlp_or_path, str):
+                assert model_dir is not None, "model_dir must be given if mlp path is given"
+                config_path = pathlib.Path(model_dir) / mlp_or_path
+                mlps[idx] = TorchMLP.load(config_path=config_path)
+
+        assert all([isinstance(mlp, TorchMLP) for mlp in mlps]), f"All models must be of type TorchMLP, got {mlps}"
+
+        # check if output size of previous model matches input size of next model
         for idx, mlp in enumerate(mlps[:-1]):
             curr_output_size = mlp.output_size
             next_input_size = mlps[idx + 1].input_size
             assert (
                 curr_output_size == next_input_size
-            ), f"Output size of MLP {idx} does not match input size of MLP {idx + 1}"
+            ), f"Output size of model {idx} does not match input size of model {idx + 1}"
 
         self.mlps = mlps
+        self.register_module_bool = register_module or [True] * len(mlps)
+
         self.input_size: int = mlps[0].input_size
         self.output_size: int = mlps[-1].output_size
 
         # register models
         for idx, mlp in enumerate(self.mlps):
+            if not self.register_module_bool[idx]:
+                continue
             self.add_module(f"mlp_{idx}", mlp)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -280,7 +309,7 @@ class SequentialTorchMLP(TorchSymDiffModel):
 
         return jacobian, z_constraints
 
-    def save(self, outdir: str, model_name: str = "model"):
+    def save(self, outdir: str, model_name: str = "model") -> str:
         import pathlib
         import yaml
 
@@ -288,39 +317,49 @@ class SequentialTorchMLP(TorchSymDiffModel):
         outdir.mkdir(parents=True, exist_ok=True)
 
         # save mlp models
+        mlp_paths = []
         for idx, mlp in enumerate(self.mlps):
             submodel_name = f"{model_name}_{idx}"
             mlp.save(outdir=str(outdir), model_name=submodel_name)
+            mlp_paths.append(f"{submodel_name}.yaml")
 
         # save params.yaml with net configuration
         params = {
-            "mlps": [f"{model_name}_{idx}" for idx in range(len(self.mlps))],
+            "module": self.__module__,
+            "class": self.__class__.__name__,
+            "kwargs": {
+                "mlps": mlp_paths,
+                "register_module": self.register_module_bool,
+                "model_dir": str(outdir.absolute()),
+            }
         }
 
         param_path = outdir / f"{model_name}.yaml"
         with open(param_path, "w") as f:
             yaml.dump(params, f)
 
+        return str(param_path)
+
     @staticmethod
-    def load(logdir: str, model_name: str = "model"):
+    def load(config_path: str | pathlib.Path):
         import pathlib
         import yaml
 
-        logdir = pathlib.Path(logdir)
-        assert logdir.exists(), f"directory {logdir} does not exist"
+        config_path = pathlib.Path(config_path)
+        assert config_path.exists(), f"directory {config_path} does not exist"
+        assert config_path.suffix == ".yaml", f"expected .yaml file, got {config_path.suffix}"
 
         # load params.yaml
-        params_path = logdir / f"{model_name}.yaml"
-        with open(params_path, "r") as f:
+        with open(config_path, "r") as f:
             params = yaml.load(f, Loader=yaml.FullLoader)
 
-        # load models
-        mlps = []
-        for model_name in params["mlps"]:
-            mlp = TorchMLP.load(logdir=logdir, model_name=model_name)
-            mlps.append(mlp)
+        assert all([k in params for k in ["module", "class", "kwargs"]]), f"Missing keys in {params.keys()}"
+        assert params["module"] == "fosco.models.network", f"Expected fosco.models.network, got {params['module']}"
+        assert params["class"] == "SequentialTorchMLP", f"Expected SequentialTorchMLP, got {params['class']}"
 
-        model = SequentialTorchMLP(mlps=mlps)
+        kwargs = params["kwargs"]
+        model = SequentialTorchMLP(**kwargs)
+
         return model
 
 

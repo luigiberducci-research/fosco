@@ -1,11 +1,9 @@
 import numpy as np
 import torch
-from systems.system import ControlAffineDynamics
 
-from systems.uncertainty.uncertainty_wrapper import register
-from systems.uncertainty.uncertainty_wrapper import UncertaintyWrapper
-
-from models.torchsym import TorchSymFn
+from fosco.models import TorchSymFn
+from fosco.systems import ControlAffineDynamics
+from fosco.systems.uncertainty.uncertainty_wrapper import register, UncertaintyWrapper
 
 
 @register

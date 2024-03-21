@@ -3,7 +3,9 @@ from typing import Iterable
 import numpy as np
 import torch
 
-from fosco.verifier.verifier import SYMBOL
+from fosco.systems.uncertainty import ConvexHull
+from fosco.verifier.types import SYMBOL, DRSYMBOL
+from fosco.verifier.utils import get_solver_fns
 from fosco.models import TorchSymDiffModel, TorchSymModel
 from fosco.systems import ControlAffineDynamics, UncertainControlAffineDynamics
 
@@ -135,12 +137,11 @@ class SingleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
         - then we forward pass as
         And(sigma * z_bound, sigma ** 2 = dhdx[0] ** 2 + dhdx[1] ** 2)
         """
-        from fosco.verifier.z3_verifier import VerifierZ3
-
         self._assert_forward_smt_input(x=x)
+        fns = get_solver_fns(x=x)
 
         dhdx, dhdx_constraints = self._h.gradient_smt(x=x)
-        norm = VerifierZ3.new_vars(n=1, base="norm")[0]
+        norm = fns["RealVar"]("norm")
         norm_constraint = [
             norm * norm == dhdx[0, 0] ** 2 + dhdx[0, 1] ** 2,
             norm >= 0.0,
@@ -220,19 +221,20 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
         And(sigma * z_bound, sigma ** 2 = dhdx[0] ** 2 + dhdx[1] ** 2)
         """
         self._assert_forward_smt_input(x=x)
-        _And = FUNCTIONS["And"]
+        fns = get_solver_fns(x=x)
+        _And = fns["And"]
 
         dhdx, dhdx_constraints = self._h.gradient_smt(x=x)
-        hx = self._h(x=x) # to check if this is correct or should we use something like self._h_smt(x=x)
-        norm = VerifierZ3.new_vars(n=1, base="norm")[0]
+        hx, hx_constraints = self._h.forward_smt(x=x)
+        norm = fns["RealVar"]("norm")
         norm_constraint = [
             norm * norm == dhdx[0, 0] ** 2 + dhdx[0, 1] ** 2,
             norm >= 0.0
         ]
-        sigma = norm * self._z_bound* self._k_function(hx)
+        sigma = norm * self._z_bound* self._k_function_smt(hx)
 
         self._assert_forward_smt_output(x=sigma)
-        return sigma, dhdx_constraints + norm_constraint
+        return sigma, hx_constraints + dhdx_constraints + norm_constraint
 
     def _assert_forward_input(self, x: torch.Tensor) -> None:
         state_dim = self._system.n_vars
@@ -253,10 +255,22 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
         assert isinstance(x, SYMBOL), f"expected symbolic output, got {x}"
 
     def _k_function(self, hx: torch.Tensor) -> torch.Tensor:
-        '''
-        It is a continuous, non-increasing function κ : R≥0 → R with κ(0) = 1
-        '''
+        """
+        It is a continuous, non-increasing function
+        k: R≥0 → R with k(0) = 1
+        """
         return 2 / (1 + torch.exp(hx)) # z3 does not supports exp, try polynomial; also we can see what is the range of hx,
+
+        # k_function = 1 / (hx ^ m + 1)
+
+    def _k_function_smt(self, hx: SYMBOL) -> tuple[SYMBOL, Iterable[SYMBOL]]:
+        """
+        It is a continuous, non-increasing function
+        k: R≥0 → R with k(0) = 1
+        """
+        assert isinstance(hx, DRSYMBOL), f"expected dreals symbolic expression, got {hx}"
+        fns = get_solver_fns(x=[hx])
+        return 2 / (1 + fns["Exp"](hx))
 
         # k_function = 1 / (hx ^ m + 1)
 
@@ -297,9 +311,10 @@ class SingleIntegratorConvexHullUncertainty(TorchSymModel):
     def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL]]:
 
         self._assert_forward_smt_input(x=x)
+        fns = get_solver_fns(x=x)
 
         def min(x, y):
-            _If = FUNCTIONS["If"]
+            _If = fns["If"]
             return _If(x<=y, x, y)
 
         dhdx, dhdx_constraints = self._h.gradient_smt(x=x)
@@ -370,10 +385,12 @@ class SingleIntegratorPolytopeUncertainty(TorchSymModel):
         And(sigma * z_bound, sigma ** 2 = dhdx[0] ** 2 + dhdx[1] ** 2)
         """
         self._assert_forward_smt_input(x=x)
-        _And = FUNCTIONS["And"]
+
+        fns = get_solver_fns(x=x)
+        _And = fns["And"]
 
         dhdx, dhdx_constraints = self._h.gradient_smt(x=x)
-        norm = VerifierZ3.new_vars(n=1, base="norm")[0]
+        norm = fns["RealVar"]("norm")
         norm_constraint = [
             norm * norm == dhdx[0, 0] ** 2 + dhdx[0, 1] ** 2,
             norm >= 0.0

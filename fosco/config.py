@@ -1,11 +1,11 @@
 import pathlib
 from collections import namedtuple
 from dataclasses import dataclass, asdict
-from typing import Type, Any, Iterable
+from typing import Type, Any, Iterable, Optional
 
 CegisResult = namedtuple(
     "CegisResult",
-    ["found", "net", "infos"]
+    ["found", "barrier", "compensator", "infos"]
 )
 
 
@@ -21,7 +21,8 @@ class CegisConfig:
     RESAMPLING_STDDEV: float = 5e-3
     CEGIS_MAX_ITERS: int = 10
     ROUNDING: int = 3
-    USE_INIT_MODELS: bool = False
+    BARRIER_TO_LOAD: Optional[str | pathlib.Path] = None
+    SIGMA_TO_LOAD: Optional[str | pathlib.Path] = None
     # training
     N_DATA: int = 500
     LEARNING_RATE: float = 1e-3
@@ -36,11 +37,11 @@ class CegisConfig:
     LOSS_RELU: str = "relu"
     N_EPOCHS: int = 100
     # seeding
-    SEED: int = None
+    SEED: Optional[int] = None
     # logging
     MODEL_DIR: str = "logs/models"
-    LOGGER: str = None
-    EXP_NAME: str = None
+    LOGGER: Optional[str] = None
+    EXP_NAME: Optional[str] = None
 
     def __getitem__(self, item):
         return getattr(self, item)

@@ -45,7 +45,7 @@ def main(args):
 
     config = CegisConfig(
         CERTIFICATE="rcbf",
-        VERIFIER="dreal",
+        VERIFIER="z3",
         BARRIER_TO_LOAD=model_to_load,
         SIGMA_TO_LOAD=sigma_to_load,
         CEGIS_MAX_ITERS=1,

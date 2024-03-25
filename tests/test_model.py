@@ -32,8 +32,8 @@ class TestModel(unittest.TestCase):
 
         # symbolic
         x_sym = z3.Reals("x0 x1")
-        y_sym, y_constr = model.forward_smt(x_sym)
-        dydx_sym, dydx_constr = model.gradient_smt(x_sym)
+        y_sym, y_constr, y_vars = model.forward_smt(x_sym)
+        dydx_sym, dydx_constr, dydx_vars = model.gradient_smt(x_sym)
 
         self.assertTrue(isinstance(y_sym, z3.ArithRef))
         self.assertTrue(all([isinstance(c, z3.BoolRef) for c in y_constr]))
@@ -197,10 +197,10 @@ class TestModel(unittest.TestCase):
 
         # symbolic
         x_sym = z3.Reals("x0 x1")
-        y_sym, y_constr = model.forward_smt(x_sym)
+        y_sym, y_constr, y_vars = model.forward_smt(x_sym)
 
-        y1_sym, y1_constr = mlp1.forward_smt(x=x_sym)
-        y2_sym, y2_constr = mlp2.forward_smt(x=y1_sym)
+        y1_sym, y1_constr, y1_vars = mlp1.forward_smt(x=x_sym)
+        y2_sym, y2_constr, y2_vars = mlp2.forward_smt(x=y1_sym)
 
         self.assertTrue(
             isinstance(y2_sym, z3.ArithRef), f"expected z3.ArithRef, got {type(y2_sym)}"

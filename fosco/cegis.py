@@ -13,10 +13,11 @@ from fosco.consolidator import make_consolidator, Consolidator
 from fosco.common.consts import DomainName, CertificateType
 from fosco.learner import make_learner, LearnerNN
 from fosco.plotting.data import scatter_datasets
-from fosco.plotting.utils import (
-    plot_func_and_domains,
-    lie_derivative_fn,
-    cbf_condition_fn,
+from fosco.plotting.functions import (
+    plot_torch_function,
+    plot_torch_function_grads,
+    plot_lie_derivative,
+    plot_cbf_condition,
 )
 from fosco.translator import make_translator, Translator
 from fosco.verifier import make_verifier, Verifier
@@ -27,12 +28,12 @@ from fosco.verifier.types import SYMBOL
 
 class Cegis:
     def __init__(
-            self,
-            system: ControlAffineDynamics,
-            domains: dict[str, Set],
-            config: CegisConfig,
-            data_gen: dict[str, Callable[[int], torch.Tensor]],
-            verbose: int = 0,
+        self,
+        system: ControlAffineDynamics,
+        domains: dict[str, Set],
+        config: CegisConfig,
+        data_gen: dict[str, Callable[[int], torch.Tensor]],
+        verbose: int = 0,
     ):
         self.f = system
         self.domains = domains
@@ -88,9 +89,13 @@ class Cegis:
 
         initial_models = {}
         if self.config.BARRIER_TO_LOAD is not None:
-            initial_models["net"] = make_barrier(system=self.f, model_to_load=self.config.BARRIER_TO_LOAD)
+            initial_models["net"] = make_barrier(
+                system=self.f, model_to_load=self.config.BARRIER_TO_LOAD
+            )
         if self.config.SIGMA_TO_LOAD is not None:
-            initial_models["xsigma"] = make_compensator(system=self.f, model_to_load=self.config.SIGMA_TO_LOAD)
+            initial_models["xsigma"] = make_compensator(
+                system=self.f, model_to_load=self.config.SIGMA_TO_LOAD
+            )
 
         learner_instance = learner_type(
             state_size=self.f.n_vars,
@@ -184,7 +189,7 @@ class Cegis:
         return make_consolidator(
             resampling_n=self.config.RESAMPLING_N,
             resampling_stddev=self.config.RESAMPLING_STDDEV,
-            verbose=self.verbose
+            verbose=self.verbose,
         )
 
     def _initialise_translator(self) -> Translator:
@@ -198,12 +203,12 @@ class Cegis:
     def solve(self) -> CegisResult:
         state = self.init_state()
 
-        iter = None
+        it = None
 
         # todo pretrain supervised-learning
 
-        for iter in range(1, self.config.CEGIS_MAX_ITERS + 1):
-            self.tlogger.info(f"Iteration {iter}")
+        for it in range(1, self.config.CEGIS_MAX_ITERS + 1):
+            self.tlogger.info(f"Iteration {it}")
 
             # Log training distribution
             context = "dataset"
@@ -211,7 +216,7 @@ class Cegis:
                 self.logger.log_scalar(
                     tag=f"{name}_data",
                     value=len(dataset),
-                    step=iter,
+                    step=it,
                     context={context: name},
                 )
 
@@ -220,154 +225,103 @@ class Cegis:
             outputs, elapsed_time = self.learner.update(**state)
             for context, dict_metrics in outputs.items():
                 self.logger.log_scalar(
-                    tag=None, value=dict_metrics, step=iter, context={context: True}
+                    tag=None, value=dict_metrics, step=it, context={context: True}
                 )
-            self.logger.log_scalar(tag="time_learner", value=elapsed_time, step=iter)
+            self.logger.log_scalar(tag="time_learner", value=elapsed_time, step=it)
 
             # Translator component
             self.tlogger.debug("Translator")
             outputs, elapsed_time = self.translator.translate(**state)
             state.update(outputs)
-            self.logger.log_scalar(tag="time_translator", value=elapsed_time, step=iter)
+            self.logger.log_scalar(tag="time_translator", value=elapsed_time, step=it)
 
             # Verifier component
             self.tlogger.debug("Verifier")
             outputs, elapsed_time = self.verifier.verify(**state)
             state.update(outputs)
-            self.logger.log_scalar(tag="time_verifier", value=elapsed_time, step=iter)
+            self.logger.log_scalar(tag="time_verifier", value=elapsed_time, step=it)
 
             # Consolidator component
             self.tlogger.debug("Consolidator")
             outputs, elapsed_time = self.consolidator.get(**state)
             state.update(outputs)
             self.logger.log_scalar(
-                tag="time_consolidator", value=elapsed_time, step=iter
+                tag="time_consolidator", value=elapsed_time, step=it
             )
 
-            # Logging
-            # data distr: for each of them, scatter the counter-examples with different color than the rest of the data
-            fig = scatter_datasets(
-                datasets=self.datasets, counter_examples=state["cex"]
-            )
-            self.logger.log_image(tag="datasets", image=fig, step=iter)
+            # Debug plot - Learned functions
+            self._plot_all(state=state, iteration=it)
 
-            # logging learned functions
-            in_domain: Rectangle = self.domains[DomainName.XD.value]
-            other_domains = {
-                k: v
-                for k, v in self.domains.items()
-                if k in [DomainName.XI.value, DomainName.XU.value]
-            }
-            fig = plot_func_and_domains(
-                func=self.learner.net,
-                in_domain=in_domain,
-                levels=[0.0],
-                domains=other_domains,
-                dim_select=(0, 1),
-            )
-            self.logger.log_image(tag="barrier", image=fig, step=iter)
-
-            for dim in range(self.f.n_vars):
-                func = lambda x: self.learner.net.gradient(x)[:, dim]
-                fig = plot_func_and_domains(
-                    func=func,
-                    in_domain=in_domain,
-                    levels=[0.0],
-                    domains=other_domains,
-                    dim_select=(0, 1),
-                )
-                self.logger.log_image(
-                    tag=f"barrier_grad",
-                    image=fig,
-                    step=iter,
-                    context={"dimension": dim},
-                )
-
-            u_domain = self.domains[DomainName.UD.value]
-            assert isinstance(
-                u_domain, Rectangle
-            ), "only rectangular domains are supported for u"
-            lb, ub = np.array(u_domain.lower_bounds), np.array(u_domain.upper_bounds)
-            for u_norm in np.linspace(-1, 1, 5):
-                # denormalize u to the domain
-                u = (lb + ub) / 2.0 + u_norm * (ub - lb) / 2.0
-                ctrl = (
-                    lambda x: torch.ones((x.shape[0], self.f.n_controls))
-                              * torch.tensor(u).float()
-                )
-                if isinstance(self.f, UncertainControlAffineDynamics):
-                    f = lambda x, u: self.f._f_torch(
-                        x, u, z=None, only_nominal=True
-                    )
-                else:
-                    f = lambda x, u: self.f._f_torch(x, u)
-
-                # lie derivative
-                func = lambda x: lie_derivative_fn(
-                    certificate=self.learner.net, f=f, ctrl=ctrl
-                )(x)
-                fig = plot_func_and_domains(
-                    func=func,
-                    in_domain=in_domain,
-                    levels=[0.0],
-                    domains=other_domains,
-                    dim_select=(0, 1),
-                )
-                self.logger.log_image(
-                    tag=f"lie_derivative", image=fig, step=iter, context={"u": str(u)}
-                )
-
-                # cbf condition
-                alpha = lambda x: 1.0 * x
-                if isinstance(self.f, UncertainControlAffineDynamics):
-                    sigma = self.learner.xsigma
-                else:
-                    sigma = None
-                func = lambda x: cbf_condition_fn(
-                    certificate=self.learner.net,
-                    alpha=alpha,
-                    f=f,
-                    ctrl=ctrl,
-                    sigma=sigma,
-                )(x)
-                fig = plot_func_and_domains(
-                    func=func,
-                    in_domain=in_domain,
-                    levels=[0.0],
-                    domains=other_domains,
-                    dim_select=(0, 1),
-                )
-                self.logger.log_image(
-                    tag=f"cbf_condition", image=fig, step=iter, context={"u": str(u)}
-                )
-
-            if isinstance(self.f, UncertainControlAffineDynamics):
-                fig = plot_func_and_domains(
-                    func=self.learner.xsigma,
-                    in_domain=in_domain,
-                    levels=[0.0],
-                    domains=other_domains,
-                    dim_select=(0, 1),
-                )
-                self.logger.log_image(tag="compensator", image=fig, step=iter)
-
-            self.logger.log_model(tag="learner", model=self.learner, step=iter)
+            self.logger.log_model(tag="learner", model=self.learner, step=it)
 
             # Check termination
             if state["found"]:
                 self.tlogger.debug("found valid certificate")
                 break
 
-        self.tlogger.info(f"CEGIS finished after {iter} iterations")
-        self.logger.log_model(tag="learner_final", model=self.learner, step=iter)
+        self.tlogger.info(f"CEGIS finished after {it} iterations")
+        self.logger.log_model(tag="learner_final", model=self.learner, step=it)
 
-        infos = {"iter": iter}
+        infos = {"iter": it}
         self._result = CegisResult(
-            found=state["found"], barrier=state["V_net"], compensator=state["sigma_net"],
-            infos=infos
+            found=state["found"],
+            barrier=state["V_net"],
+            compensator=state["sigma_net"],
+            infos=infos,
         )
 
         return self._result
+
+    def _plot_all(self, state: dict, iteration: int) -> None:
+        """
+        Plot learned functions, gradients, lie derivatives, and CBF conditions.
+        """
+
+        # data distr: for each of them, scatter the counter-examples with different color than the rest of the data
+        fig = scatter_datasets(datasets=self.datasets, counter_examples=state["cex"])
+        self.logger.log_image(tag="datasets", image=fig, step=iteration)
+
+        # logging learned functions
+        fig = plot_torch_function(domains=self.domains, function=self.learner.net)
+        self.logger.log_image(tag="barrier", image=fig, step=iteration)
+
+        figs, titles = plot_torch_function_grads(
+            domains=self.domains, function=self.learner.net
+        )
+        for title, fig in zip(titles, figs):
+            self.logger.log_image(
+                tag="barrier_grad", image=fig, step=iteration, context={"dimension": title}
+            )
+
+        figs, titles = plot_lie_derivative(
+            function=self.learner.net, system=self.f, domains=self.domains
+        )
+        for title, fig in zip(titles, figs):
+            self.logger.log_image(
+                tag=f"lie_derivative", image=fig, step=iteration, context={"u": title}
+            )
+
+        if isinstance(self.f, UncertainControlAffineDynamics):
+            fig = plot_torch_function(
+                function=self.learner.xsigma,
+                domains=self.domains,
+            )
+            self.logger.log_image(tag="compensator", image=fig, step=iteration)
+
+            sigma = self.learner.xsigma
+        else:
+            sigma = None
+
+        figs, titles = plot_cbf_condition(
+            barrier=self.learner.net,
+            system=self.f,
+            domains=self.domains,
+            compensator=sigma,
+        )
+        for title, fig in zip(titles, figs):
+            self.logger.log_image(
+                tag=f"cbf_condition", image=fig, step=iteration, context={"u": title}
+            )
 
     def init_state(self) -> dict:
         xsigma = self.learner.xsigma if hasattr(self.learner, "xsigma") else None
@@ -405,21 +359,44 @@ class Cegis:
         return self._result
 
     def _assert_state(self):
-        assert isinstance(self.f, ControlAffineDynamics), f"expected control affine dynamics, got {type(self.f)}"
-        assert isinstance(self.domains, dict), f"expected dictionary of domains, got {type(self.domains)}"
+        assert isinstance(
+            self.f, ControlAffineDynamics
+        ), f"expected control affine dynamics, got {type(self.f)}"
+        assert isinstance(
+            self.domains, dict
+        ), f"expected dictionary of domains, got {type(self.domains)}"
         assert all(
-            [isinstance(dom, Set) for dom in self.domains.values()]), f"expected dictionary of Set, got {self.domains}"
-        assert all([isinstance(v, SYMBOL) for v in self.x]), f"expected symbolic variables, got {self.x}"
+            [isinstance(dom, Set) for dom in self.domains.values()]
+        ), f"expected dictionary of Set, got {self.domains}"
+        assert all(
+            [isinstance(v, SYMBOL) for v in self.x]
+        ), f"expected symbolic variables, got {self.x}"
 
-        assert isinstance(self.certificate, Certificate), f"expected Certificate, got {type(self.certificate)}"
-        assert isinstance(self.verifier, Verifier), f"expected Verifier, got {type(self.verifier)}"
-        assert isinstance(self.learner, LearnerNN), f"expected Verifier, got {type(self.learner)}"
-        assert isinstance(self.translator, Translator), f"expected Translator, got {type(self.translator)}"
-        assert isinstance(self.consolidator, Consolidator), f"expected Consolidator, got {type(self.consolidator)}"
+        assert isinstance(
+            self.certificate, Certificate
+        ), f"expected Certificate, got {type(self.certificate)}"
+        assert isinstance(
+            self.verifier, Verifier
+        ), f"expected Verifier, got {type(self.verifier)}"
+        assert isinstance(
+            self.learner, LearnerNN
+        ), f"expected Verifier, got {type(self.learner)}"
+        assert isinstance(
+            self.translator, Translator
+        ), f"expected Translator, got {type(self.translator)}"
+        assert isinstance(
+            self.consolidator, Consolidator
+        ), f"expected Consolidator, got {type(self.consolidator)}"
 
-        assert self.config.LEARNING_RATE > 0, f"expected positive learning rate, got {self.config.LEARNING_RATE}"
-        assert self.config.CEGIS_MAX_ITERS > 0, f"expected positive max iterations, got {self.config.CEGIS_MAX_ITERS}"
-        assert self.config.N_DATA >= 0, f"expected non-negative number of data samples, got {self.config.N_DATA}"
         assert (
-                self.x is self.verifier.xs
+            self.config.LEARNING_RATE > 0
+        ), f"expected positive learning rate, got {self.config.LEARNING_RATE}"
+        assert (
+            self.config.CEGIS_MAX_ITERS > 0
+        ), f"expected positive max iterations, got {self.config.CEGIS_MAX_ITERS}"
+        assert (
+            self.config.N_DATA >= 0
+        ), f"expected non-negative number of data samples, got {self.config.N_DATA}"
+        assert (
+            self.x is self.verifier.xs
         ), "expected same variables in fosco and verifier"

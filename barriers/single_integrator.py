@@ -17,6 +17,14 @@ class SingleIntegratorCBF(TorchSymDiffModel):
         self._system = system
         self._safety_dist = 1.0  # todo this should be taken from system
 
+    @property
+    def input_size(self) -> int:
+        return self._system.n_vars
+
+    @property
+    def output_size(self) -> int:
+        return 1
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         h(x) = | x - x_o |^2 - R^2
@@ -120,6 +128,14 @@ class SingleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
         self._safety_dist = 1.0  # todo this should be taken from system
         self._z_bound = 1.0  # todo this should be taken from system uncertainty
 
+    @property
+    def input_size(self) -> int:
+        return self._system.n_vars
+
+    @property
+    def output_size(self) -> int:
+        return 1
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         sigma(x) = || h.gradient(x) || * z_bound
@@ -207,6 +223,14 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
         # this accounts for ensuring robustness over entire belt
         # without this, the rcbf might result non valid
         self._epsilon = 0.1
+
+    @property
+    def input_size(self) -> int:
+        return self._system.n_vars
+
+    @property
+    def output_size(self) -> int:
+        return 1
 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -303,6 +327,14 @@ class SingleIntegratorConvexHullUncertainty(TorchSymModel):
         self._system = system
         self._h = h # CBF (we use its gradient)
 
+    @property
+    def input_size(self) -> int:
+        return self._system.n_vars
+
+    @property
+    def output_size(self) -> int:
+        return 1
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Input:
@@ -375,6 +407,14 @@ class SingleIntegratorPolytopeUncertainty(TorchSymModel):
         self._h = h # CBF (we use its gradient)
         self._safety_dist = 1.0 # todo this should be taken from system
         self._phi_x_u = torch.tensor([])
+
+    @property
+    def input_size(self) -> int:
+        return self._system.n_vars
+
+    @property
+    def output_size(self) -> int:
+        return 1
 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

@@ -8,22 +8,25 @@ from fosco.verifier.verifier import SYMBOL
 
 
 class TorchSymFn(nn.Module, ABC):
+    @property
+    @abstractmethod
+    def input_size(self) -> int:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def output_size(self) -> int:
+        raise NotImplementedError
+
     @abstractmethod
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
 
     @abstractmethod
-    def forward_smt(self, x: Iterable[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL], list[SYMBOL]]:
+    def forward_smt(
+        self, x: Iterable[SYMBOL]
+    ) -> tuple[SYMBOL, Iterable[SYMBOL], list[SYMBOL]]:
         raise NotImplementedError
-
-    # @abstractmethod
-    # def save(self, outdir: str):
-    #     raise NotImplementedError
-
-    # @staticmethod
-    # @abstractmethod
-    # def load(logdir: str):
-    #     raise NotImplementedError
 
 
 class TorchSymDiffFn(TorchSymFn, ABC):

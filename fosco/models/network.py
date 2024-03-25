@@ -70,8 +70,8 @@ class TorchMLP(TorchSymDiffModel):
             activation
         ), "hidden sizes and activation must have the same length"
 
-        self.input_size: int = input_size
-        self.output_size: int = output_size
+        self._input_size: int = input_size
+        self._output_size: int = output_size
 
         self.layers, self.acts = make_mlp(
             input_size=input_size,
@@ -92,6 +92,14 @@ class TorchMLP(TorchSymDiffModel):
         assert (
             self.output_size == self.layers[-1].out_features
         ), "output size does not match last layer size"
+
+    @property
+    def input_size(self) -> int:
+        return self._input_size
+
+    @property
+    def output_size(self) -> int:
+        return self._output_size
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         y = x
@@ -269,14 +277,22 @@ class SequentialTorchMLP(TorchSymDiffModel):
         self.mlps = mlps
         self.register_module_bool = register_module or [True] * len(mlps)
 
-        self.input_size: int = mlps[0].input_size
-        self.output_size: int = mlps[-1].output_size
+        self._input_size: int = mlps[0].input_size
+        self._output_size: int = mlps[-1].output_size
 
         # register models
         for idx, mlp in enumerate(self.mlps):
             if not self.register_module_bool[idx]:
                 continue
             self.add_module(f"mlp_{idx}", mlp)
+
+    @property
+    def input_size(self) -> int:
+        return self._input_size
+
+    @property
+    def output_size(self) -> int:
+        return self._output_size
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         y = x

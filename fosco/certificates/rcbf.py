@@ -351,7 +351,7 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
                                   + self.n_uncertain,
                ]
 
-        losses, accuracies = {}, {}
+        losses, accuracies, infos = {}, {}, {}
         for t in range(self.epochs):
             optimizers["barrier"].zero_grad()
 
@@ -429,11 +429,6 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
 
             sigma_loss.backward()
             optimizers["xsigma"].step()
-
-        logging.info(f"Epoch {t}: barrier loss={barrier_loss}, sigma loss={sigma_loss}")
-        logging.info(f"mean compensation: {sigma.mean().item()}")
-        logging.info(f"losses={losses}")
-        logging.info(f"accuracy={accuracies}")
 
         return {
             "loss": losses,

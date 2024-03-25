@@ -76,7 +76,7 @@ class LearnerRobustCT(LearnerCT):
 
     def save(self, outdir: str, model_name: str = "model") -> None:
         super().save(outdir, model_name)
-        sigma_path = self.xsigma.save(outdir, f"{model_name}_sigma")
+        sigma_path = self.xsigma.save(outdir=outdir, model_name=f"{model_name}_sigma")
         self._logger.info(f"Saved learner sigma to {sigma_path}")
 
     def load(self, model_path: str) -> None:

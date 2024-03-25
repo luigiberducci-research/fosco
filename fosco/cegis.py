@@ -5,7 +5,7 @@ from typing import Callable
 import numpy as np
 import torch
 
-from barriers import make_barrier
+from barriers import make_barrier, make_compensator
 from fosco.certificates import make_certificate, Certificate
 from fosco.common.domains import Rectangle, Set
 from fosco.config import CegisConfig, CegisResult
@@ -90,7 +90,7 @@ class Cegis:
         if self.config.BARRIER_TO_LOAD is not None:
             initial_models["net"] = make_barrier(system=self.f, model_to_load=self.config.BARRIER_TO_LOAD)
         if self.config.SIGMA_TO_LOAD is not None:
-            initial_models["xsigma"] = make_barrier(system=self.f, model_to_load=self.config.SIGMA_TO_LOAD)
+            initial_models["xsigma"] = make_compensator(system=self.f, model_to_load=self.config.SIGMA_TO_LOAD)
 
         learner_instance = learner_type(
             state_size=self.f.n_vars,

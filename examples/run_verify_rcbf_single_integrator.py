@@ -14,6 +14,7 @@ def main(args):
     system_id = "SingleIntegrator"
     uncertainty_id = "AdditiveBounded"
     model_to_load = "default" #"tunable"
+    sigma_to_load = "default"
     verbose = 1
 
     system_fn = make_system(system_id=system_id)
@@ -45,7 +46,8 @@ def main(args):
     config = CegisConfig(
         CERTIFICATE="rcbf",
         VERIFIER="dreal",
-        MODEL_TO_LOAD=model_to_load,
+        BARRIER_TO_LOAD=model_to_load,
+        SIGMA_TO_LOAD=sigma_to_load,
         CEGIS_MAX_ITERS=1,
         LOGGER="aim",
         EXP_NAME=f"RCBF_{model_to_load}",

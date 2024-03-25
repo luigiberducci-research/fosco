@@ -1,3 +1,4 @@
+import warnings
 from typing import Iterable
 
 import numpy as np
@@ -101,12 +102,12 @@ class SingleIntegratorCBF(TorchSymDiffModel):
             [isinstance(xi, SYMBOL) for xi in x[0]]
         ), f"expected symbolic grad w.r.t. input, got {x}"
 
-    def save(self, outdir: str):
-        pass
+    def save(self, *args, **kwargs):
+        warnings.warn("Saving is not supported for hand-crafted models")
 
     @staticmethod
-    def load(logdir: str):
-        pass
+    def load(*args, **kwargs):
+        warnings.warn("Loading is not supported for hand-crafted models")
 
 
 class SingleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
@@ -181,12 +182,12 @@ class SingleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
     def _assert_forward_smt_output(self, x: Iterable[SYMBOL]) -> None:
         assert isinstance(x, SYMBOL), f"expected symbolic output, got {x}"
 
-    def save(self, outdir: str):
-        pass
+    def save(self, *args, **kwargs):
+        warnings.warn("Saving is not supported for hand-crafted models")
 
     @staticmethod
-    def load(logdir: str):
-        pass
+    def load(*args, **kwargs):
+        warnings.warn("Loading is not supported for hand-crafted models")
 
 
 
@@ -274,12 +275,12 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
 
         # k_function = 1 / (hx ^ m + 1)
 
-    def save(self, outdir: str):
-        pass
+    def save(self, *args, **kwargs):
+        warnings.warn("Saving is not supported for hand-crafted models")
 
     @staticmethod
-    def load(logdir: str):
-        pass
+    def load(*args, **kwargs):
+        warnings.warn("Loading is not supported for hand-crafted models")
 
 
 class SingleIntegratorConvexHullUncertainty(TorchSymModel):
@@ -345,13 +346,12 @@ class SingleIntegratorConvexHullUncertainty(TorchSymModel):
     def _assert_forward_smt_output(self, x: Iterable[SYMBOL]) -> None:
         assert isinstance(x, SYMBOL), f"expected symbolic output, got {x}"
 
-
-    def save(self, outdir: str):
-        pass
+    def save(self, *args, **kwargs):
+        warnings.warn("Saving is not supported for hand-crafted models")
 
     @staticmethod
-    def load(logdir: str):
-        pass
+    def load(*args, **kwargs):
+        warnings.warn("Loading is not supported for hand-crafted models")
 
 
 class SingleIntegratorPolytopeUncertainty(TorchSymModel):
@@ -418,10 +418,9 @@ class SingleIntegratorPolytopeUncertainty(TorchSymModel):
     def _assert_forward_smt_output(self, x: Iterable[SYMBOL]) -> None:
         assert isinstance(x, SYMBOL), f"expected symbolic output, got {x}"
 
-
-    def save(self, outdir: str):
-        pass
+    def save(self, *args, **kwargs):
+        warnings.warn("Saving is not supported for hand-crafted models")
 
     @staticmethod
-    def load(logdir: str):
-        pass
+    def load(*args, **kwargs):
+        warnings.warn("Loading is not supported for hand-crafted models")

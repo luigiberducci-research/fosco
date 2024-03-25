@@ -27,7 +27,7 @@ def main(args):
 
     config = CegisConfig(
         CERTIFICATE="cbf",
-        MODEL_TO_LOAD="default",
+        BARRIER_TO_LOAD="default",
         CEGIS_MAX_ITERS=1,
     )
     cegis = Cegis(

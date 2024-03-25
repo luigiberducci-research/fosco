@@ -6,6 +6,7 @@ import torch
 from fosco.cegis import Cegis
 from fosco.common.consts import CertificateType
 from fosco.config import CegisConfig
+from fosco.plotting.functions import plot_torch_function
 from fosco.systems import make_system
 
 
@@ -35,12 +36,15 @@ def main(args):
         domains=sets,
         data_gen=data_gen,
         config=config,
-        verbose=verbose
+        verbose=verbose,
     )
 
     result = cegis.solve()
 
     print("result: ", result)
+
+    fig = plot_torch_function(function=result.barrier, domains=sets)
+    fig.show()
 
 
 if __name__ == "__main__":

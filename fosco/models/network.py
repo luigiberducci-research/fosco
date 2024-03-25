@@ -104,7 +104,7 @@ class TorchMLP(TorchSymDiffModel):
     def forward_smt(
         self, x: Iterable[SYMBOL]
     ) -> tuple[SYMBOL, Iterable[SYMBOL], list[SYMBOL]]:
-        input_vars = np.array(x).reshape(-1, 1)
+        input_vars = np.array(x).copy().reshape(-1, 1)
 
         z, _ = network_until_last_layer(net=self, input_vars=input_vars)
 
@@ -145,7 +145,7 @@ class TorchMLP(TorchSymDiffModel):
     def gradient_smt(
         self, x: Iterable[SYMBOL]
     ) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL], list[SYMBOL]]:
-        input_vars = np.array(x).reshape(-1, 1)
+        input_vars = np.array(x).copy().reshape(-1, 1)
 
         z, jacobian = network_until_last_layer(net=self, input_vars=input_vars)
 
@@ -287,7 +287,7 @@ class SequentialTorchMLP(TorchSymDiffModel):
     def forward_smt(
         self, x: Iterable[SYMBOL]
     ) -> tuple[SYMBOL, Iterable[SYMBOL], list[SYMBOL]]:
-        input_vars = np.array(x).reshape(-1, 1)
+        input_vars = np.array(x).copy().reshape(-1, 1)
 
         z = input_vars
         z_constraints = []
@@ -321,7 +321,7 @@ class SequentialTorchMLP(TorchSymDiffModel):
     def gradient_smt(
         self, x: Iterable[SYMBOL]
     ) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL], list[SYMBOL]]:
-        input_vars = np.array(x).reshape(-1, 1)
+        input_vars = np.array(x).copy().reshape(-1, 1)
 
         z = input_vars
         jacobian = np.eye(self.input_size, self.input_size)

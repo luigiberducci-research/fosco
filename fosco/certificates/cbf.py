@@ -77,7 +77,18 @@ class ControlBarrierFunction(Certificate):
         ), f"CBF only works with rectangular input domains, got {self.u_set}"
 
     def get_constraints(
-            self, verifier, B, B_constr, sigma, sigma_constr, Bdot, Bdot_constr, *args
+            self,
+            verifier,
+            B,
+            B_constr,
+            B_vars,
+            sigma,
+            sigma_constr,
+            sigma_vars,
+            Bdot,
+            Bdot_constr,
+            Bdot_vars,
+            *args
     ) -> Generator:
         """
         :param verifier: verifier object
@@ -87,15 +98,22 @@ class ControlBarrierFunction(Certificate):
         :return: tuple of dictionaries of Barrier conditons
         """
         # todo extend signature with **kwargs
+        assert isinstance(B_vars, list) and all([isinstance(v, SYMBOL) for v in B_vars]), f"Expected list of SYMBOL, got {B_vars}"
+        assert isinstance(Bdot_vars, list) and all(
+            [isinstance(v, SYMBOL) for v in Bdot_vars]), f"Expected list of SYMBOL, got {Bdot_vars}"
 
         # Bx >= 0 if x \in initial
         # counterexample: B < 0 and x \in initial
+        initial_vars = self.x_vars
+        initial_aux_vars = [v for v in B_vars if v not in initial_vars]
         initial_constr = self._init_constraint_smt(
             verifier=verifier, B=B, B_constr=B_constr
         )
 
         # Bx < 0 if x \in unsafe
         # counterexample: B >= 0 and x \in unsafe
+        unsafe_vars = self.x_vars
+        unsafe_aux_vars = [v for v in B_vars if v not in unsafe_vars]
         unsafe_constr = self._unsafe_constraint_smt(
             verifier=verifier, B=B, B_constr=B_constr
         )
@@ -104,6 +122,8 @@ class ControlBarrierFunction(Certificate):
         # exists u Bdot + alpha * Bx >= 0 if x \in domain
         # counterexample: x \in domain s.t. forall u Bdot + alpha * Bx < 0
         alpha = lambda x: x  # todo make it part of the cbf and pass it in input
+        feasible_vars = self.x_vars + self.u_vars
+        feasible_aux_vars = [v for v in B_vars + Bdot_vars if v not in feasible_vars]
         feasible_constr = self._feasibility_constraint_smt(
             verifier=verifier,
             B=B,
@@ -118,8 +138,9 @@ class ControlBarrierFunction(Certificate):
         logging.debug(f"lie_constr: {feasible_constr}")
 
         for cs in (
-                {XI: (initial_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
-                {XD: (feasible_constr, self.x_vars + self.u_vars)},
+                {XI: (initial_constr, initial_vars, initial_aux_vars),
+                 XU: (unsafe_constr, unsafe_vars, unsafe_aux_vars)},
+                {XD: (feasible_constr, feasible_vars, feasible_aux_vars)},
         ):
             yield cs
 

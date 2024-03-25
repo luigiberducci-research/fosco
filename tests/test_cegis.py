@@ -193,7 +193,7 @@ class TestCEGIS(unittest.TestCase):
                 verbose=0,
             )
             results = cegis.solve()
-            model = results.net
+            model = results.barrier
             params = list(model.parameters())
 
             for run_id in range(3):
@@ -210,7 +210,7 @@ class TestCEGIS(unittest.TestCase):
                     verbose=0,
                 )
                 results = cegis.solve()
-                model = results.net
+                model = results.barrier
                 new_params = list(model.parameters())
 
                 # check that the parameters are the same

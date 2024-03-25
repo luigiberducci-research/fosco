@@ -13,11 +13,11 @@ from fosco.models.torchsym import TorchSymDiffModel
 
 
 def make_mlp(
-        input_size: int,
-        hidden_sizes: tuple[int, ...],
-        hidden_activation: tuple[str | ActivationType, ...],
-        output_size: int,
-        output_activation: str | ActivationType,
+    input_size: int,
+    hidden_sizes: tuple[int, ...],
+    hidden_activation: tuple[str | ActivationType, ...],
+    output_size: int,
+    output_activation: str | ActivationType,
 ):
     """
     Make a multi-layer perceptron model.
@@ -50,7 +50,7 @@ def make_mlp(
 
     assert len(layers) == len(acts), "layers and activations must have the same length"
     assert (
-            output_size == layers[-1].out_features
+        output_size == layers[-1].out_features
     ), "output size does not match last layer size"
 
     return layers, acts
@@ -58,12 +58,12 @@ def make_mlp(
 
 class TorchMLP(TorchSymDiffModel):
     def __init__(
-            self,
-            input_size: int,
-            hidden_sizes: tuple[int, ...],
-            activation: tuple[str | ActivationType, ...],
-            output_size: int = 1,
-            output_activation: str | ActivationType = "linear",
+        self,
+        input_size: int,
+        hidden_sizes: tuple[int, ...],
+        activation: tuple[str | ActivationType, ...],
+        output_size: int = 1,
+        output_activation: str | ActivationType = "linear",
     ):
         super(TorchMLP, self).__init__()
         assert len(hidden_sizes) == len(
@@ -90,7 +90,7 @@ class TorchMLP(TorchSymDiffModel):
             self.acts
         ), "layers and activations must have the same length"
         assert (
-                self.output_size == self.layers[-1].out_features
+            self.output_size == self.layers[-1].out_features
         ), "output size does not match last layer size"
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -101,7 +101,9 @@ class TorchMLP(TorchSymDiffModel):
 
         return y
 
-    def forward_smt(self, x: Iterable[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL]]:
+    def forward_smt(
+        self, x: Iterable[SYMBOL]
+    ) -> tuple[SYMBOL, Iterable[SYMBOL], list[SYMBOL]]:
         input_vars = np.array(x).reshape(-1, 1)
 
         z, _ = network_until_last_layer(net=self, input_vars=input_vars)
@@ -111,7 +113,10 @@ class TorchMLP(TorchSymDiffModel):
         if self.layers[-1].bias is not None:
             z += self.layers[-1].bias.data.numpy()[:, None]
 
-        assert z.shape == (self.output_size, 1), f"Wrong shape of z, expected ({self.output_size}, 1), got {z.shape}"
+        assert z.shape == (
+            self.output_size,
+            1,
+        ), f"Wrong shape of z, expected ({self.output_size}, 1), got {z.shape}"
 
         # last activation
         z = activation_sym(self.acts[-1], z)
@@ -122,7 +127,8 @@ class TorchMLP(TorchSymDiffModel):
             if z.shape == ():
                 z = z.item()
 
-        return z, []
+        var_list = list(set([iv for iv in input_vars.flatten()]))
+        return z, [], var_list
 
     def gradient(self, x: torch.Tensor) -> torch.Tensor:
         x_clone = torch.clone(x).requires_grad_()
@@ -137,8 +143,8 @@ class TorchMLP(TorchSymDiffModel):
         return dydx
 
     def gradient_smt(
-            self, x: Iterable[SYMBOL]
-    ) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL]]:
+        self, x: Iterable[SYMBOL]
+    ) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL], list[SYMBOL]]:
         input_vars = np.array(x).reshape(-1, 1)
 
         z, jacobian = network_until_last_layer(net=self, input_vars=input_vars)
@@ -163,7 +169,8 @@ class TorchMLP(TorchSymDiffModel):
             self.input_size,
         ), f"Wrong shape of gradV, expected (1, {self.input_size}), got {gradV.shape}"
 
-        return gradV, []
+        var_list = list(set([iv for iv in input_vars.flatten()]))
+        return gradV, [], var_list
 
     def save(self, outdir: str, model_name: str = "model") -> str:
         import pathlib
@@ -186,7 +193,7 @@ class TorchMLP(TorchSymDiffModel):
                 "activation": [act.name for act in self.acts[:-1]],
                 "output_size": self.layers[-1].out_features,
                 "output_activation": self.acts[-1].name,
-            }
+            },
         }
 
         param_path = model_path.parent / f"{model_name}.yaml"
@@ -202,15 +209,23 @@ class TorchMLP(TorchSymDiffModel):
 
         config_path = pathlib.Path(config_path)
         assert config_path.exists(), f"config file {config_path} does not exist"
-        assert config_path.suffix == ".yaml", f"expected .yaml file, got {config_path.suffix}"
+        assert (
+            config_path.suffix == ".yaml"
+        ), f"expected .yaml file, got {config_path.suffix}"
 
         # load params.yaml
         with open(config_path, "r") as f:
             params = yaml.load(f, Loader=yaml.FullLoader)
 
-        assert all([k in params for k in ["module", "class", "kwargs"]]), f"Missing keys in {params.keys()}"
-        assert params["module"] == "fosco.models.network", f"Expected fosco.models.network, got {params['module']}"
-        assert params["class"] == "TorchMLP", f"Expected TorchMLP, got {params['class']}"
+        assert all(
+            [k in params for k in ["module", "class", "kwargs"]]
+        ), f"Missing keys in {params.keys()}"
+        assert (
+            params["module"] == "fosco.models.network"
+        ), f"Expected fosco.models.network, got {params['module']}"
+        assert (
+            params["class"] == "TorchMLP"
+        ), f"Expected TorchMLP, got {params['class']}"
 
         # load model.pt
         model_path = config_path.parent / f"{config_path.stem}.pt"
@@ -222,24 +237,26 @@ class TorchMLP(TorchSymDiffModel):
 
 
 class SequentialTorchMLP(TorchSymDiffModel):
-
-
     def __init__(
-            self,
-            mlps: list[TorchMLP | pathlib.Path],
-            register_module: list[bool] = None,
-            model_dir: Optional[str] = None,
+        self,
+        mlps: list[TorchMLP | pathlib.Path],
+        register_module: list[bool] = None,
+        model_dir: Optional[str] = None,
     ):
         super(SequentialTorchMLP, self).__init__()
 
         # load models if paths are given
         for idx, mlp_or_path in enumerate(mlps):
             if isinstance(mlp_or_path, pathlib.Path) or isinstance(mlp_or_path, str):
-                assert model_dir is not None, "model_dir must be given if mlp path is given"
+                assert (
+                    model_dir is not None
+                ), "model_dir must be given if mlp path is given"
                 config_path = pathlib.Path(model_dir) / mlp_or_path
                 mlps[idx] = TorchMLP.load(config_path=config_path)
 
-        assert all([isinstance(mlp, TorchMLP) for mlp in mlps]), f"All models must be of type TorchMLP, got {mlps}"
+        assert all(
+            [isinstance(mlp, TorchMLP) for mlp in mlps]
+        ), f"All models must be of type TorchMLP, got {mlps}"
 
         # check if output size of previous model matches input size of next model
         for idx, mlp in enumerate(mlps[:-1]):
@@ -267,13 +284,17 @@ class SequentialTorchMLP(TorchSymDiffModel):
             y = mlp(y)
         return y
 
-    def forward_smt(self, x: Iterable[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL]]:
+    def forward_smt(
+        self, x: Iterable[SYMBOL]
+    ) -> tuple[SYMBOL, Iterable[SYMBOL], list[SYMBOL]]:
         input_vars = np.array(x).reshape(-1, 1)
 
         z = input_vars
         z_constraints = []
+        # note: we assume the input vars are the one given to the first mlp
+        # other mlps do not introduce auxiliary variables
         for mlp in self.mlps:
-            z, new_constr = mlp.forward_smt(z)
+            z, new_constr, _ = mlp.forward_smt(z)
             z_constraints.extend(new_constr)
 
         # if z is 1d, squeeze it and return symbolic expression
@@ -282,7 +303,8 @@ class SequentialTorchMLP(TorchSymDiffModel):
             if z.shape == ():
                 z = z.item()
 
-        return z, z_constraints
+        var_list = list(set([iv for iv in input_vars.flatten()]))
+        return z, z_constraints, var_list
 
     def gradient(self, x: torch.Tensor) -> torch.Tensor:
         x_clone = torch.clone(x).requires_grad_()
@@ -296,7 +318,9 @@ class SequentialTorchMLP(TorchSymDiffModel):
         )[0]
         return dydx
 
-    def gradient_smt(self, x: Iterable[SYMBOL]) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL]]:
+    def gradient_smt(
+        self, x: Iterable[SYMBOL]
+    ) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL], list[SYMBOL]]:
         input_vars = np.array(x).reshape(-1, 1)
 
         z = input_vars
@@ -307,7 +331,8 @@ class SequentialTorchMLP(TorchSymDiffModel):
             z_constraints.extend(new_jacobian)
             jacobian = new_jacobian @ jacobian
 
-        return jacobian, z_constraints
+        var_list = list(set([iv for iv in input_vars.flatten()]))
+        return jacobian, z_constraints, var_list
 
     def save(self, outdir: str, model_name: str = "model") -> str:
         import pathlib
@@ -331,7 +356,7 @@ class SequentialTorchMLP(TorchSymDiffModel):
                 "mlps": mlp_paths,
                 "register_module": self.register_module_bool,
                 "model_dir": str(outdir.absolute()),
-            }
+            },
         }
 
         param_path = outdir / f"{model_name}.yaml"
@@ -347,15 +372,23 @@ class SequentialTorchMLP(TorchSymDiffModel):
 
         config_path = pathlib.Path(config_path)
         assert config_path.exists(), f"directory {config_path} does not exist"
-        assert config_path.suffix == ".yaml", f"expected .yaml file, got {config_path.suffix}"
+        assert (
+            config_path.suffix == ".yaml"
+        ), f"expected .yaml file, got {config_path.suffix}"
 
         # load params.yaml
         with open(config_path, "r") as f:
             params = yaml.load(f, Loader=yaml.FullLoader)
 
-        assert all([k in params for k in ["module", "class", "kwargs"]]), f"Missing keys in {params.keys()}"
-        assert params["module"] == "fosco.models.network", f"Expected fosco.models.network, got {params['module']}"
-        assert params["class"] == "SequentialTorchMLP", f"Expected SequentialTorchMLP, got {params['class']}"
+        assert all(
+            [k in params for k in ["module", "class", "kwargs"]]
+        ), f"Missing keys in {params.keys()}"
+        assert (
+            params["module"] == "fosco.models.network"
+        ), f"Expected fosco.models.network, got {params['module']}"
+        assert (
+            params["class"] == "SequentialTorchMLP"
+        ), f"Expected SequentialTorchMLP, got {params['class']}"
 
         kwargs = params["kwargs"]
         model = SequentialTorchMLP(**kwargs)
@@ -364,7 +397,7 @@ class SequentialTorchMLP(TorchSymDiffModel):
 
 
 def network_until_last_layer(
-        net: TorchMLP, input_vars: Iterable[SYMBOL]
+    net: TorchMLP, input_vars: Iterable[SYMBOL]
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Utility for symbolic forward pass excluding the last layer.

@@ -47,16 +47,24 @@ class TestBarriers(unittest.TestCase):
 
         # test symbolic translation
         sx = VerifierZ3.new_vars(system.n_vars, base="x")
-        hx, constr = cbf.forward_smt(x=sx)
+        hx, constr, hx_vars = cbf.forward_smt(x=sx)
         assert isinstance(hx, Z3SYMBOL), f"expected z3.ArithRef, got {type(hx)}"
 
-        dhdx, constr = cbf.gradient_smt(x=sx)
+        dhdx, constr, dhdx_vars = cbf.gradient_smt(x=sx)
         self.assertTrue(
             isinstance(dhdx, np.ndarray), f"expected np array, got {type(dhdx)}"
         )
         self.assertTrue(
             all(isinstance(dhdxi, Z3SYMBOL) for dhdxi in dhdx[0]),
             f"expected list of z3.ArithRef, got {type(dhdx[0])}",
+        )
+        self.assertTrue(
+            all(isinstance(v, Z3SYMBOL) for v in dhdx_vars),
+            f"expected list of z3.ArithRef, got {dhdx_vars}",
+        )
+        self.assertTrue(
+            len(set(dhdx_vars)) == len(dhdx_vars),
+            msg=f"expected unique variables in sig_vars, got duplicates {dhdx_vars}",
         )
 
     def test_single_integrator_sigma_torch(self):
@@ -101,9 +109,17 @@ class TestBarriers(unittest.TestCase):
 
         # test symbolic translation
         sx = VerifierZ3.new_vars(system.n_vars, base="x")
-        sig, constr = sigma.forward_smt(x=sx)
+        sig, constr, sig_vars = sigma.forward_smt(x=sx)
         self.assertTrue(
             isinstance(sig, Z3SYMBOL), f"expected list of z3.ArithRef, got {type(sig)}"
+        )
+        self.assertTrue(
+            all(isinstance(v, Z3SYMBOL) for v in sig_vars),
+            f"expected list of z3.ArithRef, got {sig_vars}",
+        )
+        self.assertTrue(
+            len(set(sig_vars)) == len(sig_vars),
+            msg=f"expected unique variables in sig_vars, got duplicates {sig_vars}",
         )
         self.assertTrue(
             not hasattr(sigma, "gradient"),

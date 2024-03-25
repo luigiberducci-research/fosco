@@ -43,9 +43,10 @@ class MLPTranslator(Translator):
         x_vars = x_v_map["v"]
         xdot = np.array(xdot).reshape(-1, 1)
 
-        V_symbolic, V_symbolic_constr = V_net.forward_smt(x=x_vars)
-        Vgrad_symbolic, Vdot_symbolic_constr = V_net.gradient_smt(x=x_vars)
+        V_symbolic, V_symbolic_constr, V_symbolic_vars = V_net.forward_smt(x=x_vars)
+        Vgrad_symbolic, Vdot_symbolic_constr, Vgrad_symbolic_vars = V_net.gradient_smt(x=x_vars)
         Vdot_symbolic = (Vgrad_symbolic @ xdot)[0, 0]
+        Vdot_symbolic_vars = Vgrad_symbolic_vars
 
         assert isinstance(
             V_symbolic, SYMBOL
@@ -56,7 +57,9 @@ class MLPTranslator(Translator):
 
         return {
             "V_symbolic": V_symbolic,
-            "Vdot_symbolic": Vdot_symbolic,
             "V_symbolic_constr": V_symbolic_constr,
+            "V_symbolic_vars": V_symbolic_vars,
+            "Vdot_symbolic": Vdot_symbolic,
             "Vdot_symbolic_constr": Vdot_symbolic_constr,
+            "Vdot_symbolic_vars": Vdot_symbolic_vars,
         }

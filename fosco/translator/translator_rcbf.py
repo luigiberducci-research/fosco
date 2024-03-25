@@ -49,12 +49,13 @@ class RobustMLPTranslator(MLPTranslator):
         xdot_residual = np.array(xdot_residual).reshape(-1, 1)
 
         # robust cbf: compensation term
-        sigma_symbolic, sigma_symbolic_constr = sigma_net.forward_smt(x=x_vars)
+        sigma_symbolic, sigma_symbolic_constr, sigma_symbolic_vars = sigma_net.forward_smt(x=x_vars)
 
         # lie derivative under uncertain dynamics
-        Vgrad_symbolic, Vgrad_symbolic_constr = V_net.gradient_smt(x=x_vars)
+        Vgrad_symbolic, Vgrad_symbolic_constr, Vgrad_symbolic_vars = V_net.gradient_smt(x=x_vars)
         Vdot_residual_symbolic = (Vgrad_symbolic @ xdot_residual)[0, 0]
         Vdot_residual_symbolic_constr = Vgrad_symbolic_constr
+        Vdot_residual_symbolic_vars = Vgrad_symbolic_vars
 
         assert isinstance(
             sigma_symbolic, SYMBOL
@@ -67,8 +68,10 @@ class RobustMLPTranslator(MLPTranslator):
             {
                 "sigma_symbolic": sigma_symbolic,
                 "sigma_symbolic_constr": sigma_symbolic_constr,
+                "sigma_symbolic_vars": sigma_symbolic_vars,
                 "Vdot_residual_symbolic": Vdot_residual_symbolic,
                 "Vdot_residual_symbolic_constr": Vdot_residual_symbolic_constr,
+                "Vdot_residual_symbolic_vars": Vdot_residual_symbolic_vars,
             }
         )
 

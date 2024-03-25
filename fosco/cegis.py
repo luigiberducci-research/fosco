@@ -383,12 +383,16 @@ class Cegis:
             "x_v_map": self.x_map,  # dictionary of symbolic variables
             "V_symbolic": None,  # symbolic expression of cbf
             "V_symbolic_constr": None,  # extra constraints to use with V_symbolic (eg., extra vars)
+            "V_symbolic_vars": None,  # symbolic variables to use with V_symbolic_constr
             "sigma_symbolic": None,  # symbolic expression of compensator sigma
             "sigma_symbolic_constr": None,  # extra constraints to use with sigma_symbolic (eg., extra vars)
+            "sigma_symbolic_vars": None,  # symbolic variables to use with sigma_symbolic_constr
             "Vdot_symbolic": None,  # symbolic expression of lie derivative w.r.t. nominal dynamics
             "Vdot_symbolic_constr": None,  # extra constraints to use with Vdot_symbolic (eg., extra vars)
+            "Vdot_symbolic_vars": None,  # symbolic variables to use with Vdot_symbolic_constr
             "Vdot_residual_symbolic": None,  # symbolic expression of lie derivative residual (Vdotz - Vdot)
             "Vdot_residual_symbolic_constr": None,  # extra constraints to use with Vdot_residual_symbolic
+            "Vdot_residual_symbolic_vars": None,  # symbolic variables to use with Vdot_residual_symbolic_constr
             "xdot": self.xdot,  # symbolic expression of nominal dynamics
             "xdot_residual": self.xdot_residual,  # symbolic expression of dynamics residual (xdotz - xdot)
             "cex": None,  # counterexamples

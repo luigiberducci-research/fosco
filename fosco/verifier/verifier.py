@@ -113,12 +113,16 @@ class Verifier(ABC):
         self,
         V_symbolic: SYMBOL,
         V_symbolic_constr: Iterable[SYMBOL],
+        V_symbolic_vars: list[SYMBOL],
         sigma_symbolic: SYMBOL | None,
         sigma_symbolic_constr: Iterable[SYMBOL],
+        sigma_symbolic_vars: list[SYMBOL],
         Vdot_symbolic: SYMBOL,
         Vdot_symbolic_constr: Iterable[SYMBOL],
+        Vdot_symbolic_vars: list[SYMBOL],
         Vdot_residual_symbolic: SYMBOL | None,
         Vdot_residual_symbolic_constr: Iterable[SYMBOL],
+        Vdot_residual_symbolic_vars: list[SYMBOL],
         **kwargs,
     ):
         """
@@ -136,26 +140,32 @@ class Verifier(ABC):
             self,
             V_symbolic,
             V_symbolic_constr,
+            V_symbolic_vars,
             sigma_symbolic,
             sigma_symbolic_constr,
+            sigma_symbolic_vars,
             Vdot_symbolic,
             Vdot_symbolic_constr,
+            Vdot_symbolic_vars,
             Vdot_residual_symbolic,
             Vdot_residual_symbolic_constr,
+            Vdot_residual_symbolic_vars,
         )
         results = {}
         solvers = {}
         solver_vars = {}
+        solver_aux_vars = {}
 
         for group in fmls:
             for label, condition_vars in group.items():
                 if isinstance(condition_vars, tuple):
                     # CBF returns different variables depending on constraint
-                    condition, vars = condition_vars
+                    condition, vars, aux_vars = condition_vars
                 else:
                     # Other barriers always use only state variables
                     condition = condition_vars
                     vars = self.xs
+                    assert False, "This should not happen"
 
                 s = self.new_solver()
                 #self._logger.debug(
@@ -165,6 +175,7 @@ class Verifier(ABC):
                 results[label] = res
                 solvers[label] = s
                 solver_vars[label] = vars
+                solver_aux_vars[label] = aux_vars
                 # if sat, found counterexample; if unsat, C is lyap
                 if timedout:
                     self._logger.info(label + "timed out")
@@ -183,8 +194,12 @@ class Verifier(ABC):
                     original_point = self.compute_model(
                         vars=solver_vars[label], solver=solvers[label], res=res
                     )
+                    aux_point = self.compute_model(
+                        vars=solver_aux_vars[label], solver=solvers[label], res=res
+                    )
                     self._logger.info(
-                        f"{label}: Counterexample Found: {solver_vars[label]} = {original_point}"
+                        f"{label}: Counterexample Found: {solver_vars[label]} = {original_point[0]}, "
+                        f"{solver_aux_vars[label]} = {aux_point[0]}"
                     )
 
                     # debug
@@ -201,7 +216,8 @@ class Verifier(ABC):
                             fraction = replaced.as_fraction()
                             value = float(fraction.numerator / fraction.denominator)
                         else:
-                            value = None
+                            self._logger.debug(f"Cannot extract value from {replaced} of type {type(replaced)}")
+                            value = str(replaced)
                         self._logger.info(f"[cex] {sym_name}: {value}")
 
                     ces[label] = original_point

@@ -13,8 +13,8 @@ from fosco.systems.uncertainty import add_uncertainty
 def main(args):
     system_id = "SingleIntegrator"
     uncertainty_id = "AdditiveBounded"
-    model_to_load = "default" #"tunable"
-    sigma_to_load = "default"
+    model_to_load = "default"
+    sigma_to_load = "tunable" #"default"
     verbose = 1
 
     system_fn = make_system(system_id=system_id)

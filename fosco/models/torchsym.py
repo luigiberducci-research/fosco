@@ -13,7 +13,7 @@ class TorchSymFn(nn.Module, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def forward_smt(self, x: Iterable[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL]]:
+    def forward_smt(self, x: Iterable[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL], list[SYMBOL]]:
         raise NotImplementedError
 
     # @abstractmethod
@@ -34,7 +34,7 @@ class TorchSymDiffFn(TorchSymFn, ABC):
     @abstractmethod
     def gradient_smt(
         self, x: Iterable[SYMBOL]
-    ) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL]]:
+    ) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL], list[SYMBOL]]:
         raise NotImplementedError
 
 

@@ -81,12 +81,16 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
             verifier,
             B,
             B_constr,
+            B_vars,
             sigma,
             sigma_constr,
+            sigma_vars,
             Bdot,
             Bdot_constr,
+            Bdot_vars,
             Bdot_residual,
             Bdot_residual_constr,
+            Bdot_residual_vars,
     ) -> Generator:
         """
         Returns the constraints for the CBF problem.
@@ -97,10 +101,16 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
         Returns:
             generator: yields constraints for each domain
         """
+        assert isinstance(B_vars, list) and all([isinstance(v, SYMBOL) for v in B_vars]), f"Expected list of SYMBOL, got {B_vars}"
+        assert isinstance(sigma_vars, list) and all([isinstance(v, SYMBOL) for v in sigma_vars]), f"Expected list of SYMBOL, got {sigma_vars}"
+        assert isinstance(Bdot_vars, list) and all([isinstance(v, SYMBOL) for v in Bdot_vars]), f"Expected list of SYMBOL, got {Bdot_vars}"
+        assert isinstance(Bdot_residual_vars, list) and all([isinstance(v, SYMBOL) for v in Bdot_residual_vars]), f"Expected list of SYMBOL, got {Bdot_residual_vars}"
 
         # initial condition
         # Bx >= 0 if x \in initial
         # counterexample: B < 0 and x \in initial
+        initial_vars = self.x_vars
+        initial_aux_vars = [v for v in B_vars if v not in initial_vars]
         initial_constr = self._init_constraint_smt(
             verifier=verifier, B=B, B_constr=B_constr
         )
@@ -108,6 +118,8 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
         # unsafe condition
         # Bx < 0 if x \in unsafe
         # counterexample: B >= 0 and x \in unsafe
+        unsafe_vars = self.x_vars
+        unsafe_aux_vars = [v for v in B_vars if v not in unsafe_vars]
         unsafe_constr = self._unsafe_constraint_smt(
             verifier=verifier, B=B, B_constr=B_constr
         )
@@ -119,6 +131,8 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
         # note: smart trick for tractable verification using vertices of input convex-hull
         # counterexample: x \in domain and AND_v (u=v and Bdot + alpha * Bx < 0)
         alpha = lambda x: x
+        feasible_vars = self.x_vars + self.u_vars
+        feasible_aux_vars = [v for v in B_vars + sigma_vars + Bdot_vars if v not in feasible_vars]
         feasibility_constr = self._feasibility_constraint_smt(
             verifier=verifier,
             B=B,
@@ -131,6 +145,8 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
         )
 
         # robustness constraint
+        robust_vars = self.x_vars + self.u_vars + self.z_vars
+        robust_aux_vars = [v for v in B_vars + sigma_vars + Bdot_vars + Bdot_residual_vars if v not in robust_vars]
         robust_constr = self._robust_constraint_smt(
             verifier=verifier,
             B=B,
@@ -151,11 +167,12 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
 
         for cs in (
                 # first check initial and unsafe conditions
-                {XI: (initial_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
+                {XI: (initial_constr, initial_vars, initial_aux_vars),
+                 XU: (unsafe_constr, unsafe_vars, unsafe_aux_vars)},
                 # then check robustness to uncertainty
-                {ZD: (robust_constr, self.x_vars + self.u_vars + self.z_vars)},
+                {ZD: (robust_constr, robust_vars, robust_aux_vars)},
                 # finally check feasibility
-                {XD: (feasibility_constr, self.x_vars + self.u_vars + self.z_vars)},
+                {XD: (feasibility_constr, feasible_vars, feasible_aux_vars)},
         ):
             yield cs
 
@@ -216,7 +233,7 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
         _And = verifier.solver_fncts()["And"]
 
         # precondition: we are in the belt of the barrier
-        belt_constr = _And(B >= 0, B < 0.5)
+        belt_constr = _And(B >= 0, B < 0.01)
         for c in B_constr:
             belt_constr = _And(belt_constr, c)
 

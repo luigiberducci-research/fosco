@@ -26,11 +26,11 @@ class SingleIntegratorCBF(TorchSymDiffModel):
         self._assert_forward_output(x=hx)
         return hx
 
-    def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL]]:
+    def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL], Iterable[SYMBOL]]:
         self._assert_forward_smt_input(x=x)
         hx = x[0] ** 2 + x[1] ** 2 - self._safety_dist ** 2
         self._assert_forward_smt_output(x=hx)
-        return hx, []
+        return hx, [], x
 
     def gradient(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -44,11 +44,11 @@ class SingleIntegratorCBF(TorchSymDiffModel):
 
     def gradient_smt(
         self, x: Iterable[SYMBOL]
-    ) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL]]:
+    ) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL], Iterable[SYMBOL]]:
         self._assert_forward_smt_input(x=x)
         hx = np.array([[2 * x[0], 2 * x[1]]])
         self._assert_gradient_smt_output(x=hx)
-        return hx, []
+        return hx, [], x
 
     def _assert_forward_input(self, x: torch.Tensor) -> None:
         state_dim = self._system.n_vars
@@ -128,7 +128,7 @@ class SingleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
         self._assert_forward_output(x=sigma)
         return sigma
 
-    def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL]]:
+    def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL], Iterable[SYMBOL]]:
         """
         Problem: z3 is not able to cope with sqrt.
 
@@ -141,8 +141,10 @@ class SingleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
         self._assert_forward_smt_input(x=x)
         fns = get_solver_fns(x=x)
 
-        dhdx, dhdx_constraints = self._h.gradient_smt(x=x)
+        dhdx, dhdx_constraints, symbolic_vars = self._h.gradient_smt(x=x)
         norm = fns["RealVar"]("norm")
+        symbolic_vars.append(norm)
+
         norm_constraint = [
             norm * norm == dhdx[0, 0] ** 2 + dhdx[0, 1] ** 2,
             norm >= 0.0,
@@ -150,7 +152,7 @@ class SingleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
         sigma = norm * self._z_bound
 
         self._assert_forward_smt_output(x=sigma)
-        return sigma, dhdx_constraints + norm_constraint
+        return sigma, dhdx_constraints + norm_constraint, symbolic_vars
 
     def _assert_forward_input(self, x: torch.Tensor) -> None:
         state_dim = self._system.n_vars
@@ -211,7 +213,7 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
         self._assert_forward_output(x=sigma)
         return sigma
 
-    def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL]]:
+    def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL], Iterable[SYMBOL]]:
         """
         Problem: z3 is not able to cope with sqrt.
 
@@ -225,9 +227,11 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
         fns = get_solver_fns(x=x)
         _And = fns["And"]
 
-        dhdx, dhdx_constraints = self._h.gradient_smt(x=x)
-        hx, hx_constraints = self._h.forward_smt(x=x)
+        dhdx, dhdx_constraints, dhdx_symbolic_vars = self._h.gradient_smt(x=x)
+        hx, hx_constraints, hx_symbolic_vars = self._h.forward_smt(x=x)
         norm = fns["RealVar"]("norm")
+        symbolic_vars = dhdx_symbolic_vars + hx_symbolic_vars + [norm]
+
         norm_constraint = [
             norm * norm == dhdx[0, 0] ** 2 + dhdx[0, 1] ** 2,
             norm >= 0.0
@@ -235,7 +239,7 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
         sigma = norm * self._z_bound* self._k_function_smt(hx)
 
         self._assert_forward_smt_output(x=sigma)
-        return sigma, hx_constraints + dhdx_constraints + norm_constraint
+        return sigma, hx_constraints + dhdx_constraints + norm_constraint, symbolic_vars
 
     def _assert_forward_input(self, x: torch.Tensor) -> None:
         state_dim = self._system.n_vars
@@ -259,21 +263,24 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
         """
         It is a continuous, non-increasing function
         k: R≥0 → R with k(0) = 1
-        """
-        return 2 / (1 + torch.exp(hx)) # z3 does not supports exp, try polynomial; also we can see what is the range of hx,
 
-        # k_function = 1 / (hx ^ m + 1)
+        From https://arxiv.org/pdf/2211.14364.pdf
+        k(r) = 2 / (1 + exp(r))
+        However, this is non polynomial (need dreal).
+
+        So we use a polynomial approximation which is valid for r in [0, inf]
+        """
+        #return 2 / (1 + torch.exp(hx)) # z3 does not supports exp, try polynomial; also we can see what is the range of hx,
+        return 2 / (hx ** 2 + 2)
 
     def _k_function_smt(self, hx: SYMBOL) -> tuple[SYMBOL, Iterable[SYMBOL]]:
         """
-        It is a continuous, non-increasing function
-        k: R≥0 → R with k(0) = 1
+        Instead of using exp, we use polynomial version which is valid for r in [0, inf]
         """
-        assert isinstance(hx, DRSYMBOL), f"expected dreals symbolic expression, got {hx}"
-        fns = get_solver_fns(x=[hx])
-        return 2 / (1 + fns["Exp"](hx))
-
-        # k_function = 1 / (hx ^ m + 1)
+        #assert isinstance(hx, DRSYMBOL), f"expected dreals symbolic expression, got {hx}"
+        #fns = get_solver_fns(x=[hx])
+        #return 2 / (1 + fns["Exp"](hx))
+        return 2 / (hx ** 2 + 2)
 
     def save(self, *args, **kwargs):
         warnings.warn("Saving is not supported for hand-crafted models")
@@ -305,11 +312,11 @@ class SingleIntegratorConvexHullUncertainty(TorchSymModel):
         for f_uncertain_func in self._system.f_uncertainty:
             new_sigma = torch.sum(dhdx * f_uncertain_func.forward(x).squeeze(dim=2), dim=1)
             min_sigma = torch.min(min_sigma, new_sigma)
-        sigma = - min_sigma # compensanter
+        sigma = - min_sigma
         self._assert_forward_output(x=sigma)
         return sigma
 
-    def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL]]:
+    def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL], Iterable[SYMBOL]]:
 
         self._assert_forward_smt_input(x=x)
         fns = get_solver_fns(x=x)
@@ -318,7 +325,7 @@ class SingleIntegratorConvexHullUncertainty(TorchSymModel):
             _If = fns["If"]
             return _If(x<=y, x, y)
 
-        dhdx, dhdx_constraints = self._h.gradient_smt(x=x)
+        dhdx, dhdx_constraints, dhdx_vars = self._h.gradient_smt(x=x)
         min_sigma = (dhdx @ self._system.f_uncertainty[0].forward_smt(x)).item()
         for f_uncertain_func in self._system.f_uncertainty[1:]:
             new_sigma = (dhdx @ f_uncertain_func.forward_smt(x)).item()
@@ -326,7 +333,7 @@ class SingleIntegratorConvexHullUncertainty(TorchSymModel):
         sigma = - min_sigma
 
         self._assert_forward_smt_output(x=sigma)
-        return sigma, dhdx_constraints
+        return sigma, dhdx_constraints, dhdx_vars
 
     def _assert_forward_input(self, x: torch.Tensor) -> None:
         state_dim = self._system.n_vars
@@ -374,7 +381,7 @@ class SingleIntegratorPolytopeUncertainty(TorchSymModel):
         self._assert_forward_output(x=sigma)
         return sigma
 
-    def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL]]:
+    def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL], Iterable[SYMBOL]]:
         """
         Problem: z3 is not able to cope with sqrt.
 
@@ -389,8 +396,10 @@ class SingleIntegratorPolytopeUncertainty(TorchSymModel):
         fns = get_solver_fns(x=x)
         _And = fns["And"]
 
-        dhdx, dhdx_constraints = self._h.gradient_smt(x=x)
+        dhdx, dhdx_constraints, symbolic_vars = self._h.gradient_smt(x=x)
         norm = fns["RealVar"]("norm")
+        symbolic_vars.append(norm)
+
         norm_constraint = [
             norm * norm == dhdx[0, 0] ** 2 + dhdx[0, 1] ** 2,
             norm >= 0.0
@@ -398,7 +407,7 @@ class SingleIntegratorPolytopeUncertainty(TorchSymModel):
         sigma = norm * self._z_bound
 
         self._assert_forward_smt_output(x=sigma)
-        return sigma, dhdx_constraints + norm_constraint
+        return sigma, dhdx_constraints + norm_constraint, symbolic_vars
 
     def _assert_forward_input(self, x: torch.Tensor) -> None:
         state_dim = self._system.n_vars

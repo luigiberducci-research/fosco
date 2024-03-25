@@ -34,12 +34,12 @@ class ControlAffineDynamics(ABC):
 
     @property
     @abstractmethod
-    def vars(self) -> list[str]:
+    def vars(self) -> tuple[str, ...]:
         raise NotImplementedError()
 
     @property
     @abstractmethod
-    def controls(self) -> list[str]:
+    def controls(self) -> tuple[str, ...]:
         raise NotImplementedError()
 
     @property
@@ -127,7 +127,7 @@ class UncertainControlAffineDynamics(ControlAffineDynamics):
 
     @property
     @abstractmethod
-    def uncertain_vars(self) -> list[str]:
+    def uncertain_vars(self) -> tuple[str, ...]:
         raise NotImplementedError()
 
     @property

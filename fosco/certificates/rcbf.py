@@ -233,7 +233,7 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
         _And = verifier.solver_fncts()["And"]
 
         # precondition: we are in the belt of the barrier (zero-level set)
-        belt_constr = _And(B >= 0, B <= 0)  # B == 0
+        belt_constr = _And(B >= 0, B <= 0.25)  # B ~ 0
         for c in B_constr:
             belt_constr = _And(belt_constr, c)
 

@@ -29,8 +29,9 @@ class SingleIntegratorCBF(TorchSymDiffModel):
     def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL], Iterable[SYMBOL]]:
         self._assert_forward_smt_input(x=x)
         hx = x[0] ** 2 + x[1] ** 2 - self._safety_dist ** 2
+        hx_vars = x.copy()
         self._assert_forward_smt_output(x=hx)
-        return hx, [], x
+        return hx, [], hx_vars
 
     def gradient(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -47,8 +48,9 @@ class SingleIntegratorCBF(TorchSymDiffModel):
     ) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL], Iterable[SYMBOL]]:
         self._assert_forward_smt_input(x=x)
         hx = np.array([[2 * x[0], 2 * x[1]]])
+        hx_vars = x.copy()
         self._assert_gradient_smt_output(x=hx)
-        return hx, [], x
+        return hx, [], hx_vars
 
     def _assert_forward_input(self, x: torch.Tensor) -> None:
         state_dim = self._system.n_vars
@@ -202,6 +204,10 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
         self._safety_dist = 1.0 # todo this should be taken from system
         self._z_bound = 1.0 # todo this should be taken from system uncertainty
 
+        # this accounts for ensuring robustness over entire belt
+        # without this, the rcbf might result non valid
+        self._epsilon = 0.1
+
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -271,7 +277,7 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
         So we use a polynomial approximation which is valid for r in [0, inf]
         """
         #return 2 / (1 + torch.exp(hx)) # z3 does not supports exp, try polynomial; also we can see what is the range of hx,
-        return 2 / (hx ** 2 + 2)
+        return self._epsilon + 1 / (hx ** 2 + 1)
 
     def _k_function_smt(self, hx: SYMBOL) -> tuple[SYMBOL, Iterable[SYMBOL]]:
         """
@@ -280,7 +286,7 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
         #assert isinstance(hx, DRSYMBOL), f"expected dreals symbolic expression, got {hx}"
         #fns = get_solver_fns(x=[hx])
         #return 2 / (1 + fns["Exp"](hx))
-        return 2 / (hx ** 2 + 2)
+        return self._epsilon + 1 / (hx ** 2 + 1)
 
     def save(self, *args, **kwargs):
         warnings.warn("Saving is not supported for hand-crafted models")

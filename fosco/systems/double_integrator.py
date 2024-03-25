@@ -20,12 +20,12 @@ class DoubleIntegrator(ControlAffineDynamics):
         return self.__class__.__name__
 
     @property
-    def vars(self) -> list[str]:
-        return ["x0", "x1", "x2", "x3"]
+    def vars(self) -> tuple[str, ...]:
+        return "x0", "x1", "x2", "x3"
 
     @property
-    def controls(self) -> list[str]:
-        return ["u0", "u1"]
+    def controls(self) -> tuple[str, ...]:
+        return "u0", "u1"
 
     @property
     def state_domain(self) -> Set:

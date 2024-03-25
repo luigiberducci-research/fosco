@@ -17,11 +17,11 @@ class StaticOffice(ControlAffineDynamics):
         self._system = system
 
     @property
-    def vars(self) -> list[str]:
+    def vars(self) -> tuple[str, ...]:
         return self._system.vars
 
     @property
-    def controls(self) -> list[str]:
+    def controls(self) -> tuple[str, ...]:
         return self._system.controls
 
     def fx_torch(self, x) -> np.ndarray | torch.Tensor:

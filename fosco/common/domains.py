@@ -1,5 +1,6 @@
 import math
 from functools import partial
+from typing import Iterable
 
 import numpy as np
 import torch
@@ -10,7 +11,7 @@ from fosco.verifier.verifier import SYMBOL
 
 
 class Set:
-    def __init__(self, vars: list[str]) -> None:
+    def __init__(self, vars: Iterable[str]) -> None:
         self.vars = vars
         self.dimension = len(self.vars)
 
@@ -43,6 +44,7 @@ class SumToOneSet(Set):
     """
     A set whose elements are positive and sum up to one.
     """
+
     def __repr__(self):
         """
         Return a string representation of the domain.
@@ -94,7 +96,7 @@ class Rectangle(Set):
         self,
         lb: tuple[float, ...],
         ub: tuple[float, ...],
-        vars: list[str],
+        vars: Iterable[str],
         dim_select=None,
     ):
         self.name = "box"
@@ -166,7 +168,7 @@ class Sphere(Set):
         self,
         center,
         radius,
-        vars: list[str],
+        vars: Iterable[str],
         dim_select=None,
         include_boundary: bool = True,
     ):
@@ -193,12 +195,12 @@ class Sphere(Set):
         if self.include_boundary:
             domain = (
                 sum([(x[i] - self.center[i]) ** 2 for i in range(self.dimension)])
-                <= self.radius ** 2
+                <= self.radius**2
             )
         else:
             domain = (
                 sum([(x[i] - self.center[i]) ** 2 for i in range(self.dimension)])
-                < self.radius ** 2
+                < self.radius**2
             )
         return domain
 
@@ -207,7 +209,7 @@ class Sphere(Set):
         param batch_size: number of data points to generate
         returns: data points generated in relevant domain according to shape
         """
-        return round_init_data(self.center, self.radius ** 2, batch_size)
+        return round_init_data(self.center, self.radius**2, batch_size)
 
     def check_containment(
         self, x: np.ndarray | torch.Tensor, epsilon: float = 1e-6
@@ -228,7 +230,7 @@ class Sphere(Set):
         if self.dim_select:
             x = x[:, self.dim_select]
         c = torch.tensor(self.center).reshape(1, -1).to(x.device)
-        return (x - c).norm(2, dim=-1) - self.radius ** 2 <= epsilon
+        return (x - c).norm(2, dim=-1) - self.radius**2 <= epsilon
 
 
 class Union(Set):

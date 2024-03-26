@@ -10,13 +10,14 @@ from fosco.verifier.verifier import Verifier
 
 
 class VerifierZ3(Verifier):
-
     def _assert_state(self) -> None:
         super()._assert_state()
-        assert all([isinstance(x, Z3SYMBOL) for x in self.xs]), f"Expected z3 variables, got {self.xs}"
-        assert isinstance(self.constraints_method, Callable), f"Expected callable, got {self.constraints_method}"
-
-
+        assert all(
+            [isinstance(x, Z3SYMBOL) for x in self.xs]
+        ), f"Expected z3 variables, got {self.xs}"
+        assert isinstance(
+            self.constraints_method, Callable
+        ), f"Expected callable, got {self.constraints_method}"
 
     @staticmethod
     def new_vars(
@@ -86,7 +87,7 @@ class VerifierZ3(Verifier):
 
         fml = z3.simplify(fml)
         if self._rounding > 0:
-            fml = self.round_expr(fml, rounding=self._rounding)
+            fml = round_expr(fml, rounding=self._rounding)
 
         timer = timeit.default_timer()
         solver.add(fml)
@@ -95,8 +96,6 @@ class VerifierZ3(Verifier):
 
         timedout = timer >= self._solver_timeout
         if timedout:
-            #with open(f"timeout_z3_{int(time.time())}.txt", "w") as f:
-            #    f.write(str(fml))
             self._logger.debug(fml.sexpr())
             self._logger.info(f"Timed out while solving, kill after {timer:.2f} sec")
 
@@ -138,27 +137,28 @@ class VerifierZ3(Verifier):
             "Sqrt": z3.Sqrt,
         }
 
-    def round_expr(self, e: Z3SYMBOL, rounding: int) -> Z3SYMBOL:
-        """
-        Recursive conversion of coefficients to rounded values.
-
-        Args:
-            e:  z3 expression
-            rounding: number of decimals to round to
-
-        Returns:
-            e: z3 expression with rounded coefficients
-        """
-        assert rounding > 0, "rounding must be > 0"
-
-        # base case: rational coeff
-        if z3.is_const(e) and hasattr(e, "as_fraction"):
-            num, den = e.as_fraction().numerator, e.as_fraction().denominator
-            return z3.RealVal(round(float(num) / float(den), rounding))
-
-        # recursive case: non-const expr
-        args = [self.round_expr(arg, rounding) for arg in e.children()]
-        return e.decl()(*args)
-
-    def pretty_formula(self, fml) -> str:
+    def pretty_formula(fml) -> str:
         return str(z3.simplify(fml))
+
+
+def round_expr(e: Z3SYMBOL, rounding: int) -> Z3SYMBOL:
+    """
+    Recursive conversion of coefficients to rounded values.
+
+    Args:
+        e:  z3 expression
+        rounding: number of decimals to round to
+
+    Returns:
+        e: z3 expression with rounded coefficients
+    """
+    assert rounding > 0, "rounding must be > 0"
+
+    # base case: rational coeff
+    if z3.is_const(e) and hasattr(e, "as_fraction"):
+        num, den = e.as_fraction().numerator, e.as_fraction().denominator
+        return z3.RealVal(round(float(num) / float(den), rounding))
+
+    # recursive case: non-const expr
+    args = [round_expr(arg, rounding) for arg in e.children()]
+    return e.decl()(*args)

@@ -8,9 +8,9 @@ from fosco.translator import Translator
 from fosco.verifier.types import SYMBOL
 
 
-class MLPTranslator(Translator):
+class MLPTranslatorDT(Translator):
     """
-    Translate a continuous-time cbf network into a symbolic expression for forward pass and Lie derivative.
+    Translate a discrete-time cbf network into a symbolic expression for forward pass and Delta-barrier.
     """
 
     def _assert_state(self) -> None:
@@ -25,13 +25,12 @@ class MLPTranslator(Translator):
         **kwargs,
     ) -> dict:
         """
-        Translate a network forward pass and gradients into a symbolic expression
-        of the function and Lie derivative w.r.t. the system dynamics.
+        Translate a network forward pass and change over time into a symbolic expression.
 
         Args:
             x_v_map: dict of symbolic variables
             V_net: network model
-            xdot: symbolic expression of the nominal system dynamics
+            xdot: symbolic expression of the discrete-time system dynamics
             **kwargs:
 
         Returns:
@@ -43,9 +42,13 @@ class MLPTranslator(Translator):
         xdot = np.array(xdot).reshape(-1, 1)
 
         V_symbolic, V_symbolic_constr, V_symbolic_vars = V_net.forward_smt(x=x_vars)
-        Vgrad_symbolic, Vdot_symbolic_constr, Vgrad_symbolic_vars = V_net.gradient_smt(x=x_vars)
-        Vdot_symbolic = (Vgrad_symbolic @ xdot)[0, 0]
-        Vdot_symbolic_vars = Vgrad_symbolic_vars
+        Vnext_symbolic, Vnext_symbolic_constr, Vnext_symbolic_vars = V_net.forward_smt(x=xdot)
+        Vdot_symbolic = Vnext_symbolic - V_symbolic
+        Vdot_symbolic_constr = V_symbolic_constr
+        Vdot_symbolic_vars = V_symbolic_vars
+
+        assert len(V_symbolic_constr) == 0, "Expected no constraints for V_symbolic"
+        assert len(Vnext_symbolic_constr) == 0, "Expected no constraints for Vnext_symbolic"
 
         assert isinstance(
             V_symbolic, SYMBOL

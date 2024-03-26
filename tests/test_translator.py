@@ -4,12 +4,24 @@ import numpy as np
 
 from fosco.models import TorchMLP
 from fosco.translator import MLPTranslator, make_translator, RobustMLPTranslator
+from fosco.translator.translator_cbf_dt import MLPTranslatorDT
+from fosco.verifier.z3_verifier import round_expr
 
 
 def check_smt_equivalence(expr1, expr2):
     import z3
 
     s = z3.Solver()
+
+    # aggregate coefficients in multiplications
+    expr1 = z3.simplify(expr1)
+    expr2 = z3.simplify(expr2)
+
+    # truncate fractions to account for numerical errors
+    expr1 = round_expr(expr1, rounding=5)
+    expr2 = round_expr(expr2, rounding=5)
+
+    # check equivalence
     s.add(z3.Not(expr1 == expr2))
 
     return s.check() == z3.unsat
@@ -435,3 +447,46 @@ class TestTranslator(unittest.TestCase):
             print("z3", act_z3)
             print("dreal", act_dr)
             print("")
+
+    def test_dt_translator(self):
+        from fosco.verifier.z3_verifier import VerifierZ3
+        from fosco.verifier.types import Z3SYMBOL
+
+        n_vars = 2
+        dt = np.float32(0.1000000000)
+
+        x = VerifierZ3.new_vars(n_vars, base="x")
+        x = np.array(x).reshape(-1, 1)
+        xdot = (1 + dt) * np.array(x).reshape(-1, 1)  # dummy x_{k+1} = x + dt * x
+
+        nn = TorchMLP(input_size=n_vars, hidden_sizes=(), activation=(), output_size=1)
+
+        translator = MLPTranslatorDT()
+        result_dict, elapsed_time = translator.translate(
+            x_v_map={"v": x}, V_net=nn, xdot=xdot
+        )
+        expr_nn = result_dict["V_symbolic"]
+        expr_nndot = result_dict["Vdot_symbolic"]
+        self.assertTrue(isinstance(expr_nn, Z3SYMBOL))
+        self.assertTrue(isinstance(expr_nndot, Z3SYMBOL))
+
+        w0 = nn.W0.detach().numpy().flatten()
+        b0 = nn.b0.detach().numpy().flatten()
+
+        expected_expr_nn = w0 @ x + b0
+        expected_expr_nndot = dt * w0 @ x
+
+        expected_expr_nn = expected_expr_nn[0]
+        expected_expr_nndot = expected_expr_nndot[0]
+
+        ok_nn = check_smt_equivalence(expr_nn, expected_expr_nn)
+        self.assertTrue(
+            ok_nn,
+            f"Wrong symbolic formula for V. Got: \n{expr_nn}, expected: \n{expected_expr_nn}",
+        )
+
+        ok_grad = check_smt_equivalence(expr_nndot, expected_expr_nndot)
+        self.assertTrue(
+            ok_grad,
+            f"Wrong symbolic formula for Vdot. Got: \n{expr_nndot}, expected: \n{expected_expr_nndot}",
+        )

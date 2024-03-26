@@ -436,3 +436,20 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
             torch.allclose(first_traj[:, 3], -last_traj[:, 3]),
             f"expectd mirrored trajectory for theta coord, got {first_traj[:, 1]} and {last_traj[:, 1]}",
         )
+
+    def test_discrete_time(self):
+        from fosco.systems import SYSTEM_REGISTRY
+        from fosco.systems.discrete_time.system_dt import EulerDTSystem
+        from fosco.systems import ControlAffineDynamics
+
+        dt = 0.1
+        for system_id in SYSTEM_REGISTRY:
+            system = make_system(system_id=system_id)()
+            dt_system = EulerDTSystem(system=system, dt=dt)
+
+            self.assertTrue(isinstance(dt_system, ControlAffineDynamics))
+            self.assertTrue(system.id in dt_system.id)
+            self.assertTrue(f"dt{dt}" in dt_system.id)
+            self.assertTrue(all([a == b for a, b in zip(system.vars, dt_system.vars)]))
+            self.assertTrue(all([a == b for a, b in zip(system.controls, dt_system.controls)]))
+

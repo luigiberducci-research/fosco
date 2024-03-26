@@ -5,7 +5,7 @@ from fosco.common.domains import Set
 from fosco.systems import ControlAffineDynamics
 
 
-class DiscretizedTimeSystem(ControlAffineDynamics):
+class EulerDTSystem(ControlAffineDynamics):
     """
     Wrap a control affine system with a discretized time step.
     The f, g functions are updated to keep the same control-affine structure

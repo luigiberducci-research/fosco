@@ -16,11 +16,15 @@ def make_barrier(
         from barriers.single_integrator import SingleIntegratorCBF
         return SingleIntegratorCBF(system=system)
 
-    elif system.id.startswith("SingleIntegrator") and str(model_to_load).endswith(".yaml"):
+    if system.id.startswith("DoubleIntegrator") and model_to_load == "default":
+        from barriers.double_integrator import DoubleIntegratorCBF
+        return DoubleIntegratorCBF(system=system)
+
+    if str(model_to_load).endswith(".yaml"):
         assert pathlib.Path(model_to_load).exists(), f"model path {model_to_load} does not exist"
         return load_model(config_path=model_to_load)
-    else:
-        raise NotImplementedError(f"barrier {model_to_load} for {system.id} not implemented")
+
+    raise NotImplementedError(f"barrier {model_to_load} for {system.id} not implemented")
 
 def make_compensator(
     system: UncertainControlAffineDynamics,
@@ -29,10 +33,11 @@ def make_compensator(
     assert isinstance(system, UncertainControlAffineDynamics), f"got {type(system)}"
     assert isinstance(model_to_load, str) or isinstance(model_to_load, pathlib.Path), f"got {type(model_to_load)}"
 
-    if system.id == "SingleIntegrator_AdditiveBounded" and str(model_to_load).endswith(".yaml"):
+    if str(model_to_load).endswith(".yaml"):
         assert pathlib.Path(model_to_load).exists(), f"model path {model_to_load} does not exist"
         return load_model(config_path=model_to_load)
-    elif system.id == "SingleIntegrator_AdditiveBounded" and model_to_load == "default":
+
+    if system.id == "SingleIntegrator_AdditiveBounded" and model_to_load == "default":
         from barriers.single_integrator import SingleIntegratorCBF
         from barriers.single_integrator import (
             SingleIntegratorCompensatorAdditiveBoundedUncertainty,
@@ -43,7 +48,8 @@ def make_compensator(
             h=barrier, system=system
         )
         return compensator
-    elif system.id == "SingleIntegrator_AdditiveBounded" and model_to_load == "tunable":
+
+    if system.id == "SingleIntegrator_AdditiveBounded" and model_to_load == "tunable":
         from barriers.single_integrator import SingleIntegratorCBF
         from barriers.single_integrator import (
             SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty,
@@ -54,7 +60,5 @@ def make_compensator(
             h=barrier, system=system
         )
         return compensator
-    elif system.id == "SingleIntegrator_ConvexHull":
-        raise NotImplementedError(f"compensator models of type {model_to_load} for {system.id} not implemented")
-    else:
-        raise NotImplementedError(f"barrier models of type {model_to_load} for {system.id} not implemented")
+
+    raise NotImplementedError(f"barrier models of type {model_to_load} for {system.id} not implemented")

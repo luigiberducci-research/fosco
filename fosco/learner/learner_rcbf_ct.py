@@ -46,7 +46,7 @@ class LearnerRobustCT(LearnerCT):
             # xsigma(x) = xsigma(h(x))
             head_mlp = TorchMLP(
                 input_size=1,
-                hidden_sizes=(5,),
+                hidden_sizes=(2,),
                 output_size=1,
                 activation=("tanh",),
                 output_activation="relu"
@@ -63,7 +63,7 @@ class LearnerRobustCT(LearnerCT):
             # )
             self.optimizers["xsigma"] = make_optimizer(
                 optimizer,
-                params=head_mlp.parameters(),
+                params=self.xsigma.parameters(),
                 lr=lr,
                 weight_decay=weight_decay,
             )

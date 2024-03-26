@@ -14,8 +14,13 @@ from fosco.systems.uncertainty import add_uncertainty
 def main(args):
     system_id = "SingleIntegrator"
     uncertainty_id = "AdditiveBounded"
+
+    #model_to_load = "/home/luigi/Development/fosco-robust/logs/models/SingleIntegrator_AdditiveBounded_rcbf_hx_sx_chained_square_Seed514796_20240325_163509/learner_6_barrier.yaml"
+    #sigma_to_load = "/home/luigi/Development/fosco-robust/logs/models/SingleIntegrator_AdditiveBounded_rcbf_hx_sx_chained_square_Seed514796_20240325_163509/learner_6_sigma.yaml"
+
     model_to_load = "default"
-    sigma_to_load = "default"  # "default"
+    sigma_to_load = "tunable"
+
     verbose = 1
 
     system_fn = make_system(system_id=system_id)
@@ -50,7 +55,7 @@ def main(args):
         BARRIER_TO_LOAD=model_to_load,
         SIGMA_TO_LOAD=sigma_to_load,
         CEGIS_MAX_ITERS=1,
-        LOGGER=None,
+        N_EPOCHS=0,
         EXP_NAME=f"RCBF_{model_to_load}",
     )
     cegis = Cegis(

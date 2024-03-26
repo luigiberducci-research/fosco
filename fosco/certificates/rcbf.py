@@ -131,7 +131,7 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
         # note: smart trick for tractable verification using vertices of input convex-hull
         # counterexample: x \in domain and AND_v (u=v and Bdot + alpha * Bx < 0)
         alpha = lambda x: x
-        feasible_vars = self.x_vars + self.u_vars
+        feasible_vars = self.x_vars + self.u_vars + self.z_vars
         feasible_aux_vars = [v for v in B_vars + sigma_vars + Bdot_vars if v not in feasible_vars]
         feasibility_constr = self._feasibility_constraint_smt(
             verifier=verifier,

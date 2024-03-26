@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 
+from fosco.common.consts import TimeDomain
 from fosco.common.domains import Set
 from fosco.systems import ControlAffineDynamics
 
@@ -18,6 +19,9 @@ class EulerDTSystem(ControlAffineDynamics):
     """
 
     def __init__(self, system: ControlAffineDynamics, dt: float):
+        if system.time_domain != TimeDomain.CONTINUOUS:
+            raise ValueError("EulerDTSystem only supports continuous time systems")
+
         self.system = system
         self.dt = dt
 
@@ -32,6 +36,10 @@ class EulerDTSystem(ControlAffineDynamics):
     @property
     def controls(self) -> tuple[str, ...]:
         return self.system.controls
+
+    @property
+    def time_domain(self) -> TimeDomain:
+        return TimeDomain.DISCRETE
 
     @property
     def state_domain(self) -> Set:

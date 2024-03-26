@@ -2,6 +2,7 @@ import numpy as np
 import torch
 
 from fosco.common import domains
+from fosco.common.consts import TimeDomain
 from fosco.common.domains import Set
 from fosco.systems import SingleIntegrator
 from fosco.systems.core.system import register, ControlAffineDynamics
@@ -23,6 +24,10 @@ class StaticOffice(ControlAffineDynamics):
     @property
     def controls(self) -> tuple[str, ...]:
         return self._system.controls
+
+    @property
+    def time_domain(self) -> TimeDomain:
+        return TimeDomain.DISCRETE
 
     def fx_torch(self, x) -> np.ndarray | torch.Tensor:
         return self._system.fx_torch(x)

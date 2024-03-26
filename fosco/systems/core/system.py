@@ -4,7 +4,7 @@ from typing import Callable
 import numpy as np
 import torch
 
-from fosco.common.consts import DomainName
+from fosco.common.consts import DomainName, TimeDomain
 from fosco.common.domains import Set
 from fosco.common.utils import contains_object
 from fosco.verifier.utils import get_solver_simplify
@@ -40,6 +40,11 @@ class ControlAffineDynamics(ABC):
     @property
     @abstractmethod
     def controls(self) -> tuple[str, ...]:
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def time_domain(self) -> TimeDomain:
         raise NotImplementedError()
 
     @property

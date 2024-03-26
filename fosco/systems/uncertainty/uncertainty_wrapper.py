@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 import torch
 
+from fosco.common.consts import TimeDomain
 from fosco.common.domains import Set
 from fosco.systems.core.system import (
     UncertainControlAffineDynamics,
@@ -36,12 +37,16 @@ class UncertaintyWrapper(UncertainControlAffineDynamics, ABC):
         return f"{self._base_system.id}_{self.uncertainty_id}"
 
     @property
-    def vars(self) -> list[str]:
+    def vars(self) -> tuple[str, ...]:
         return self._base_system.vars
 
     @property
-    def controls(self) -> list[str]:
+    def controls(self) -> tuple[str, ...]:
         return self._base_system.controls
+
+    @property
+    def time_domain(self) -> TimeDomain:
+        return self._base_system.time_domain
 
     @property
     def n_vars(self) -> int:

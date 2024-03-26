@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 
+from fosco.common.consts import TimeDomain
 from fosco.common.domains import Set
 from fosco.systems import ControlAffineDynamics
 from fosco.systems.core.system import register
@@ -30,6 +31,10 @@ class UnicycleAcc(ControlAffineDynamics):
     def controls(self) -> list[str]:
         # a, w
         return ["u0", "u1"]
+
+    @property
+    def time_domain(self) -> TimeDomain:
+        return TimeDomain.CONTINUOUS
 
     @property
     def state_domain(self) -> Set:

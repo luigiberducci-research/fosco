@@ -3,6 +3,7 @@ import unittest
 import numpy as np
 import torch
 
+from fosco.common.consts import TimeDomain
 from fosco.systems import make_system
 from tests.test_translator import check_smt_equivalence
 
@@ -445,11 +446,17 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
         dt = 0.1
         for system_id in SYSTEM_REGISTRY:
             system = make_system(system_id=system_id)()
-            dt_system = EulerDTSystem(system=system, dt=dt)
 
-            self.assertTrue(isinstance(dt_system, ControlAffineDynamics))
-            self.assertTrue(system.id in dt_system.id)
-            self.assertTrue(f"dt{dt}" in dt_system.id)
-            self.assertTrue(all([a == b for a, b in zip(system.vars, dt_system.vars)]))
-            self.assertTrue(all([a == b for a, b in zip(system.controls, dt_system.controls)]))
+            if not system.time_domain == TimeDomain.CONTINUOUS:
+                with self.assertRaises(ValueError):
+                    dt_system = EulerDTSystem(system=system, dt=dt)
+            else:
+                dt_system = EulerDTSystem(system=system, dt=dt)
+
+                self.assertTrue(dt_system.time_domain == TimeDomain.DISCRETE)
+                self.assertTrue(isinstance(dt_system, ControlAffineDynamics))
+                self.assertTrue(system.id in dt_system.id)
+                self.assertTrue(f"dt{dt}" in dt_system.id)
+                self.assertTrue(all([a == b for a, b in zip(system.vars, dt_system.vars)]))
+                self.assertTrue(all([a == b for a, b in zip(system.controls, dt_system.controls)]))
 

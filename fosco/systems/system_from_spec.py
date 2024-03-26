@@ -3,7 +3,7 @@ from typing import Callable
 import numpy as np
 import torch
 
-from fosco.common.consts import DomainName as dn
+from fosco.common.consts import DomainName as dn, TimeDomain
 from fosco.common.domains import Set
 from fosco.systems import ControlAffineDynamics
 
@@ -44,6 +44,10 @@ class System(ControlAffineDynamics):
     @property
     def controls(self) -> list[str]:
         return self._controls
+
+    @property
+    def time_domain(self) -> TimeDomain:
+        return TimeDomain.CONTINUOUS
 
     @property
     def state_domain(self) -> Set:

@@ -2,6 +2,7 @@ import numpy as np
 import torch
 
 from fosco.common import domains
+from fosco.common.consts import TimeDomain
 from fosco.common.domains import Set
 from fosco.systems import ControlAffineDynamics
 from fosco.systems.core.system import register
@@ -25,6 +26,10 @@ class SingleIntegrator(ControlAffineDynamics):
     @property
     def controls(self) -> tuple[str, ...]:
         return "u0", "u1"
+
+    @property
+    def time_domain(self) -> TimeDomain:
+        return TimeDomain.CONTINUOUS
 
     @property
     def state_domain(self) -> Set:

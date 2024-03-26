@@ -158,14 +158,9 @@ class Verifier(ABC):
 
         for group in fmls:
             for label, condition_vars in group.items():
-                if isinstance(condition_vars, tuple):
-                    # CBF returns different variables depending on constraint
-                    condition, vars, aux_vars = condition_vars
-                else:
-                    # Other barriers always use only state variables
-                    condition = condition_vars
-                    vars = self.xs
-                    assert False, "This should not happen"
+                assert isinstance(condition_vars, tuple) and len(condition_vars) == 3, \
+                    f"Expected tuple (condition, dataset-vars, aux-vars), got {condition_vars}"
+                condition, vars, aux_vars = condition_vars
 
                 s = self.new_solver()
                 #self._logger.debug(

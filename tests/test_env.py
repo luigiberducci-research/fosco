@@ -5,7 +5,7 @@ import torch
 from gymnasium.utils.env_checker import check_env
 
 from fosco.systems import make_system
-from fosco.systems.system_env import SystemEnv
+from fosco.systems.gym_env.system_env import SystemEnv
 
 
 def dummy_term_fn(actions, next_obss):

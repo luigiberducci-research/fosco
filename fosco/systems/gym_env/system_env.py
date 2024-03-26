@@ -30,8 +30,8 @@ import pygame
 
 from fosco.common.domains import Rectangle, Sphere
 from fosco.systems import make_system
-from fosco.systems.system import ControlAffineDynamics, UncertainControlAffineDynamics
-from fosco.systems.rewards import RewardFnType
+from fosco.systems.core.system import ControlAffineDynamics, UncertainControlAffineDynamics
+from fosco.systems.gym_env.rewards import RewardFnType
 
 
 TermFnType = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]

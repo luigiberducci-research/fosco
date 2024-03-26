@@ -11,12 +11,12 @@ class TestVerifier(unittest.TestCase):
     def test_simple_constraints(self):
         verifier_fn = make_verifier(type=VerifierType.Z3)
 
-        def constraint_gen(verif: Verifier, C: SYMBOL, sigma, dC: SYMBOL, *args):
-            yield {"sat": C >= 0.0}
+        def constraint_gen(verif: Verifier, C: SYMBOL, C_constr: list[SYMBOL], C_vars: list[SYMBOL], *args):
+            yield {"sat": (C >= 0.0, C_vars, [])}
 
-        def constraint_gen2(verif: Verifier, C: SYMBOL, sigma, dC: SYMBOL, *args):
+        def constraint_gen2(verif: Verifier, C: SYMBOL, C_constr: list[SYMBOL], C_vars: list[SYMBOL], *args):
             And_ = verif.solver_fncts()["And"]
-            yield {"unsat": And_(C >= 0.0, C < 0)}
+            yield {"unsat": (And_(C >= 0.0, C < 0), C_vars, [])}
 
         vars = verifier_fn.new_vars(n=1)
         verifier = verifier_fn(
@@ -35,22 +35,30 @@ class TestVerifier(unittest.TestCase):
         results, elapsed_time = verifier.verify(
             V_symbolic=C,
             V_symbolic_constr=[],
+            V_symbolic_vars=vars,
             Vdot_symbolic=dC,
             Vdot_symbolic_constr=[],
+            Vdot_symbolic_vars=vars,
             sigma_symbolic=None,
             sigma_symbolic_constr=[],
+            sigma_symbolic_vars=[],
             Vdot_residual_symbolic=None,
             Vdot_residual_symbolic_constr=[],
+            Vdot_residual_symbolic_vars=[],
         )
         results2, elapsed_time = verifier2.verify(
             V_symbolic=C,
             V_symbolic_constr=[],
+            V_symbolic_vars=vars,
             Vdot_symbolic=dC,
             Vdot_symbolic_constr=[],
+            Vdot_symbolic_vars=vars,
             sigma_symbolic=None,
             sigma_symbolic_constr=[],
+            sigma_symbolic_vars=[],
             Vdot_residual_symbolic=None,
             Vdot_residual_symbolic_constr=[],
+            Vdot_residual_symbolic_vars=[],
         )
 
         self.assertTrue(
@@ -80,12 +88,12 @@ class TestVerifier(unittest.TestCase):
     def test_simple_constraints_dreal(self):
         verifier_fn = make_verifier(type=VerifierType.DREAL)
 
-        def constraint_gen(verif: Verifier, C: SYMBOL, sigma, dC: SYMBOL, *args):
-            yield {"sat": C >= 0.0}
+        def constraint_gen(verif: Verifier, C: SYMBOL, C_constr: list[SYMBOL], C_vars: list[SYMBOL], *args):
+            yield {"sat": (C >= 0.0, C_vars, [])}
 
-        def constraint_gen2(verif: Verifier, C: SYMBOL, sigma, dC: SYMBOL, *args):
+        def constraint_gen2(verif: Verifier, C: SYMBOL, C_constr: list[SYMBOL], C_vars: list[SYMBOL], *args):
             And_ = verif.solver_fncts()["And"]
-            yield {"unsat": And_(C >= 0.0, C < 0)}
+            yield {"unsat": (And_(C >= 0.0, C < 0), C_vars, [])}
 
         vars = verifier_fn.new_vars(n=1)
         verifier = verifier_fn(
@@ -104,22 +112,30 @@ class TestVerifier(unittest.TestCase):
         results, elapsed_time = verifier.verify(
             V_symbolic=C,
             V_symbolic_constr=[],
+            V_symbolic_vars=vars,
             Vdot_symbolic=dC,
             Vdot_symbolic_constr=[],
+            Vdot_symbolic_vars=vars,
             sigma_symbolic=None,
             sigma_symbolic_constr=[],
+            sigma_symbolic_vars=[],
             Vdot_residual_symbolic=None,
             Vdot_residual_symbolic_constr=[],
+            Vdot_residual_symbolic_vars=[],
         )
         results2, elapsed_time = verifier2.verify(
             V_symbolic=C,
             V_symbolic_constr=[],
+            V_symbolic_vars=vars,
             Vdot_symbolic=dC,
             Vdot_symbolic_constr=[],
+            Vdot_symbolic_vars=vars,
             sigma_symbolic=None,
             sigma_symbolic_constr=[],
+            sigma_symbolic_vars=[],
             Vdot_residual_symbolic=None,
             Vdot_residual_symbolic_constr=[],
+            Vdot_residual_symbolic_vars=[],
         )
 
         self.assertTrue(
@@ -136,9 +152,8 @@ class TestVerifier(unittest.TestCase):
         vars = verifier_fn.new_vars(n=1)
         timeout_s = 1
 
-        def constraint_gen(verif: Verifier, C: SYMBOL, sigma, dC: SYMBOL, *args):
-            # force this to take more than timeout_s to check if timeout mechanism works
-            yield {"sat": C >= 0.0}
+        def constraint_gen(verif: Verifier, C: SYMBOL, C_constr: list[SYMBOL], C_vars: list[SYMBOL], *args):
+            yield {"sat": (C >= 0.0, C_vars, [])}
 
         verifier = verifier_fn(
             solver_vars=vars,
@@ -151,12 +166,16 @@ class TestVerifier(unittest.TestCase):
         results, elapsed_time = verifier.verify(
             V_symbolic=C,
             V_symbolic_constr=[],
+            V_symbolic_vars=vars,
             Vdot_symbolic=dC,
             Vdot_symbolic_constr=[],
+            Vdot_symbolic_vars=vars,
             sigma_symbolic=None,
             sigma_symbolic_constr=[],
+            sigma_symbolic_vars=[],
             Vdot_residual_symbolic=None,
             Vdot_residual_symbolic_constr=[],
+            Vdot_residual_symbolic_vars=[],
         )
 
         self.assertTrue(
@@ -169,9 +188,8 @@ class TestVerifier(unittest.TestCase):
         vars = verifier_fn.new_vars(n=1)
         timeout_s = 1
 
-        def constraint_gen(verif: Verifier, C: SYMBOL, sigma, dC: SYMBOL, *args):
-            # force this to take more than timeout_s to check if timeout mechanism works
-            yield {"sat": C >= 0.0}
+        def constraint_gen(verif: Verifier, C: SYMBOL, C_constr: list[SYMBOL], C_vars: list[SYMBOL], *args):
+            yield {"sat": (C >= 0.0, C_vars, [])}
 
         verifier = verifier_fn(
             solver_vars=vars,
@@ -184,12 +202,16 @@ class TestVerifier(unittest.TestCase):
         results, elapsed_time = verifier.verify(
             V_symbolic=C,
             V_symbolic_constr=[],
+            V_symbolic_vars=vars,
             Vdot_symbolic=dC,
             Vdot_symbolic_constr=[],
+            Vdot_symbolic_vars=vars,
             sigma_symbolic=None,
             sigma_symbolic_constr=[],
+            sigma_symbolic_vars=[],
             Vdot_residual_symbolic=None,
             Vdot_residual_symbolic_constr=[],
+            Vdot_residual_symbolic_vars=[],
         )
 
         self.assertTrue(

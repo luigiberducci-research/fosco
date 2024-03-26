@@ -13,7 +13,7 @@ from rl_trainer.ppo.ppo_agent import ActorCriticAgent
 from fosco.models import TorchSymDiffModel
 from fosco.models.utils import layer_init
 from fosco.systems import ControlAffineDynamics
-from fosco.systems.system_env import SystemEnv
+from fosco.systems.gym_env.system_env import SystemEnv
 
 
 class SafeActorCriticAgent(ActorCriticAgent):

@@ -5,7 +5,7 @@ from fosco.common.domains import Set
 from fosco.verifier.dreal_verifier import VerifierDR
 from fosco.verifier.types import DRSYMBOL
 from fosco.systems import ControlAffineDynamics
-from fosco.systems.system import register
+from fosco.systems.core.system import register
 
 
 @register

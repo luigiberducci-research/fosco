@@ -6,7 +6,7 @@ import torch
 from barriers import make_barrier
 from rl_trainer.safe_ppo.safeppo_agent import BarrierPolicy
 from fosco.systems import make_system
-from fosco.systems.system_env import SystemEnv
+from fosco.systems.gym_env.system_env import SystemEnv
 
 
 class TestPolicy(unittest.TestCase):
@@ -23,7 +23,7 @@ class TestPolicy(unittest.TestCase):
         # system
         system_id = "SingleIntegrator"
         system = make_system(system_id=system_id)()
-        barrier = make_barrier(system=system)["barrier"]
+        barrier = make_barrier(system=system)
 
         # create random safe policy
         model = BarrierPolicy(system=system, barrier=barrier).to(device)
@@ -88,7 +88,7 @@ class TestPolicy(unittest.TestCase):
         # system
         system_id = "SingleIntegrator"
         system = make_system(system_id=system_id)()
-        barrier = make_barrier(system=system)["barrier"]
+        barrier = make_barrier(system=system)
 
         # create random safe policy
         model = BarrierPolicy(system=system, barrier=barrier, device=device).to(device)

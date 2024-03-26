@@ -2,7 +2,7 @@ import unittest
 
 from fosco.common.domains import Rectangle
 from fosco.models import TorchMLP
-from fosco.plotting.utils import plot_func_and_domains
+from fosco.plotting.functions import plot_func_and_domains
 
 
 class TestPlottingUtils(unittest.TestCase):

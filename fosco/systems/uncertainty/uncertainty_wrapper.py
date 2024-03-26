@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 from fosco.common.domains import Set
-from fosco.systems.system import (
+from fosco.systems.core.system import (
     UncertainControlAffineDynamics,
     ControlAffineDynamics,
 )

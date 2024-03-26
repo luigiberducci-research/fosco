@@ -12,7 +12,7 @@ from barriers import make_barrier
 from rl_trainer.safe_ppo.safeppo_agent import SafeActorCriticAgent
 from rl_trainer.common.buffer import CyclicBuffer
 from rl_trainer.ppo.ppo_trainer import PPOTrainer
-from fosco.systems.system_env import SystemEnv
+from fosco.systems.gym_env.system_env import SystemEnv
 from fosco.learner import make_learner
 
 
@@ -35,7 +35,6 @@ class SafePPOTrainer(PPOTrainer):
             else:
                 # load model from logs
                 from aim import Run
-                from fosco.common.consts import TimeDomain, ActivationType
 
                 aim_run = Run(run_hash=args.barrier_path)
                 config = aim_run["config"]

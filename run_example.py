@@ -1,9 +1,6 @@
 import torch
 
 import fosco.cegis
-from fosco.common.consts import ActivationType, LossReLUType
-from fosco.common.consts import CertificateType, TimeDomain, VerifierType
-from fosco.logger import LoggerType
 from fosco.systems import make_system
 from fosco.systems.uncertainty import add_uncertainty
 
@@ -120,7 +117,7 @@ def main(args):
 
 if __name__ == "__main__":
     import argparse
-    from fosco.systems.system import SYSTEM_REGISTRY
+    from fosco.systems.core.system import SYSTEM_REGISTRY
     from fosco.systems.uncertainty import UNCERTAINTY_REGISTRY
 
     systems = SYSTEM_REGISTRY.keys()

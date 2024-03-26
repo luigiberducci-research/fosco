@@ -3,7 +3,7 @@ import torch
 
 from fosco.common.domains import Set
 from fosco.systems import ControlAffineDynamics
-from fosco.systems.system import register
+from fosco.systems.core.system import register
 
 
 @register

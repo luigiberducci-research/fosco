@@ -3,7 +3,7 @@ import torch
 from matplotlib import pyplot as plt
 
 from barriers import make_barrier, make_compensator
-from fosco.systems.system_env import SystemEnv
+from fosco.systems.gym_env.system_env import SystemEnv
 from fosco.systems.uncertainty import add_uncertainty
 from rl_trainer.safe_ppo.safeppo_agent import BarrierPolicy
 

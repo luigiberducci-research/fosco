@@ -4,7 +4,7 @@ import torch
 from fosco.common import domains
 from fosco.common.domains import Set
 from fosco.systems import SingleIntegrator
-from fosco.systems.system import register, ControlAffineDynamics
+from fosco.systems.core.system import register, ControlAffineDynamics
 
 
 class StaticOffice(ControlAffineDynamics):

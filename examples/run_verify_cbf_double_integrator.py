@@ -13,8 +13,8 @@ from fosco.systems.discrete_time.system_dt import EulerDTSystem
 
 
 def main(args):
-    system_id: str = "SingleIntegrator"     # system id
-    dt: Optional[float] = 0.1               # discretization time step or None for continuous-time cbf
+    system_id: str = "DoubleIntegrator"     # system id
+    dt: Optional[float] = None              # discretization time step or None for continuous-time cbf
     verbose: int = 1                        # verbosity level (0, 1, 2)
 
     # make system

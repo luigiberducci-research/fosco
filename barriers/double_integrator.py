@@ -15,7 +15,8 @@ class DoubleIntegratorCBF(TorchSymDiffModel):
         super().__init__()
         self._system = system
         self._safety_dist = 1.0  # todo this should be taken from system
-        self._amax = 100000.0  # todo this should be taken from system control input
+        self._amax = 5.0  # todo this should be taken from system control input
+        self._dt = 1.0  # todo this should be taken from system
     @property
     def input_size(self) -> int:
         return self._system.n_vars
@@ -27,20 +28,29 @@ class DoubleIntegratorCBF(TorchSymDiffModel):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         h(x) = | x - x_o |^2 - v / a_max - R^2
+
+        simpler
+        h(x) = | x + dt * v - x_o |^2 - R^2
         """
         self._assert_forward_input(x=x)
 
-        dpT = x[:, :2].reshape(-1, 1, 2)
-        dv = x[:, 2:].reshape(-1, 2, 1)
-        dp_norm = torch.norm(dpT, dim=-1).squeeze()
+        #dpT = x[:, :2].reshape(-1, 1, 2)
+        #dv = x[:, 2:].reshape(-1, 2, 1)
+        #dp_norm = torch.norm(dpT, dim=-1).squeeze()
 
-        vrel = (dpT @ dv).squeeze() / dp_norm
-        dist_cap = torch.maximum(
-            torch.zeros_like(vrel),
-            dp_norm - self._safety_dist
-        )
+        #vrel = (dpT @ dv).squeeze() / dp_norm
+        #dist_cap = torch.maximum(
+        #    torch.zeros_like(vrel),
+        #    dp_norm - self._safety_dist
+        #)
 
-        hx = vrel + torch.sqrt(self._amax * dist_cap)
+        #hx = vrel + torch.sqrt(self._amax * dist_cap)
+
+        dp = x[:, :2]
+        dv = x[:, 2:]
+
+        next_dp = dp + self._dt * dv
+        hx = next_dp[:, 0] ** 2 + next_dp[:, 1] ** 2 - self._safety_dist ** 2
 
         self._assert_forward_output(x=hx)
         return hx
@@ -54,6 +64,7 @@ class DoubleIntegratorCBF(TorchSymDiffModel):
 
         symbolic_vars = x.copy()
 
+        """
         dp = np.array([x[0], x[1]])
         dv = np.array([x[2], x[3]])
         dp_norm = _Sqrt(x[0] ** 2 + x[1] ** 2)
@@ -61,6 +72,13 @@ class DoubleIntegratorCBF(TorchSymDiffModel):
         vrel = (dp[0] * dv[0] + dp[1] * dv[1]) / dp_norm
         dist_cap = _If(dp_norm - self._safety_dist >= 0, dp_norm - self._safety_dist, 0)
         hx = vrel + _Sqrt(self._amax * dist_cap)
+        """
+
+        dp = np.array([x[0], x[1]])
+        dv = np.array([x[2], x[3]])
+
+        next_dp = dp + self._dt * dv
+        hx = next_dp[0] ** 2 + next_dp[1] ** 2 - self._safety_dist ** 2
 
         self._assert_forward_smt_output(x=hx)
         return hx, [], symbolic_vars
@@ -73,7 +91,7 @@ class DoubleIntegratorCBF(TorchSymDiffModel):
                 x1*(x0*x2 + x1*x3)/(x0**2 + x1**2)**(3/2) + x3/sqrt(x0**2 + x1**2)
         dhdx2 = x0/sqrt(x0**2 + x1**2)
         dhdx3 = x1/sqrt(x0**2 + x1**2)
-        """
+
         self._assert_forward_input(x=x)
 
         dp_norm = torch.norm(x[:, :2], dim=-1)
@@ -89,8 +107,18 @@ class DoubleIntegratorCBF(TorchSymDiffModel):
         dhdx3 = x[:, 1] / dp_norm
 
         hx = torch.stack([dhdx0, dhdx1, dhdx2, dhdx3], dim=-1)
-        self._assert_gradient_output(x=hx)
-        return hx
+        """
+        self._assert_forward_input(x=x)
+
+        dp = x[:, :2]
+        dv = x[:, 2:]
+
+        next_dp = dp + self._dt * dv
+        dhdx = torch.stack([2 * next_dp[:, 0], 2 * next_dp[:, 1],
+                          2 * self._dt * dp[:, 0], 2 * self._dt * dp[:, 1]], dim=-1)
+
+        self._assert_gradient_output(x=dhdx)
+        return dhdx
 
     def gradient_smt(
         self, x: Iterable[SYMBOL]
@@ -102,7 +130,7 @@ class DoubleIntegratorCBF(TorchSymDiffModel):
                 x1*(x0*x2 + x1*x3)/(x0**2 + x1**2)**(3/2) + x3/sqrt(x0**2 + x1**2)
         dhdx2 = x0/sqrt(x0**2 + x1**2)
         dhdx3 = x1/sqrt(x0**2 + x1**2)
-        """
+
         self._assert_forward_smt_input(x=x)
 
         fns = get_solver_fns(x=x)
@@ -121,9 +149,17 @@ class DoubleIntegratorCBF(TorchSymDiffModel):
         dhdx3 = x[1] / dp_norm
 
         hx = np.array([[dhdx0, dhdx1, dhdx2, dhdx3]])
-        hx_vars = x.copy()
-        self._assert_gradient_smt_output(x=hx)
-        return hx, [], hx_vars
+        """
+        self._assert_forward_smt_input(x=x)
+
+        dp = np.array([x[0], x[1]])
+        dv = np.array([x[2], x[3]])
+        next_dp = dp + self._dt * dv
+        dhdx = np.array([[2 * next_dp[0], 2 * next_dp[1],
+                        2 * self._dt * dp[0], 2 * self._dt * dp[1]]])
+        dhdx_vars = x.copy()
+        self._assert_gradient_smt_output(x=dhdx)
+        return dhdx, [], dhdx_vars
 
     def _assert_forward_input(self, x: torch.Tensor) -> None:
         state_dim = self._system.n_vars

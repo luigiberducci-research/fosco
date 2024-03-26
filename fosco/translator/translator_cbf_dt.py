@@ -39,7 +39,6 @@ class MLPTranslatorDT(Translator):
         assert "v" in x_v_map, "x_v_map must contain key 'v' for symbolic variables"
 
         x_vars = x_v_map["v"]
-        xdot = np.array(xdot).reshape(-1, 1)
 
         V_symbolic, V_symbolic_constr, V_symbolic_vars = V_net.forward_smt(x=x_vars)
         Vnext_symbolic, Vnext_symbolic_constr, Vnext_symbolic_vars = V_net.forward_smt(x=xdot)

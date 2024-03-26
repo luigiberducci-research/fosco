@@ -198,6 +198,7 @@ class Cegis:
         return make_translator(
             certificate_type=self.config.CERTIFICATE,
             verifier_type=self.config.VERIFIER,
+            time_domain=self.time_domain,
             verbose=self.verbose,
         )
 

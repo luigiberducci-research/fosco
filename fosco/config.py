@@ -11,8 +11,6 @@ CegisResult = namedtuple(
 
 @dataclass
 class CegisConfig:
-    # system
-    TIME_DOMAIN: str = "continuous"
     # fosco
     CERTIFICATE: str = "CBF"
     VERIFIER: str = "Z3"

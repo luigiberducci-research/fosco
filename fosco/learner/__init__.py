@@ -8,26 +8,16 @@ from fosco.systems import ControlAffineDynamics, UncertainControlAffineDynamics
 
 
 def make_learner(
-    system: ControlAffineDynamics, time_domain: TimeDomain | str
+    system: ControlAffineDynamics
 ) -> Type[LearnerNN]:
-    if isinstance(time_domain, str):
-        time_domain = TimeDomain[time_domain.upper()]
 
-    if (
-        isinstance(system, UncertainControlAffineDynamics)
-        and time_domain == TimeDomain.CONTINUOUS
-    ):
+    if isinstance(system, UncertainControlAffineDynamics):
         from fosco.learner.learner_rcbf_ct import LearnerRobustCT
 
         return LearnerRobustCT
-    elif time_domain == TimeDomain.CONTINUOUS:
-        from fosco.learner.learner_cbf_ct import LearnerCT
-
-        return LearnerCT
     else:
-        raise NotImplementedError(
-            f"Unsupported learner for system {type(system)} and time domain {time_domain}"
-        )
+        from fosco.learner.learner_cbf_ct import LearnerCT
+        return LearnerCT
 
 
 def make_optimizer(optimizer: str | None, **kwargs) -> torch.optim.Optimizer:

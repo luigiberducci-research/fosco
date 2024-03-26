@@ -1,6 +1,7 @@
 from fosco.common.consts import VerifierType, TimeDomain, CertificateType
 from fosco.translator.translator import Translator
 from fosco.translator.translator_cbf import MLPTranslator
+from fosco.translator.translator_cbf_dt import MLPTranslatorDT
 from fosco.translator.translator_rcbf import RobustMLPTranslator
 
 
@@ -30,9 +31,22 @@ def make_translator(
             return MLPTranslator(**kwargs)
         else:
             raise NotImplementedError(
-                f"Translator for certificate={certificate_type} and time={time_domain} not implemented"
+                f"Translator for certificate={certificate_type}, time={time_domain}, verifier={verifier_type} not implemented"
+            )
+    elif time_domain == TimeDomain.DISCRETE and verifier_type in [
+        VerifierType.Z3,
+        VerifierType.DREAL,
+    ]:
+        if certificate_type == CertificateType.RCBF:
+            raise NotImplementedError()
+            return RobustMLPTranslator(**kwargs)
+        elif certificate_type == CertificateType.CBF:
+            return MLPTranslatorDT(**kwargs)
+        else:
+            raise NotImplementedError(
+                f"Translator for certificate={certificate_type}, time={time_domain}, verifier={verifier_type} not implemented"
             )
     else:
         raise NotImplementedError(
-            f"Translator for verifier={verifier_type} and time={time_domain} not implemented"
+            f"Translator for certificate={certificate_type}, time={time_domain}, verifier={verifier_type} not implemented"
         )

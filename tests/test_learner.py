@@ -7,11 +7,10 @@ from fosco.systems import make_system
 
 class TestLearner(unittest.TestCase):
     def test_save_load(self):
-        from fosco.common.consts import TimeDomain
         from fosco.common.consts import CertificateType
 
         f = make_system("SingleIntegrator")()
-        learner_type = make_learner(system=f, time_domain=TimeDomain.CONTINUOUS)
+        learner_type = make_learner(system=f)
         learner1 = learner_type(
             state_size=f.n_vars,
             learn_method=CertificateType.CBF,

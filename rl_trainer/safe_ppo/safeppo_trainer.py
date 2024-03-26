@@ -40,7 +40,7 @@ class SafePPOTrainer(PPOTrainer):
                 config = aim_run["config"]
 
                 timedomain = eval(config["TIME_DOMAIN"])
-                learner_type = make_learner(system=system, time_domain=timedomain)
+                learner_type = make_learner(system=system)
                 # todo rewrite logs in primitive types to make loading easier
                 learner = learner_type(
                     state_size=system.n_vars,

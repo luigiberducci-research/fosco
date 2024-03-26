@@ -51,7 +51,7 @@ class Cegis:
         self.logger, self.tlogger = self._initialise_logger()
 
         # domains, dynamics, data
-        self.x, self.x_map = self._initialise_variables()
+        self.x, self.x_map, self.time_domain = self._initialise_variables()
         self.xdot, self.xdotz, self.xdot_residual = self._initialise_dynamics()
         self.datasets = self._initialise_data()
 
@@ -85,7 +85,7 @@ class Cegis:
         return logger, tlogger
 
     def _initialise_learner(self) -> LearnerNN:
-        learner_type = make_learner(system=self.f, time_domain=self.config.TIME_DOMAIN)
+        learner_type = make_learner(system=self.f)
 
         initial_models = {}
         if self.config.BARRIER_TO_LOAD is not None:
@@ -125,6 +125,7 @@ class Cegis:
         verifier_type = make_verifier(type=self.config.VERIFIER)
         x = verifier_type.new_vars(var_names=self.f.vars)
         u = verifier_type.new_vars(var_names=self.f.controls)
+        time_domain = self.f.time_domain
 
         if isinstance(self.f, UncertainControlAffineDynamics):
             z = verifier_type.new_vars(var_names=self.f.uncertain_vars)
@@ -139,9 +140,10 @@ class Cegis:
             x_map = {"v": x, "u": u}
             x = x + u
 
-        return x, x_map
+        return x, x_map, time_domain
 
     def _initialise_dynamics(self):
+
         if isinstance(self.f, UncertainControlAffineDynamics):
             xdot = self.f(**self.x_map, only_nominal=True)
             xdotz = None  # self.f(**self.x_map)
@@ -196,7 +198,6 @@ class Cegis:
         return make_translator(
             certificate_type=self.config.CERTIFICATE,
             verifier_type=self.config.VERIFIER,
-            time_domain=self.config.TIME_DOMAIN,
             verbose=self.verbose,
         )
 

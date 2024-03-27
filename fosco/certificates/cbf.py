@@ -1,9 +1,9 @@
-import logging
 import math
 from typing import Generator
 
 import numpy as np
 import torch
+import z3
 from torch.optim import Optimizer
 
 from fosco.config import CegisConfig
@@ -13,7 +13,6 @@ from fosco.common.consts import DomainName, LossReLUType
 from fosco.common.utils import _set_assertion
 from fosco.learner import LearnerNN
 from fosco.verifier.types import SYMBOL
-from fosco.logger import LOGGING_LEVELS
 from fosco.systems import ControlAffineDynamics
 
 XD = DomainName.XD.value
@@ -133,14 +132,14 @@ class ControlBarrierFunction(Certificate):
             alpha=alpha,
         )
 
-        logging.debug(f"initial_constr: {initial_constr}")
-        logging.debug(f"unsafe_constr: {unsafe_constr}")
-        logging.debug(f"lie_constr: {feasible_constr}")
+        #self._logger.debug(f"initial_constr: {initial_constr}")
+        #self._logger.debug(f"unsafe_constr: {unsafe_constr}")
+        self._logger.debug(f"lie_constr: {feasible_constr}")
 
         for cs in (
+                {XD: (feasible_constr, feasible_vars, feasible_aux_vars)},
                 {XI: (initial_constr, initial_vars, initial_aux_vars),
                  XU: (unsafe_constr, unsafe_vars, unsafe_aux_vars)},
-                {XD: (feasible_constr, feasible_vars, feasible_aux_vars)},
         ):
             yield cs
 
@@ -319,7 +318,7 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
 
             if t % math.ceil(self.epochs / 10) == 0 or self.epochs - t < 10:
                 # log_loss_acc(t, loss, accuracy, learner.verbose)
-                logging.debug(f"Epoch {t}: loss={loss}, accuracy={accuracies}")
+                self._logger.debug(f"Epoch {t}: loss={loss}, accuracy={accuracies}")
 
             # early stopping after 2 consecutive epochs with ~100% accuracy
             condition = all(acc >= 99.9 for name, acc in accuracies.items())
@@ -420,7 +419,7 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
         }
 
         # debug
-        logging.debug("Dataset Accuracy:")
-        logging.debug("\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
+        self._logger.debug("Dataset Accuracy:")
+        self._logger.debug("\n" + "\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
 
         return loss, losses, accuracy

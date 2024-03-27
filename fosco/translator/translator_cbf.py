@@ -13,6 +13,11 @@ class MLPTranslator(Translator):
     Translate a continuous-time cbf network into a symbolic expression for forward pass and Lie derivative.
     """
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self._logger.debug("MLPTranslator initialized")
+
     def _assert_state(self) -> None:
         pass
 

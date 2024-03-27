@@ -13,6 +13,11 @@ class MLPTranslatorDT(Translator):
     Translate a discrete-time cbf network into a symbolic expression for forward pass and Delta-barrier.
     """
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self._logger.debug("MLPTranslatorDT initialized")
+
     def _assert_state(self) -> None:
         pass
 

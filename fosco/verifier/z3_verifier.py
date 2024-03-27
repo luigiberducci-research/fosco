@@ -89,6 +89,8 @@ class VerifierZ3(Verifier):
         if self._rounding > 0:
             fml = round_expr(fml, rounding=self._rounding)
 
+        self._logger.debug(fml.sexpr())
+
         timer = timeit.default_timer()
         solver.add(fml)
         res = solver.check()

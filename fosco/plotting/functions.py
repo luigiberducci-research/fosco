@@ -149,14 +149,9 @@ def plot_lie_derivative(
         u_domain, Rectangle
     ), "only rectangular domains are supported for u"
 
-    lb, ub = np.array(u_domain.lower_bounds), np.array(u_domain.upper_bounds)
-
     figs = []
     titles = []
-    for u_norm in np.linspace(-1, 1, 5):
-        # denormalize u to the domain
-        u_orig = (lb + ub) / 2.0 + u_norm * (ub - lb) / 2.0
-
+    for u_orig in u_domain.get_vertices():
         ctrl = (
             lambda x: torch.ones((x.shape[0], system.n_controls))
             * torch.tensor(u_orig).float()
@@ -216,8 +211,6 @@ def plot_cbf_condition(
         u_domain, Rectangle
     ), "only rectangular domains are supported for u"
 
-    lb, ub = np.array(u_domain.lower_bounds), np.array(u_domain.upper_bounds)
-
     if isinstance(system, UncertainControlAffineDynamics):
         f = lambda x, u: system._f_torch(x, u, z=None, only_nominal=True)
     else:
@@ -225,10 +218,7 @@ def plot_cbf_condition(
 
     figs = []
     titles = []
-    for u_norm in np.linspace(-1, 1, 5):
-        # denormalize u to the domain
-        u_orig = (lb + ub) / 2.0 + u_norm * (ub - lb) / 2.0
-
+    for u_orig in u_domain.get_vertices():
         ctrl = (
             lambda x: torch.ones((x.shape[0], system.n_controls))
             * torch.tensor(u_orig).float()

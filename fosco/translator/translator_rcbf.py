@@ -13,6 +13,10 @@ class RobustMLPTranslator(MLPTranslator):
     Translator for robust model to symbolic expressions.
     """
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self._logger.debug("RobustMLPTranslator initialized")
     @timed
     def translate(
         self,

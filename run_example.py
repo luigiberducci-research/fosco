@@ -2,6 +2,7 @@ import torch
 
 import fosco.cegis
 from fosco.systems import make_system
+from fosco.systems.discrete_time.system_dt import EulerDTSystem
 from fosco.systems.uncertainty import add_uncertainty
 
 
@@ -9,6 +10,7 @@ def main(args):
     exp_name = args.exp_name
     seed = args.seed
     system_type = args.system
+    dt = args.dt
     uncertainty_type = args.uncertainty
     certificate_type = args.certificate
     verifier_type = args.verifier
@@ -16,8 +18,8 @@ def main(args):
     resampling_std = args.resampling_std
     barrier_to_load = args.barrier_to_load
     sigma_to_load = args.sigma_to_load
-    activations = args.activations
-    n_hidden_neurons = args.n_hiddens
+    activations = args.activations or []
+    n_hidden_neurons = args.n_hiddens or []
     n_data_samples = args.n_data_samples
     optimizer = args.optimizer
     learning_rate = args.lr
@@ -41,9 +43,11 @@ def main(args):
         uncertainty_type is None or certificate_type.upper() == "RCBF"
     ), "Uncertainty only supported for RCBF certificates"
 
-    base_system = make_system(system_id=system_type)
-    system = add_uncertainty(uncertainty_type=uncertainty_type, system_fn=base_system)
-    system = system()
+    base_system = make_system(system_id=system_type)()
+    if dt is not None:
+        base_system = EulerDTSystem(system=base_system, dt=dt)
+    system = add_uncertainty(uncertainty_type=uncertainty_type, system=base_system)
+
     sets = system.domains
 
     # data generator
@@ -130,6 +134,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--system", type=str, default="SingleIntegrator", choices=systems
     )
+    parser.add_argument(
+        "--dt", type=float, default=None, help="Discretization time step for DT systems (None for CT)"
+    )
     parser.add_argument("--uncertainty", type=str, default=None, choices=uncertainties)
 
     parser.add_argument("--certificate", type=str, default="cbf")
@@ -141,9 +148,9 @@ if __name__ == "__main__":
     parser.add_argument("--resampling-std", type=float, default=5e-3)
 
     parser.add_argument(
-        "--activations", type=str, nargs="+", default=["square", "linear"]
+        "--activations", type=str, nargs="+", default=None
     )
-    parser.add_argument("--n-hiddens", type=int, nargs="+", default=[5, 5])
+    parser.add_argument("--n-hiddens", type=int, nargs="+", default=None)
     parser.add_argument("--n-data-samples", type=int, default=5000)
     parser.add_argument("--max-iters", type=int, default=100)
     parser.add_argument("--n-epochs", type=int, default=1000)

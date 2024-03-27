@@ -415,11 +415,18 @@ class TestTranslator(unittest.TestCase):
         )
         self.assertTrue(isinstance(translator, RobustMLPTranslator))
 
+        translator = make_translator(
+            certificate_type=CertificateType.CBF,
+            verifier_type=VerifierType.Z3,
+            time_domain=TimeDomain.DISCRETE,
+        )
+        self.assertTrue(isinstance(translator, MLPTranslatorDT))
+
         with self.assertRaises(NotImplementedError):
             make_translator(
-                certificate_type=CertificateType.CBF,
+                certificate_type=CertificateType.RCBF,
                 verifier_type=VerifierType.Z3,
-                time_domain=TimeDomain.CONTINUOUS,
+                time_domain=TimeDomain.DISCRETE,
             )
 
     def _test_sympy_activation(self):

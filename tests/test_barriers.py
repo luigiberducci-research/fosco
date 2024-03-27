@@ -68,9 +68,8 @@ class TestBarriers(unittest.TestCase):
         )
 
     def test_single_integrator_sigma_torch(self):
-        system_fn = make_system("SingleIntegrator")
-        system_fn = add_uncertainty("AdditiveBounded", system_fn=system_fn)
-        system = system_fn()
+        system = make_system("SingleIntegrator")()
+        system = add_uncertainty("AdditiveBounded", system=system)
 
         sigma = make_compensator(system=system)
         assert isinstance(
@@ -98,9 +97,8 @@ class TestBarriers(unittest.TestCase):
         from fosco.verifier.z3_verifier import VerifierZ3
         from fosco.verifier.z3_verifier import Z3SYMBOL
 
-        system_fn = make_system("SingleIntegrator")
-        system_fn = add_uncertainty("AdditiveBounded", system_fn=system_fn)
-        system = system_fn()
+        system = make_system("SingleIntegrator")()
+        system = add_uncertainty("AdditiveBounded", system=system)
 
         sigma = make_compensator(system=system)
         assert isinstance(

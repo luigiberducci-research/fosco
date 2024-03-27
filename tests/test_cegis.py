@@ -47,7 +47,6 @@ class TestCEGIS(unittest.TestCase):
         }
 
         config = CegisConfig(
-            TIME_DOMAIN="continuous",
             CERTIFICATE="cbf",
             VERIFIER="z3",
             CEGIS_MAX_ITERS=3,
@@ -119,8 +118,8 @@ class TestCEGIS(unittest.TestCase):
         certificate_type = "rcbf"
         verbose = 0
 
-        system = make_system(system_id=system_name)
-        system = add_uncertainty(uncertainty_type="AdditiveBounded", system_fn=system)()
+        system = make_system(system_id=system_name)()
+        system = add_uncertainty(uncertainty_type="AdditiveBounded", system=system)
 
         XD = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
         UD = domains.Rectangle(vars=["u0", "u1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
@@ -150,7 +149,6 @@ class TestCEGIS(unittest.TestCase):
 
         config = fosco.cegis.CegisConfig(
             CERTIFICATE=certificate_type,
-            TIME_DOMAIN="continuous",
             VERIFIER="z3",
             ACTIVATION=activations,
             N_HIDDEN_NEURONS=n_hidden_neurons,
@@ -161,7 +159,7 @@ class TestCEGIS(unittest.TestCase):
             SEED=seed,
         )
         cegis = Cegis(
-            system=system, domains=sets, config=config, data_gen=data_gen, verbose=0
+            system=system, domains=sets, config=config, data_gen=data_gen, verbose=verbose
         )
 
         result = cegis.solve()

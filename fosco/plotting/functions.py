@@ -172,7 +172,7 @@ def plot_lie_derivative(
         )
 
         figs.append(fig)
-        titles.append(str(u_orig))
+        titles.append(str(u_orig).replace(" ", ""))
 
     return figs, titles
 
@@ -240,7 +240,7 @@ def plot_cbf_condition(
         )
 
         figs.append(fig)
-        titles.append(str(u_orig))
+        titles.append(str(u_orig).replace(" ", ""))
 
     return figs, titles
 

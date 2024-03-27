@@ -215,6 +215,68 @@ class Rectangle(Set):
             torch.sum(x - torch.tensor(self.upper_bounds), dim=1)
         ) + torch.relu(torch.sum(torch.tensor(self.lower_bounds) - x, dim=1))
 
+class Polytope(Set):
+    # A @ z <= b
+    def __init__(
+        self,
+        lhs_A,
+        rhs_b,
+        vars: list[str] = None,
+    ):
+        self.A = lhs_A
+        self.b = rhs_b
+        super().__init__(vars=vars)
+
+    def __repr__(self) -> str:
+        return f"Polytope{self.A, self.b}"
+
+    def generate_domain(self, z):
+        """
+        Generates symbolic domain.
+
+        :param z: symbolic variables
+        :return: symbolic expression
+        """
+        f = verifier.FUNCTIONS
+        z_dim = [i for i, vz in enumerate(z) if str(vz) in self.vars]
+        constraints = []
+        for constraint_id in range(len(z_dim)):
+            z_sum = 0
+            for i, v_id in enumerate(z_dim):
+                z_sum += z[v_id] * self.A[constraint_id, i].item()
+            constraints.append(z_sum <= self.b[constraint_id].item())
+        return f["And"](*constraints)
+
+    def generate_data(self, batch_size) -> torch.Tensor:
+        """
+        Generates data samples in the domain.
+
+        :param batch_size: number of needed samples
+        :return: batch of data
+
+        Question: how to generate this matrix more efficiently?
+        """
+        satisfy_matrix_inequation_dataset = torch.empty((batch_size, self.vars))
+        satisfaction_num = 0
+
+        while satisfaction_num < batch_size:
+            new_data_candidate = (torch.rand((1, self.vars)) - 0.5) * 2
+            if self.A @ torch.transpose(new_data_candidate, 0, 1) <= self.b:
+                satisfy_matrix_inequation_dataset[satisfaction_num,:] = new_data_candidate
+                satisfaction_num += 1
+
+        return satisfy_matrix_inequation_dataset
+
+    def check_containment(self, z: np.ndarray | torch.Tensor) -> torch.Tensor:
+        """
+        Checks if the given batch of samples is contained in the domain.
+
+        :param z: batch of data samples
+        :return: boolean batch
+        """
+        assert z.shape[1] == len(self.vars)
+        contain_validity = (self.A @ z <= self.b)
+        return contain_validity
 
 class Sphere(Set):
     def __init__(

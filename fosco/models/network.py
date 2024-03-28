@@ -1,4 +1,5 @@
 import pathlib
+from functools import partial
 from typing import Iterable, Optional
 
 import numpy as np
@@ -135,7 +136,7 @@ class TorchMLP(TorchSymDiffModel):
             if z.shape == ():
                 z = z.item()
 
-        var_list = list(set([iv for iv in input_vars.flatten()]))
+        var_list = list(input_vars.flatten())#list(set([iv for iv in input_vars.flatten()]))
         return z, [], var_list
 
     def gradient(self, x: torch.Tensor) -> torch.Tensor:
@@ -179,6 +180,172 @@ class TorchMLP(TorchSymDiffModel):
 
         var_list = list(set([iv for iv in input_vars.flatten()]))
         return gradV, [], var_list
+
+    def save(self, outdir: str, model_name: str = "model") -> str:
+        import pathlib
+        import yaml
+
+        outdir = pathlib.Path(outdir)
+        outdir.mkdir(parents=True, exist_ok=True)
+
+        # save model.pt
+        model_path = outdir / f"{model_name}.pt"
+        torch.save(self.state_dict(), model_path)
+
+        # save params.yaml with net configuration
+        params = {
+            "module": self.__module__,
+            "class": self.__class__.__name__,
+            "kwargs": {
+                "input_size": self.input_size,
+                "hidden_sizes": [layer.out_features for layer in self.layers[:-1]],
+                "activation": [act.name for act in self.acts[:-1]],
+                "output_size": self.layers[-1].out_features,
+                "output_activation": self.acts[-1].name,
+            },
+        }
+
+        param_path = model_path.parent / f"{model_name}.yaml"
+        with open(param_path, "w") as f:
+            yaml.dump(params, f)
+
+        return str(param_path)
+
+    @staticmethod
+    def load(config_path: str | pathlib.Path):
+        import pathlib
+        import yaml
+
+        config_path = pathlib.Path(config_path)
+        assert config_path.exists(), f"config file {config_path} does not exist"
+        assert (
+            config_path.suffix == ".yaml"
+        ), f"expected .yaml file, got {config_path.suffix}"
+
+        # load params.yaml
+        with open(config_path, "r") as f:
+            params = yaml.load(f, Loader=yaml.FullLoader)
+
+        assert all(
+            [k in params for k in ["module", "class", "kwargs"]]
+        ), f"Missing keys in {params.keys()}"
+        assert (
+            params["module"] == "fosco.models.network"
+        ), f"Expected fosco.models.network, got {params['module']}"
+        assert (
+            params["class"] == "TorchMLP"
+        ), f"Expected TorchMLP, got {params['class']}"
+
+        # load model.pt
+        model_path = config_path.parent / f"{config_path.stem}.pt"
+        kwargs = params["kwargs"]
+        model = TorchMLP(**kwargs)
+        model.load_state_dict(torch.load(model_path))
+
+        return model
+
+class RobustGate(TorchSymDiffModel):
+    """
+    Implements a robust-gate model as function of the barrier value:
+    f(x) = m * (sigmoid(w x + b) - sigmoid(w x - b))
+
+    see it here: https://www.desmos.com/calculator/2dgogzyqef
+
+    m: multiplier which controls the output range, resulting in a function with range [0, m]
+    w: weight, it controls the slope of the linear term, resulting in symmetric function which is more/less steep
+    b: bias, it controls the center of the sigmoid, resulting in a symmetric fn which is more/less flat around 0
+
+    Since we want it to be non-negative, m and b should be non-negative.
+    We can do this by using `log m` and `log b` as parameters, and then exponentiate them in the forward pass.
+    In the symbolic computations, we express everything in terms of m, w, b.
+    """
+    def __init__(self, activation_type: str | ActivationType = "sigmoid"):
+        super(RobustGate, self).__init__()
+
+        assert isinstance(activation_type, str) or isinstance(activation_type, ActivationType), f"got {type(activation_type)}"
+
+        self._input_size: int = 1
+        self._output_size: int = 1
+
+        if isinstance(activation_type, str):
+            activation_type = ActivationType[activation_type.upper()]
+
+        self._sigmoid = partial(activation, select=activation_type)
+        self._sigmoid_sym = partial(activation_sym, select=activation_type)
+        self._sigmoid_der_sym = partial(activation_der_sym, select=activation_type)
+
+        self.register_parameter(f"w", nn.Parameter(torch.randn(1, 1)))
+        self.register_parameter(f"log_b", nn.Parameter(torch.randn(1, 1)))
+        self.register_parameter(f"log_m", nn.Parameter(torch.randn(1, 1)))
+
+    @property
+    def input_size(self) -> int:
+        return self._input_size
+
+    @property
+    def output_size(self) -> int:
+        return self._output_size
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        m = torch.exp(self.log_m)
+        w = self.w
+        b = torch.exp(self.log_b)
+
+
+        y = m * (self._sigmoid(p=w * x + b) - self._sigmoid(p=w * x - b))
+        return y
+
+    def forward_smt(
+        self, x: Iterable[SYMBOL]
+    ) -> tuple[SYMBOL, Iterable[SYMBOL], list[SYMBOL]]:
+        input_vars = np.array(x).copy().reshape(-1, 1)
+
+        m = np.exp(self.log_m.data.numpy())
+        w = self.w.data.numpy()
+        b = np.exp(self.log_b.data.numpy())
+
+        term_pos = w * input_vars + b
+        term_neg = w * input_vars - b
+
+        z = m * (self._sigmoid_sym(p=term_pos) - self._sigmoid_sym(p=term_neg))
+        z = z[0, 0]
+
+        var_list = list(input_vars.flatten())
+        return z, [], var_list
+
+    def gradient(self, x: torch.Tensor) -> torch.Tensor:
+        x_clone = torch.clone(x).requires_grad_()
+        y = self(x_clone)
+        dydx = torch.autograd.grad(
+            outputs=y,
+            inputs=x_clone,
+            grad_outputs=torch.ones_like(y),
+            create_graph=True,
+            retain_graph=True,
+        )[0]
+        return dydx
+    def gradient_smt(
+        self, x: Iterable[SYMBOL]
+    ) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL], list[SYMBOL]]:
+        """
+        df(x)/dx = m * (sigmoid'(w x + b) - w * sigmoid'(w x - b)) =
+                 = m * dsigmoid/dx(wx + b) * d(wx + b)/dx - m * dsigmoid/dx(wx - b) * d(wx - b)/dx =
+                 = m * w * (dsigmoid/dx(wx + b) - dsigmoid/dx(wx - b))
+        """
+        input_vars = np.array(x).copy().reshape(-1, 1)
+
+        m = np.exp(self.log_m.data.numpy())
+        w = np.exp(self.w.data.numpy())
+        b = np.exp(self.log_b.data.numpy())
+
+        dfdx = m * w * (
+                self._sigmoid_der_sym(p=w * input_vars + b) -
+                self._sigmoid_der_sym(p=w * input_vars - b)
+        )
+        dfdx = dfdx[0, 0]
+
+        var_list = list(input_vars.flatten())
+        return dfdx, [], var_list
 
     def save(self, outdir: str, model_name: str = "model") -> str:
         import pathlib

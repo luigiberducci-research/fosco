@@ -1,6 +1,8 @@
 import os
 import unittest
 
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import z3
 
@@ -264,3 +266,54 @@ class TestModel(unittest.TestCase):
 
         # remove tmp_dir
         shutil.rmtree(tmp_dir)
+
+    def test_robust_gate_forward(self):
+        from fosco.models.network import RobustGate
+
+        batch = torch.linspace(-10.0, 10.0, 100).reshape(-1, 1)
+        model = RobustGate(activation_type="hsigmoid")
+
+        # numerical ground truth
+        y = model(batch).detach().numpy()
+        dydx = model.gradient(batch)
+
+        self.assertTrue(y.shape == (100, 1))
+        self.assertTrue(dydx.shape == (100, 1))
+
+        # symbolic
+        x_sym = z3.Reals("x")
+        y_sym, y_constr, y_vars = model.forward_smt(x_sym)
+        dydx_sym, dydx_constr, dydx_vars = model.gradient_smt(x_sym)
+
+        self.assertTrue(isinstance(y_sym, z3.ArithRef))
+        self.assertTrue(isinstance(dydx_sym, z3.ArithRef))
+        self.assertTrue(len(y_constr) == 0)
+        self.assertTrue(len(dydx_constr) == 0)
+        self.assertEqual(y_vars, x_sym)
+        self.assertEqual(y_vars, dydx_vars)
+
+        # for each point in batch, check symbolic equivalence
+        symbpoints = []
+        for x in batch:
+            y_val = model(torch.tensor(x)).item()
+            dydx_val = model.gradient(torch.tensor(x)).item()
+            y_sym_val = z3.simplify(z3.substitute(y_sym, (x_sym[0], z3.RealVal(x.item()))))
+            dydx_sym_val = z3.simplify(z3.substitute(y_sym, (x_sym[0], z3.RealVal(x.item()))))
+
+            symbpoints.append(float(y_sym_val.as_fraction().numerator/y_sym_val.as_fraction().denominator))
+            #self.assertTrue(
+            #    np.isclose(float(str(y_sym_val)), y_val, atol=1e-3),
+            #    f"expected {y_val}, got {y_sym_val}",
+            #)
+            #self.assertTrue(
+            #    np.isclose(float(str(dydx_sym_val)), dydx_val, atol=1e-3),
+            #    f"expected {dydx_val}, got {dydx_sym_val}",
+            #)
+
+        #plt.plot(batch, y, label="y")
+        #plt.plot(batch, symbpoints, label="y_sim")
+        #plt.show()
+
+
+
+

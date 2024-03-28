@@ -4,11 +4,11 @@ import numpy as np
 
 from fosco.common.timing import timed
 from fosco.models import TorchMLP
-from fosco.translator.translator_cbf import MLPTranslator
+from fosco.translator import MLPTranslatorDT
 from fosco.verifier.types import SYMBOL
 
 
-class RobustMLPTranslator(MLPTranslator):
+class RobustMLPTranslatorDT(MLPTranslatorDT):
     """
     Translator for robust model to symbolic expressions.
     """
@@ -43,21 +43,26 @@ class RobustMLPTranslator(MLPTranslator):
         """
         assert sigma_net is not None, "sigma_net must be not None"
         assert xdot_residual is not None, "xdot_residual not supported"
+        assert isinstance(xdot, np.ndarray), "Expected xdot to be np.ndarray"
+        assert isinstance(xdot_residual, np.ndarray), "Expected xdot_residual to be np.ndarray"
+        assert xdot_residual.shape == xdot.shape, f"Expected same shape for xdot and xdot_residual, got {xdot_residual.shape} and {xdot.shape}"
 
         # note: ignore elapsed_time here, it is because of the decorator timed
         symbolic_dict, elapsed_time = super().translate(x_v_map, V_net, xdot)
 
         x_vars = x_v_map["v"]
-        xdot_residual = np.array(xdot_residual).reshape(-1, 1)
 
         # robust cbf: compensation term
         sigma_symbolic, sigma_symbolic_constr, sigma_symbolic_vars = sigma_net.forward_smt(x=x_vars)
 
         # lie derivative under uncertain dynamics
-        Vgrad_symbolic, Vgrad_symbolic_constr, Vgrad_symbolic_vars = V_net.gradient_smt(x=x_vars)
-        Vdot_residual_symbolic = (Vgrad_symbolic @ xdot_residual)[0, 0]
-        Vdot_residual_symbolic_constr = Vgrad_symbolic_constr
-        Vdot_residual_symbolic_vars = Vgrad_symbolic_vars
+        next_x = xdot + xdot_residual
+        Vnext_symbolic, Vnext_symbolic_constr, Vnext_symbolic_vars = V_net.forward_smt(x=next_x)
+        V_symbolic, V_symbolic_constr, V_symbolic_vars = symbolic_dict["V_symbolic"], symbolic_dict["V_symbolic_constr"], symbolic_dict["V_symbolic_vars"]
+
+        Vdot_residual_symbolic = Vnext_symbolic - V_symbolic
+        Vdot_residual_symbolic_constr = V_symbolic_constr
+        Vdot_residual_symbolic_vars = V_symbolic_vars
 
         assert isinstance(
             sigma_symbolic, SYMBOL

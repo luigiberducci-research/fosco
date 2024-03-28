@@ -3,6 +3,7 @@ from fosco.translator.translator import Translator
 from fosco.translator.translator_cbf import MLPTranslator
 from fosco.translator.translator_cbf_dt import MLPTranslatorDT
 from fosco.translator.translator_rcbf import RobustMLPTranslator
+from fosco.translator.translator_rcbf_dt import RobustMLPTranslatorDT
 
 
 def make_translator(
@@ -38,8 +39,7 @@ def make_translator(
         VerifierType.DREAL,
     ]:
         if certificate_type == CertificateType.RCBF:
-            raise NotImplementedError()
-            return RobustMLPTranslator(**kwargs)
+            return RobustMLPTranslatorDT(**kwargs)
         elif certificate_type == CertificateType.CBF:
             return MLPTranslatorDT(**kwargs)
         else:

@@ -1,7 +1,5 @@
 from typing import Iterable
 
-import numpy as np
-
 from fosco.common.timing import timed
 from fosco.models import TorchMLP
 from fosco.translator import Translator

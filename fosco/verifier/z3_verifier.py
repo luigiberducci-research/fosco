@@ -120,6 +120,12 @@ class VerifierZ3(Verifier):
                 return float(model[x[0, 0]].as_fraction())
             except:  # when z3 finds non-rational numbers, prints them w/ '?' at the end --> approx 10 decimals
                 return float(model[x[0, 0]].approx(10).as_fraction())
+        except Exception as e:
+            print("model type", type(model))
+            print("model", model)
+            print("x", x)
+            print("i", i)
+            raise e
 
     @staticmethod
     def solver_fncts() -> dict[str, Callable]:

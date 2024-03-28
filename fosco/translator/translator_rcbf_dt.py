@@ -6,6 +6,7 @@ from fosco.common.timing import timed
 from fosco.models import TorchMLP
 from fosco.translator import MLPTranslatorDT
 from fosco.verifier.types import SYMBOL
+from fosco.verifier.utils import get_solver_simplify
 
 
 class RobustMLPTranslatorDT(MLPTranslatorDT):
@@ -47,22 +48,30 @@ class RobustMLPTranslatorDT(MLPTranslatorDT):
         assert isinstance(xdot_residual, np.ndarray), "Expected xdot_residual to be np.ndarray"
         assert xdot_residual.shape == xdot.shape, f"Expected same shape for xdot and xdot_residual, got {xdot_residual.shape} and {xdot.shape}"
 
+        x_vars = x_v_map["v"]
+        symplify_fn = get_solver_simplify(x_vars)
+
         # note: ignore elapsed_time here, it is because of the decorator timed
         symbolic_dict, elapsed_time = super().translate(x_v_map, V_net, xdot)
 
-        x_vars = x_v_map["v"]
+        # symbolic expressions for the nominal system dynamics
+        V_symbolic = symbolic_dict["V_symbolic"]
+        Vdot_symbolic = symbolic_dict["Vdot_symbolic"]
 
         # robust cbf: compensation term
         sigma_symbolic, sigma_symbolic_constr, sigma_symbolic_vars = sigma_net.forward_smt(x=x_vars)
+        sigma_symbolic = symplify_fn(sigma_symbolic)
 
-        # lie derivative under uncertain dynamics
-        next_x = xdot + xdot_residual
-        Vnext_symbolic, Vnext_symbolic_constr, Vnext_symbolic_vars = V_net.forward_smt(x=next_x)
-        V_symbolic, V_symbolic_constr, V_symbolic_vars = symbolic_dict["V_symbolic"], symbolic_dict["V_symbolic_constr"], symbolic_dict["V_symbolic_vars"]
+        # time-diff of barrier at the next step under uncertain dynamics
+        next_xz = xdot + xdot_residual
+        Vnextz_symbolic, Vnextz_symbolic_constr, Vnextz_symbolic_vars = V_net.forward_smt(x=next_xz)
+        Vdotz_symbolic = Vnextz_symbolic - V_symbolic
 
-        Vdot_residual_symbolic = Vnext_symbolic - V_symbolic
-        Vdot_residual_symbolic_constr = V_symbolic_constr
-        Vdot_residual_symbolic_vars = V_symbolic_vars
+        # residual in the time-difference of V
+        Vdot_residual_symbolic = Vdotz_symbolic - Vdot_symbolic
+        Vdot_residual_symbolic = symplify_fn(Vdot_residual_symbolic)
+        Vdot_residual_symbolic_constr = []
+        Vdot_residual_symbolic_vars = []
 
         assert isinstance(
             sigma_symbolic, SYMBOL

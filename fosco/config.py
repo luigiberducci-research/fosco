@@ -32,7 +32,7 @@ class CegisConfig:
     OPTIMIZER: str = "adam"
     LOSS_MARGINS: dict[str, float] | float = 0.0
     LOSS_WEIGHTS: dict[str, float] | float = 1.0
-    LOSS_RELU: str = "relu"
+    LOSS_RELU: str = "softplus"
     N_EPOCHS: int = 100
     # seeding
     SEED: Optional[int] = None

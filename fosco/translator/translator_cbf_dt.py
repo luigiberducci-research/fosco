@@ -4,6 +4,7 @@ from fosco.common.timing import timed
 from fosco.models import TorchMLP
 from fosco.translator import Translator
 from fosco.verifier.types import SYMBOL
+from fosco.verifier.utils import get_solver_simplify
 
 
 class MLPTranslatorDT(Translator):
@@ -42,10 +43,14 @@ class MLPTranslatorDT(Translator):
         assert "v" in x_v_map, "x_v_map must contain key 'v' for symbolic variables"
 
         x_vars = x_v_map["v"]
+        symplify_fn = get_solver_simplify(x_vars)
 
         V_symbolic, V_symbolic_constr, V_symbolic_vars = V_net.forward_smt(x=x_vars)
+        V_symbolic = symplify_fn(V_symbolic)
         Vnext_symbolic, Vnext_symbolic_constr, Vnext_symbolic_vars = V_net.forward_smt(x=xdot)
+        Vnext_symbolic = symplify_fn(Vnext_symbolic)
         Vdot_symbolic = Vnext_symbolic - V_symbolic
+        Vdot_symbolic = symplify_fn(Vdot_symbolic)
         Vdot_symbolic_constr = V_symbolic_constr
         Vdot_symbolic_vars = V_symbolic_vars
 

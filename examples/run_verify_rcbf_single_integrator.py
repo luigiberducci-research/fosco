@@ -15,9 +15,6 @@ def main(args):
     system_id = "SingleIntegrator"
     uncertainty_id = "AdditiveBounded"
 
-    #model_to_load = "/home/luigi/Development/fosco-robust/logs/models/SingleIntegrator_AdditiveBounded_rcbf_hx_sx_chained_square_Seed514796_20240325_163509/learner_6_barrier.yaml"
-    #sigma_to_load = "/home/luigi/Development/fosco-robust/logs/models/SingleIntegrator_AdditiveBounded_rcbf_hx_sx_chained_square_Seed514796_20240325_163509/learner_6_sigma.yaml"
-
     model_to_load = "default"
     sigma_to_load = "tunable"
 

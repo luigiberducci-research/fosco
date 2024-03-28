@@ -1,6 +1,6 @@
 import torch
 
-from fosco.common.consts import DomainName
+from fosco.common.consts import DomainName, TimeDomain
 from typing import Callable
 
 import numpy as np
@@ -137,6 +137,7 @@ def plot_lie_derivative(
     system: ControlAffineDynamics,
     domains: dict[str, Set],
 ) -> tuple[list[go.Figure], list[str]]:
+    time_domain = system.time_domain
     in_domain: Rectangle = domains[DomainName.XD.value]
     u_domain = domains[DomainName.UD.value]
     other_domains = {
@@ -151,7 +152,10 @@ def plot_lie_derivative(
 
     figs = []
     titles = []
-    for u_orig in u_domain.get_vertices():
+
+    u_vertices = u_domain.get_vertices()
+    zero_u = np.zeros_like(u_vertices[0])
+    for u_orig in np.concatenate((u_vertices, [zero_u])):
         ctrl = (
             lambda x: torch.ones((x.shape[0], system.n_controls))
             * torch.tensor(u_orig).float()
@@ -162,7 +166,8 @@ def plot_lie_derivative(
             f = lambda x, u: system._f_torch(x, u)
 
         # lie derivative
-        func = lambda x: lie_derivative_fn(certificate=function, f=f, ctrl=ctrl)(x)
+        is_dt = time_domain == TimeDomain.DISCRETE
+        func = lambda x: lie_derivative_fn(certificate=function, f=f, ctrl=ctrl, is_dt=is_dt)(x)
         fig = plot_func_and_domains(
             func=func,
             in_domain=in_domain,
@@ -177,7 +182,7 @@ def plot_lie_derivative(
     return figs, titles
 
 
-def lie_derivative_fn(certificate, f, ctrl) -> Callable[[np.ndarray], np.ndarray]:
+def lie_derivative_fn(certificate: TorchSymDiffFn, f: Callable, ctrl: Callable, is_dt: bool) -> Callable[[np.ndarray], np.ndarray]:
     def lie_derivative(x):
         grad_net = certificate.gradient(x)
         xdot = f(x, ctrl(x))
@@ -186,6 +191,13 @@ def lie_derivative_fn(certificate, f, ctrl) -> Callable[[np.ndarray], np.ndarray
         # (batch, 1, dim) @ (batch, dim, 1) = (batch, 1, 1)
         return (grad_net @ xdot)[:, 0]
 
+    def delta_h(x):
+        hx = certificate(x)
+        next_hx = certificate(f(x, ctrl(x)))
+        return next_hx - hx
+
+    if is_dt:
+        return delta_h
     return lie_derivative
 
 
@@ -199,6 +211,7 @@ def plot_cbf_condition(
     if alpha is None:
         alpha = lambda x: 1.0 * x
 
+    time_domain = system.time_domain
     in_domain: Rectangle = domains[DomainName.XD.value]
     u_domain = domains[DomainName.UD.value]
     other_domains = {
@@ -218,18 +231,23 @@ def plot_cbf_condition(
 
     figs = []
     titles = []
-    for u_orig in u_domain.get_vertices():
+
+    u_vertices = u_domain.get_vertices()
+    zero_u = np.zeros_like(u_vertices[0])
+    for u_orig in np.concatenate((u_vertices, [zero_u])):
         ctrl = (
             lambda x: torch.ones((x.shape[0], system.n_controls))
             * torch.tensor(u_orig).float()
         )
 
+        is_dt = time_domain == TimeDomain.DISCRETE
         func = lambda x: cbf_condition_fn(
             certificate=barrier,
             alpha=alpha,
             f=f,
             ctrl=ctrl,
             sigma=compensator,
+            is_dt=is_dt,
         )(x)
         fig = plot_func_and_domains(
             func=func,
@@ -246,18 +264,18 @@ def plot_cbf_condition(
 
 
 def cbf_condition_fn(
-    certificate, alpha, f, ctrl, sigma=None
+    certificate, alpha, f, ctrl, sigma=None, is_dt=False
 ) -> Callable[[np.ndarray], np.ndarray]:
     def cbf_condition(x):
         if sigma:
             return (
-                lie_derivative_fn(certificate, f, ctrl)(x).squeeze()
+                lie_derivative_fn(certificate, f, ctrl, is_dt)(x).squeeze()
                 - sigma(x).squeeze()
                 + alpha(certificate(x)).squeeze()
             )
         else:
             return (
-                lie_derivative_fn(certificate, f, ctrl)(x).squeeze()
+                lie_derivative_fn(certificate, f, ctrl, is_dt)(x).squeeze()
                 + alpha(certificate(x)).squeeze()
             )
 

@@ -1,5 +1,6 @@
 from .additive_bounded import AdditiveBounded
 from .convex_hull import ConvexHull
+from .parametric_uncertainty import ParametricUncertainty
 from .uncertainty_wrapper import UNCERTAINTY_REGISTRY
 
 def add_uncertainty(uncertainty_type: str | None, system_fn, **kwargs) -> callable:

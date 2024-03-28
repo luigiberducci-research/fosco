@@ -1,5 +1,5 @@
 import math
-from typing import Generator
+from typing import Generator, Callable
 
 import numpy as np
 import torch
@@ -9,9 +9,10 @@ from torch.optim import Optimizer
 from fosco.config import CegisConfig
 from fosco.certificates.certificate import Certificate, TrainableCertificate
 from fosco.common.domains import Set, Rectangle
-from fosco.common.consts import DomainName, LossReLUType
+from fosco.common.consts import DomainName, LossReLUType, TimeDomain
 from fosco.common.utils import _set_assertion
 from fosco.learner import LearnerNN
+from fosco.models import TorchSymDiffFn
 from fosco.verifier.types import SYMBOL
 from fosco.systems import ControlAffineDynamics
 
@@ -134,7 +135,7 @@ class ControlBarrierFunction(Certificate):
 
         #self._logger.debug(f"initial_constr: {initial_constr}")
         #self._logger.debug(f"unsafe_constr: {unsafe_constr}")
-        self._logger.debug(f"lie_constr: {feasible_constr}")
+        #self._logger.debug(f"lie_constr: {feasible_constr}")
 
         for cs in (
                 {XD: (feasible_constr, feasible_vars, feasible_aux_vars)},
@@ -278,12 +279,11 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
         condition_old = False
         i1 = datasets[XD].shape[0]
         i2 = datasets[XI].shape[0]
-        # samples = torch.cat([s for s in S.values()])
+
         label_order = [XD, XI, XU]
         state_samples = torch.cat(
             [datasets[label][:, : self.n_vars] for label in label_order]
         )
-        U_d = datasets[XD][:, self.n_vars: self.n_vars + self.n_controls]
 
         losses, accuracies, infos = {}, {}, {}
         for t in range(self.epochs):
@@ -291,30 +291,22 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
 
             # net gradient
             B = learner.net(state_samples)
-            gradB = learner.net.gradient(state_samples)
 
             B_d = B[:i1, 0]
             B_i = B[i1: i1 + i2, 0]
             B_u = B[i1 + i2:, 0]
 
             # compute lie derivative
-            assert (
-                    B_d.shape[0] == U_d.shape[0]
-            ), f"expected pairs of state,input data. Got {B_d.shape[0]} and {U_d.shape[0]}"
-            X_d = state_samples[:i1]
-            gradB_d = gradB[:i1]
-            Sdot_d = f_torch(X_d, U_d)
-            Bdot_d = torch.sum(torch.mul(gradB_d, Sdot_d), dim=1)
-
-            loss, losses, accuracies = self.compute_loss(
-                B_i, B_u, B_d, Bdot_d, alpha=1.0
+            Bdot_d = self._compute_barrier_difference(
+                X_d=datasets[XD][:, :self.n_vars],
+                U_d=datasets[XD][:, self.n_vars: self.n_vars + self.n_controls],
+                barrier=learner.net,
+                f_torch=f_torch
             )
 
-            # net gradient infos
-            netgrad_sos = torch.sum(torch.square(gradB))
-            infos = {
-                "netgrad_sos": netgrad_sos.item(),
-            }
+            loss, losses, accuracies = self._compute_loss(
+                B_i, B_u, B_d, Bdot_d, alpha=1.0
+            )
 
             if t % math.ceil(self.epochs / 10) == 0 or self.epochs - t < 10:
                 # log_loss_acc(t, loss, accuracy, learner.verbose)
@@ -328,6 +320,7 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
 
             loss.backward()
             optimizers["barrier"].step()
+            infos = {}
 
         return {
             "loss": losses,
@@ -335,7 +328,32 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
             "info": infos,
         }
 
-    def compute_loss(
+    def _compute_barrier_difference(self, X_d: torch.Tensor, U_d: torch.Tensor, barrier: TorchSymDiffFn, f_torch: Callable) -> torch.Tensor:
+        """
+        Computes the change over time of the barrier function subject to the system dynamics.
+        This is the Lie derivative of the barrier function for continuous-time systems,
+        and the difference between barrier value in consecutive time steps for discrete-time systems.
+
+        Args:
+            X_d (torch.Tensor): batch of states of shape (batch_size, n_vars)
+            U_d (torch.Tensor): batch of inputs of shape (batch_size, n_controls)
+            barrier (TorchSymDiffFn): barrier function
+            f_torch (Callable): system dynamics, xdot=f(x,u) for ct, x_{k+1}=f(x_k,u_k) for dt
+        """
+        assert X_d.shape[0] == U_d.shape[0], f"expected pairs of state,input data. Got {X_d.shape[0], U_d.shape[0]}"
+        if self.system.time_domain == TimeDomain.CONTINUOUS:
+            # Lie derivative of B: dB/dt = dB/dx * dx/dt
+            db_dx = barrier.gradient(X_d)
+            dx_dt = f_torch(X_d, U_d)
+            db_dt = torch.sum(torch.mul(db_dx, dx_dt), dim=1)
+        else:
+            # Time Difference of B: dB/dt = B(x_{k+1}) - B(x_k)
+            bx_t = barrier(X_d)
+            bx_t1 = barrier(f_torch(X_d, U_d))
+            db_dt = (bx_t1 - bx_t)[:, 0]
+        return db_dt
+
+    def _compute_loss(
             self,
             B_i: torch.Tensor,
             B_u: torch.Tensor,
@@ -343,14 +361,13 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
             Bdot_d: torch.Tensor,
             alpha: torch.Tensor | float,
     ) -> tuple[torch.Tensor, dict, dict]:
-        # todo make this private
         """Computes loss function for CBF and its accuracy w.r.t. the batch of data.
 
         Args:
             B_i (torch.Tensor): Barrier values for initial set
             B_u (torch.Tensor): Barrier values for unsafe set
             B_d (torch.Tensor): Barrier values for domain
-            Bdot_d (torch.Tensor): Barrier derivative values for domain
+            Bdot_d (torch.Tensor): Barrier time-difference for domain set
             alpha (torch.Tensor): coeff. linear class-k function, f(x) = alpha * x, for alpha in R_+
 
         Returns:
@@ -423,3 +440,5 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
         self._logger.debug("\n" + "\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
 
         return loss, losses, accuracy
+
+

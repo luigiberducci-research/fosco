@@ -74,6 +74,8 @@ class Cegis:
         self.config.EXP_NAME = exp_name
 
         config = self.config.dict()
+        config["SYSTEM_ID"] = self.f.id
+
         logger = make_logger(
             logger_type=self.config.LOGGER, config=config, experiment=exp_name
         )

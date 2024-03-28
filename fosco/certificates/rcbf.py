@@ -1,5 +1,6 @@
 import logging
 import math
+from functools import partial
 from typing import Generator
 
 import numpy as np
@@ -367,13 +368,15 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
             assert (
                     B_d.shape[0] == input_d.shape[0]
             ), f"expected pairs of state,input data. Got {B_d.shape[0]} and {input_d.shape[0]}"
-            X_d = states_d[:i1]
-            gradB_d = gradB[:i1]
             sigma_d = sigma[:i1, 0]
-            Sdot_d = f_torch(v=X_d, u=input_d, z=None, only_nominal=True)
-            Bdot_d = torch.sum(torch.mul(gradB_d, Sdot_d), dim=1)
+            Bdot_d = self._compute_barrier_difference(
+                X_d=datasets[XD][:, : self.n_vars],
+                U_d=datasets[XD][:, self.n_vars: self.n_vars + self.n_controls],
+                barrier=learner.net,
+                f_torch=partial(f_torch, z=None, only_nominal=True),
+            )
 
-            barrier_loss, barrier_losses, barrier_accuracies = self.compute_loss(
+            barrier_loss, barrier_losses, barrier_accuracies = self._compute_loss(
                 B_i=B_i,
                 B_u=B_u,
                 B_d=B_d,
@@ -388,20 +391,25 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
             optimizers["xsigma"].zero_grad()
 
             B_dz = learner.net(states_dz)[:, 0]
-            gradB_dz = learner.net.gradient(states_dz)
             sigma_dz = learner.xsigma(states_dz)[:, 0]
+            Bdot_dz = self._compute_barrier_difference(
+                X_d=states_dz,
+                U_d=input_dz,
+                barrier=learner.net,
+                f_torch=partial(f_torch, z=uncert_dz, only_nominal=True)
+            )
+            Bdotz_dz = self._compute_barrier_difference(
+                X_d=states_dz,
+                U_d=input_dz,
+                barrier=learner.net,
+                f_torch=partial(f_torch, z=uncert_dz, only_nominal=False)
+            )
 
-            Sdot_dz = f_torch(states_dz, input_dz, uncert_dz, only_nominal=True)
-            Sdotz_dz = f_torch(states_dz, input_dz, uncert_dz)
-            Bdot_dz = torch.sum(torch.mul(gradB_dz, Sdot_dz), dim=1)
-            Bdotz_dz = torch.sum(torch.mul(gradB_dz, Sdotz_dz), dim=1)
-            
             sigma_loss, sigma_losses, sigma_accuracies = self.compute_robust_loss(
                 B_dz=B_dz,
                 Bdotz_dz=Bdotz_dz,
                 Bdot_dz=Bdot_dz,
                 sigma_dz=sigma_dz,
-                alpha=1.0,
             )
 
             losses = {**barrier_losses, **sigma_losses}
@@ -442,7 +450,6 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
             Bdotz_dz: torch.Tensor,
             Bdot_dz: torch.Tensor,
             sigma_dz: torch.Tensor,
-            alpha: torch.Tensor | float,
     ) -> tuple[torch.Tensor, dict, dict]:
         assert (
                 Bdot_dz is None or B_dz.shape == Bdot_dz.shape

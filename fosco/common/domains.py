@@ -278,6 +278,21 @@ class Polytope(Set):
         contain_validity = (self.A @ z <= self.b)
         return contain_validity
 
+    # TODO
+    def get_vertices(self):
+        """Returns vertices of the rectangle
+
+        Returns:
+            List: vertices of the rectangle
+        """
+        spaces = [
+            np.linspace(lb, ub, 2)
+            for lb, ub in zip(self.lower_bounds, self.upper_bounds)
+        ]
+        vertices = np.meshgrid(*spaces)
+        vertices = np.array([v.flatten() for v in vertices]).T
+        return vertices
+
 class Sphere(Set):
     def __init__(
         self,

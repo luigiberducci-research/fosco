@@ -9,8 +9,8 @@ from fosco.common.consts import CertificateType
 from fosco.config import CegisConfig
 from fosco.common import domains
 from fosco.logger import LoggerType
-from systems import make_system
-from systems.uncertainty import add_uncertainty
+from fosco.systems import make_system
+from fosco.systems.uncertainty import add_uncertainty
 
 
 def main(args):

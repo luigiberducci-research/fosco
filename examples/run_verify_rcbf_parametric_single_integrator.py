@@ -23,21 +23,22 @@ def main(args):
 
     # \dot{x} = f(x) + g(x) @ u + unknown_f_matrix @ parameters_f + unknown_g_matrix @ diag(u) @ parameters_g
     # subject to: uncertain_bound_A @ [parameters_f parameters_g] <= uncertain_bound_b
+    # paper: https://arxiv.org/pdf/2208.05955.pdf
 
-    # unknow_matrixs are dependent on states, linear functions for examples
-    # draw a specific f and g from paper's use case
-    unkown_f_matrix = torch.rand(2, 2) 
-    unkown_g_matrix = torch.rand(2, 2)
+    # note that the original paper is not using exactly the single integrator, so i am using a hand-crafted uncertain single integrator sys
+    # unkown_f = [theta1*x1 theta2*x2] = f_matrix @ [x x] @ [theta1 theta2]
+    # unkown_g = torch.zeros
+    f_matrix = torch.eye(2)
+    g_matrix = torch.zeros((2, 2))
 
-    # Question: what if some constraints are not satisfiable simulataneousely?
-    # draw a specific A and b from paper's use case
-    constrain_num = 5
-    uncertain_bound_A = (torch.rand(constrain_num, 2) - 0.5) * 2.
-    uncertain_bound_b = torch.rand(constrain_num)
+    # two parameters, [-0.1, 0.1] x [-0.1, 0.1]
+    uncertain_para_num = 2
+    uncertain_bound_A = torch.cat((torch.eye(uncertain_para_num), -torch.eye(uncertain_para_num)), 0)
+    uncertain_bound_b = torch.tensor([0.2, 0.1, 0.2, 0.1])
 
     system_fn = make_system(system_id=system_id)
     system_fn = add_uncertainty(uncertainty_type=uncertainty_id, system_fn=system_fn, \
-                                f_uncertainty=unkown_f_matrix, g_uncertainty=unkown_g_matrix, \
+                                f_uncertainty=f_matrix, g_uncertainty=g_matrix, \
                                 uncertain_bound_A=uncertain_bound_A, uncertain_bound_b=uncertain_bound_b)
     
     xvars = ["x0", "x1"]

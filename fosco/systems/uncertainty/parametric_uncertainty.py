@@ -1,6 +1,8 @@
 import numpy as np
 import torch
 
+from fosco.common import domains
+from fosco.common.domains import Set
 from fosco.models import TorchSymFn
 from fosco.systems import ControlAffineDynamics
 from fosco.systems.uncertainty.uncertainty_wrapper import register, UncertaintyWrapper
@@ -34,6 +36,18 @@ class ParametricUncertainty(UncertaintyWrapper):
     @property
     def uncertainty_id(self) -> str:
         return self.__class__.__name__
+    
+    @property
+    def uncertain_vars(self) -> list[str]:
+        return [f"z{i}" for i in range(self.n_vars)]
+
+    @property
+    def uncertainty_domain(self) -> Set:
+        return domains.Polytope(
+            vars=self.uncertain_vars,
+            lhs_A=self.uncertain_bound_A,
+            rhs_b=self.uncertain_bound_b,
+        )
 
     # return 2n variables
     @property

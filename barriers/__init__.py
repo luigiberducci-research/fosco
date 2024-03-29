@@ -56,5 +56,17 @@ def make_compensator(
         return compensator
     elif system.id == "SingleIntegrator_ConvexHull":
         raise NotImplementedError(f"compensator models of type {model_to_load} for {system.id} not implemented")
+
+    elif system.id == "SingleIntegrator_ParametricUncertainty" and model_to_load == "default":
+        from barriers.single_integrator import SingleIntegratorCBF
+        from barriers.single_integrator import (
+            SingleIntegratorParametricUncertainty,
+        )
+
+        barrier = SingleIntegratorCBF(system=system)
+        compensator = SingleIntegratorParametricUncertainty(
+            h=barrier, system=system
+        )
+        return compensator
     else:
         raise NotImplementedError(f"barrier models of type {model_to_load} for {system.id} not implemented")

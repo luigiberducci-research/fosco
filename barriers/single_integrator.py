@@ -399,7 +399,7 @@ class SingleIntegratorConvexHullUncertainty(TorchSymModel):
         warnings.warn("Loading is not supported for hand-crafted models")
 
 
-class SingleIntegratorPolytopeUncertainty(TorchSymModel):
+class SingleIntegratorParametricUncertainty(TorchSymModel):
 
     def __init__(self, h: TorchSymDiffModel, system: UncertainControlAffineDynamics):
         super().__init__()

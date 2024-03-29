@@ -18,6 +18,9 @@ def main(args):
     uncertainty_id = "ParametricUncertainty"
     verbose = 1
 
+    model_to_load = "default"
+    sigma_to_load = "default"
+
     # \dot{x} = f(x) + g(x) @ u + unknown_f_matrix @ parameters_f + unknown_g_matrix @ diag(u) @ parameters_g
     # subject to: uncertain_bound_A @ [parameters_f parameters_g] <= uncertain_bound_b
 
@@ -45,7 +48,7 @@ def main(args):
     UD = domains.Rectangle(vars=uvars, lb=(-5.0, -5.0), ub=(5.0, 5.0))
     XI = domains.Rectangle(vars=xvars, lb=(-5.0, -5.0), ub=(-4.0, -4.0))
     XU = domains.Sphere(
-        vars=xvars, centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1], include_boundary=False
+        vars=xvars, center=[0.0, 0.0], radius=1.0, dim_select=[0, 1], include_boundary=False
     )
     ZD = domains.Polytope(vars=zvars, lhs_A=uncertain_bound_A, rhs_b=uncertain_bound_b)
 
@@ -79,15 +82,21 @@ def main(args):
     }
 
     config = CegisConfig(
-        SYSTEM=system_fn,
-        DOMAINS=sets,
-        DATA_GEN=data_gen,
-        CERTIFICATE=CertificateType.RCBF,
-        USE_INIT_MODELS=True,
+        CERTIFICATE="rcbf",
+        VERIFIER="z3",
+        BARRIER_TO_LOAD=model_to_load,
+        SIGMA_TO_LOAD=sigma_to_load,
         CEGIS_MAX_ITERS=1,
-        LOGGER=LoggerType.AIM
+        N_EPOCHS=0,
+        EXP_NAME=f"RCBF_{model_to_load}",
     )
-    cegis = Cegis(config=config, verbose=verbose)
+    cegis = Cegis(
+        system=system_fn(),
+        domains=sets,
+        data_gen=data_gen,
+        config=config,
+        verbose=verbose,
+    )
 
     result = cegis.solve()
 

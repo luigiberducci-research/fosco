@@ -55,6 +55,7 @@ def main(args):
         N_EPOCHS=0,
         EXP_NAME=f"RCBF_{model_to_load}",
     )
+
     cegis = Cegis(
         system=system_fn(),
         domains=sets,

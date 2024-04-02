@@ -17,6 +17,13 @@ class UncertainFunc(TorchSymFn):
     def __init__(self, uncertain_func) -> None:
         super().__init__()
         self.uncertain_func = uncertain_func
+    
+    # TODO
+    def input_size(self) -> int:
+        raise NotImplementedError
+
+    def output_size(self) -> int:
+        raise NotImplementedError
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -33,6 +40,9 @@ def main(args):
     system_id = "SingleIntegrator"
     uncertainty_id = "ConvexHull"
     verbose = 1
+    
+    model_to_load = "default"
+    sigma_to_load = "ConvexHull"
 
     uncertain_func_list = [[0.2, 0.2], [0.3, 0.2], [0.5, 0.1]] # define uncertain function to be linear
     f_uncertainty = []
@@ -68,10 +78,14 @@ def main(args):
 
     config = CegisConfig(
         CERTIFICATE="rcbf",
-        MODEL_TO_LOAD="default",
+        VERIFIER="z3",
+        BARRIER_TO_LOAD=model_to_load,
+        SIGMA_TO_LOAD=sigma_to_load,
         CEGIS_MAX_ITERS=1,
-        #LOGGER="aim"
+        N_EPOCHS=0,
+        EXP_NAME=f"RCBF_{model_to_load}",
     )
+    
     cegis = Cegis(
         system=system_fn,
         domains=sets,

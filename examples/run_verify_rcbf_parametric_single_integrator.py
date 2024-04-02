@@ -19,7 +19,7 @@ def main(args):
     verbose = 1
 
     model_to_load = "default"
-    sigma_to_load = "default"
+    sigma_to_load = "default" # to change it to parametric uncertainty
 
     # \dot{x} = f(x) + g(x) @ u + unknown_f_matrix @ parameters_f + unknown_g_matrix @ diag(u) @ parameters_g
     # subject to: uncertain_bound_A @ [parameters_f parameters_g] <= uncertain_bound_b
@@ -38,7 +38,7 @@ def main(args):
 
     system_fn = make_system(system_id=system_id)
     system_fn = add_uncertainty(uncertainty_type=uncertainty_id, system_fn=system_fn, \
-                                f_uncertainty=f_matrix, g_uncertainty=g_matrix, \
+                                f_matrix=f_matrix, g_matrix=g_matrix, \
                                 uncertain_bound_A=uncertain_bound_A, uncertain_bound_b=uncertain_bound_b)
     
     xvars = ["x0", "x1"]

@@ -24,12 +24,12 @@ class ParametricUncertainty(UncertaintyWrapper):
     TODO: to implement gz part!
     """
 
-    def __init__(self, system: ControlAffineDynamics, f_uncertainty: np.ndarray | torch.Tensor, g_uncertainty: np.ndarray | torch.Tensor, \
+    def __init__(self, system: ControlAffineDynamics, f_matrix: np.ndarray | torch.Tensor, g_matrix: np.ndarray | torch.Tensor, \
                                 uncertain_bound_A: np.ndarray | torch.Tensor, uncertain_bound_b: np.ndarray | torch.Tensor) -> None:
         super().__init__(system)
 
-        self.f_uncertainty = f_uncertainty # unkown_f_matrix
-        self.g_uncertainty = g_uncertainty # unkown_g_matrix
+        self.f_uncertainty = f_matrix # unkown_f_matrix
+        self.g_uncertainty = g_matrix # unkown_g_matrix
         self.uncertain_bound_A = uncertain_bound_A
         self.uncertain_bound_b = uncertain_bound_b
 
@@ -54,13 +54,14 @@ class ParametricUncertainty(UncertaintyWrapper):
     def n_uncertain(self) -> int:
         return self.uncertain_bound_A.shape[1]
 
-    # z is the 2n variables, we should return z[0:n] @ f_uncertainty
+    # z is the 2n variables, we should return f_uncertainty
     def fz_torch(
         self, x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
     ) -> np.ndarray | torch.Tensor:
         self._assert_batched_input(x, z)
         self._assert_satisfy_matrix_constraint(z, self.uncertain_bound_A, self.uncertain_bound_b)
-        f_uncertain_x = self.f_uncertainty @ z[0:self.n_uncertain]
+        assert self.n_uncertain == self.f_uncertainty.shape[1], "Uncertain variables number is not consistent with the uncertain func shape"
+        f_uncertain_x = self.f_uncertainty @ x.repeat(1, self.n_uncertain) @ z[0:self.n_uncertain]
 
         return f_uncertain_x
 
@@ -68,9 +69,11 @@ class ParametricUncertainty(UncertaintyWrapper):
     def fz_smt(self, x: list, z: list) -> np.ndarray | torch.Tensor:
         self._assert_symbolic_input(x, z)
         f_uncertain_x = np.zeros_like(x, dtype=float)
-        for index in range(len(self.f_uncertainty)):
-            f_uncertain_x = f_uncertain_x + self.f_uncertainty[index].forward_smt(x) * z[index]
-        # to change the forward_smt
+        
+        for index in range(self.f_uncertainty.shape[1]):
+            for state_dim_index in range(self.f_uncertainty.shape[0]):
+                # why this cannot be multipled??
+                f_uncertain_x[state_dim_index] += self.f_uncertainty[state_dim_index, index] * x[state_dim_index] * z[index]
         return f_uncertain_x
 
     # z is the 2n variables, we should return z[n:2n] @ g_uncertainty, double check the dim of g_uncertainty

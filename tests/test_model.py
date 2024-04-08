@@ -1,7 +1,6 @@
 import os
 import unittest
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import z3
@@ -75,6 +74,35 @@ class TestModel(unittest.TestCase):
         for layer, layer2 in zip(model.layers, model2.layers):
             self.assertTrue(torch.allclose(layer.weight, layer2.weight))
             self.assertTrue(torch.allclose(layer.bias, layer2.bias))
+
+        # remove tmp_dir
+        shutil.rmtree(tmp_dir)
+
+    def test_save_gate_model(self):
+        from fosco.models.network import RobustGate
+
+        tmp_dir = "tmp"
+
+        # if exists, remove tmp_dir
+        if os.path.exists(tmp_dir):
+            shutil.rmtree(tmp_dir)
+
+        model = RobustGate(
+            activation_type="hsigmoid"
+        )
+        model.save(outdir=tmp_dir)
+
+        # check if model saved
+        self.assertTrue(os.path.exists(tmp_dir))
+        self.assertTrue(os.path.exists(os.path.join(tmp_dir, "model.pt")))
+        self.assertTrue(os.path.exists(os.path.join(tmp_dir, "model.yaml")))
+
+        # try to load model
+        model2 = RobustGate.load(config_path=os.path.join(tmp_dir, "model.yaml"))
+        self.assertEqual(model.input_size, model2.input_size)
+        self.assertEqual(model.output_size, model2.output_size)
+        for param, param2 in zip(model.parameters(), model2.parameters()):
+            self.assertTrue(torch.allclose(param, param2))
 
         # remove tmp_dir
         shutil.rmtree(tmp_dir)
@@ -260,9 +288,8 @@ class TestModel(unittest.TestCase):
             self.assertEqual(mlp1.output_size, mlp2.output_size)
             self.assertEqual(mlp1.acts, mlp2.acts)
             self.assertEqual(len(mlp1.layers), len(mlp2.layers))
-            for layer, layer2 in zip(mlp1.layers, mlp2.layers):
-                self.assertTrue(torch.allclose(layer.weight, layer2.weight))
-                self.assertTrue(torch.allclose(layer.bias, layer2.bias))
+            for param, param2 in zip(mlp1.parameters(), mlp2.parameters()):
+                self.assertTrue(torch.allclose(param, param2))
 
         # remove tmp_dir
         shutil.rmtree(tmp_dir)
@@ -298,21 +325,69 @@ class TestModel(unittest.TestCase):
             y_val = model(torch.tensor(x)).item()
             dydx_val = model.gradient(torch.tensor(x)).item()
             y_sym_val = z3.simplify(z3.substitute(y_sym, (x_sym[0], z3.RealVal(x.item()))))
-            dydx_sym_val = z3.simplify(z3.substitute(y_sym, (x_sym[0], z3.RealVal(x.item()))))
+            dydx_sym_val = z3.simplify(z3.substitute(dydx_sym, (x_sym[0], z3.RealVal(x.item()))))
 
-            symbpoints.append(float(y_sym_val.as_fraction().numerator/y_sym_val.as_fraction().denominator))
-            #self.assertTrue(
-            #    np.isclose(float(str(y_sym_val)), y_val, atol=1e-3),
-            #    f"expected {y_val}, got {y_sym_val}",
-            #)
-            #self.assertTrue(
-            #    np.isclose(float(str(dydx_sym_val)), dydx_val, atol=1e-3),
-            #    f"expected {dydx_val}, got {dydx_sym_val}",
-            #)
+            y_sym_val = float(y_sym_val.as_fraction().numerator/y_sym_val.as_fraction().denominator)
+            dydx_sym_val = float(dydx_sym_val.as_fraction().numerator/dydx_sym_val.as_fraction().denominator)
+            symbpoints.append(y_sym_val)
+            self.assertTrue(
+                np.isclose(y_sym_val, y_val, atol=1e-3),
+                f"expected {y_val}, got {y_sym_val}",
+            )
+            self.assertTrue(
+                np.isclose(dydx_sym_val, dydx_val, atol=1e-3),
+                f"expected {dydx_val}, got {dydx_sym_val}",
+            )
 
         #plt.plot(batch, y, label="y")
         #plt.plot(batch, symbpoints, label="y_sim")
         #plt.show()
+
+    def test_save_sequential_model_wt_robust_gate(self):
+        from fosco.models import TorchMLP
+        from fosco.models.network import RobustGate
+
+
+        tmp_dir = "tmp"
+
+        # if exists, remove tmp_dir
+        if os.path.exists(tmp_dir):
+            shutil.rmtree(tmp_dir)
+
+        mlp1 = TorchMLP(
+            input_size=2,
+            hidden_sizes=(4,4,),
+            activation=("relu","relu",),
+            output_size=1,
+            output_activation="linear",
+        )
+        mlp2 = RobustGate(
+            activation_type="hsigmoid"
+        )
+        model = SequentialTorchMLP(mlps=[mlp1, mlp2])
+        model.save(outdir=tmp_dir, model_name="model")
+
+        # check if model saved
+        self.assertTrue(os.path.exists(tmp_dir))
+        self.assertTrue(os.path.exists(os.path.join(tmp_dir, "model.yaml")))
+        self.assertTrue(os.path.exists(os.path.join(tmp_dir, "model_0.pt")))
+        self.assertTrue(os.path.exists(os.path.join(tmp_dir, "model_0.yaml")))
+        self.assertTrue(os.path.exists(os.path.join(tmp_dir, "model_1.pt")))
+        self.assertTrue(os.path.exists(os.path.join(tmp_dir, "model_1.yaml")))
+
+        # try to load model
+        config_path = os.path.join(tmp_dir, "model.yaml")
+        model2 = SequentialTorchMLP.load(config_path=config_path)
+        self.assertEqual(model.input_size, model2.input_size)
+        self.assertEqual(model.output_size, model2.output_size)
+        for mlp1, mlp2 in zip(model.mlps, model2.mlps):
+            self.assertEqual(mlp1.input_size, mlp2.input_size)
+            self.assertEqual(mlp1.output_size, mlp2.output_size)
+            for param, param2 in zip(mlp1.parameters(), mlp2.parameters()):
+                self.assertTrue(torch.allclose(param, param2))
+
+        # remove tmp_dir
+        shutil.rmtree(tmp_dir)
 
 
 

@@ -1,7 +1,8 @@
 import pathlib
 from typing import Optional
 
-from fosco.models import TorchSymDiffModel, load_model, TorchSymModel
+from fosco.models import TorchSymDiffModel, TorchSymModel
+from fosco.models.utils import load_model
 from fosco.systems import ControlAffineDynamics, UncertainControlAffineDynamics
 
 

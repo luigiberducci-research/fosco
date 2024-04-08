@@ -5,7 +5,7 @@ from fosco.common.consts import ActivationType
 from fosco.learner import make_optimizer
 from fosco.learner.learner_cbf_ct import LearnerCT
 from fosco.models import TorchMLP
-from fosco.models.network import SequentialTorchMLP
+from fosco.models.network import SequentialTorchMLP, RobustGate
 
 
 class LearnerRobustCT(LearnerCT):
@@ -44,15 +44,11 @@ class LearnerRobustCT(LearnerCT):
         else:
             # we design the compensator to depend on the barrier function
             # xsigma(x) = xsigma(h(x))
-            head_mlp = TorchMLP(
-                input_size=1,
-                hidden_sizes=(2,),
-                output_size=1,
-                activation=("tanh",),
-                output_activation="relu"
+            head_model = RobustGate(
+                activation_type="hsigmoid"
             )
             self.xsigma = SequentialTorchMLP(
-                mlps=[self.net, head_mlp],
+                mlps=[self.net, head_model],
                 register_module=[False, True],
             )
 

@@ -9,6 +9,7 @@ from torch import nn
 from fosco.common.activations import activation
 from fosco.common.activations_symbolic import activation_sym, activation_der_sym
 from fosco.common.consts import ActivationType
+from fosco.models.utils import load_model
 from fosco.verifier.verifier import SYMBOL
 from fosco.models.torchsym import TorchSymDiffModel
 
@@ -264,6 +265,7 @@ class RobustGate(TorchSymDiffModel):
 
         assert isinstance(activation_type, str) or isinstance(activation_type, ActivationType), f"got {type(activation_type)}"
 
+        self._activation_type = activation_type
         self._input_size: int = 1
         self._output_size: int = 1
 
@@ -335,7 +337,7 @@ class RobustGate(TorchSymDiffModel):
         input_vars = np.array(x).copy().reshape(-1, 1)
 
         m = np.exp(self.log_m.data.numpy())
-        w = np.exp(self.w.data.numpy())
+        w = self.w.data.numpy()
         b = np.exp(self.log_b.data.numpy())
 
         dfdx = m * w * (
@@ -363,11 +365,7 @@ class RobustGate(TorchSymDiffModel):
             "module": self.__module__,
             "class": self.__class__.__name__,
             "kwargs": {
-                "input_size": self.input_size,
-                "hidden_sizes": [layer.out_features for layer in self.layers[:-1]],
-                "activation": [act.name for act in self.acts[:-1]],
-                "output_size": self.layers[-1].out_features,
-                "output_activation": self.acts[-1].name,
+                "activation_type": self._activation_type,
             },
         }
 
@@ -399,13 +397,13 @@ class RobustGate(TorchSymDiffModel):
             params["module"] == "fosco.models.network"
         ), f"Expected fosco.models.network, got {params['module']}"
         assert (
-            params["class"] == "TorchMLP"
-        ), f"Expected TorchMLP, got {params['class']}"
+            params["class"] == "RobustGate"
+        ), f"Expected RobustGate, got {params['class']}"
 
         # load model.pt
         model_path = config_path.parent / f"{config_path.stem}.pt"
         kwargs = params["kwargs"]
-        model = TorchMLP(**kwargs)
+        model = RobustGate(**kwargs)
         model.load_state_dict(torch.load(model_path))
 
         return model
@@ -414,7 +412,7 @@ class RobustGate(TorchSymDiffModel):
 class SequentialTorchMLP(TorchSymDiffModel):
     def __init__(
         self,
-        mlps: list[TorchMLP | pathlib.Path],
+        mlps: list[TorchSymDiffModel | pathlib.Path],
         register_module: list[bool] = None,
         model_dir: Optional[str] = None,
     ):
@@ -427,10 +425,10 @@ class SequentialTorchMLP(TorchSymDiffModel):
                     model_dir is not None
                 ), "model_dir must be given if mlp path is given"
                 config_path = pathlib.Path(model_dir) / mlp_or_path
-                mlps[idx] = TorchMLP.load(config_path=config_path)
+                mlps[idx] = load_model(config_path=config_path)
 
         assert all(
-            [isinstance(mlp, TorchMLP) for mlp in mlps]
+            [isinstance(mlp, TorchSymDiffModel) for mlp in mlps]
         ), f"All models must be of type TorchMLP, got {mlps}"
 
         # check if output size of previous model matches input size of next model
@@ -606,3 +604,5 @@ def network_until_last_layer(
         jacobian = np.diagflat(activation_der_sym(net.acts[idx], zhat)) @ jacobian
 
     return z, jacobian
+
+

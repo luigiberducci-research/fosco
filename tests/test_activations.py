@@ -12,7 +12,7 @@ from fosco.verifier.types import Z3SYMBOL
 
 
 class TestActivations(unittest.TestCase):
-    def test_all_activations(self):
+    def test_all_activations_z3(self):
         x_batch = torch.linspace(-10, 10, 500).reshape(-1, 1)
         x_sym = np.array([z3.Reals("x")])
 
@@ -54,7 +54,7 @@ class TestActivations(unittest.TestCase):
         print(f"Z3 symbolic activations passed {len(act_success)}/{len(ActivationType)}")
         print(f"Failed activations: {act_fail}")
 
-    def test_all_derivative(self):
+    def test_all_derivative_z3(self):
         x_batch = torch.linspace(-10, 10, 500).reshape(-1, 1)
         x_sym = np.array([z3.Reals("x")])
 

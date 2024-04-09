@@ -99,7 +99,9 @@ class Rectangle(Set):
             vars: Iterable[str],
             dim_select=None,
     ):
-        self.name = "box"
+        assert len(lb) == len(ub), "Lower and upper bounds must have the same length"
+        assert len(lb) == len(vars), "Bounds and variables must have the same length"
+
         self.lower_bounds = lb
         self.upper_bounds = ub
         self.dim_select = dim_select
@@ -355,7 +357,7 @@ class Complement(Set):
         if self.outer_set is None:
             raise NotImplementedError("Complement without outer set not implemented")
 
-        samples = torch.empty(0, self.dimension)
+        samples = torch.zeros(0, self.dimension)
         while len(samples) < batch_size and max_iter > 0:
             s = self.outer_set.generate_data(batch_size=batch_size)
             s = s[~self.set.check_containment(s)]

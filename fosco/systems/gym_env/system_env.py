@@ -19,7 +19,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-
+from collections import namedtuple
 from typing import Dict, Optional, Tuple, Callable, Any
 
 import gymnasium
@@ -29,6 +29,7 @@ import torch
 import pygame
 
 from fosco.common.domains import Rectangle, Sphere
+from fosco.systems import make_system
 from fosco.systems.core.system import ControlAffineDynamics, UncertainControlAffineDynamics
 from fosco.systems.discrete_time.system_dt import EulerDTSystem
 from fosco.systems.gym_env.rewards import RewardFnType
@@ -37,6 +38,7 @@ from fosco.systems.gym_env.rewards import RewardFnType
 TermFnType = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 TensorType = torch.Tensor | np.ndarray
 
+RenderObject = namedtuple("Object", ["type", "position", "size", "color"])
 
 class SystemEnv(gymnasium.Env):
     """
@@ -344,45 +346,24 @@ class SystemEnv(gymnasium.Env):
         # Draw origin
         origin_translation = np.array(self.system.state_domain.lower_bounds[:2])
 
-        if isinstance(self.system.unsafe_domain, Rectangle):
-            position = np.array(self.system.unsafe_domain.lower_bounds[:2]) - origin_translation
-            size = np.array(self.system.unsafe_domain.upper_bounds[:2]) - np.array(self.system.unsafe_domain.lower_bounds[:2])
-            color = [200, 0, 0]
-            pygame.draw.rect(
-                canvas,
-                color,
-                (
-                    (position * ppu).astype(int),
-                    (size * ppu).astype(int),
-                ),
-            )
-        elif isinstance(self.system.unsafe_domain, Sphere):
-            position = np.array(self.system.unsafe_domain.center) - origin_translation
-            radius = self.system.unsafe_domain.radius * ppu
-            color = [200, 0, 0]
-            pygame.draw.circle(
-                canvas, color, (position * ppu).astype(int), radius,
-            )
+        objects = self._render_state_with_objects(obs=self._current_obs)
+        for obj in objects:
+            position = obj.position - origin_translation
 
-        # Draw agents
-        position = self._current_obs.squeeze()[:2].numpy() - origin_translation
-        radius = self.collision_threshold / 2 * ppu
-        for j in range(1):
-            if j == 0:
-                color = [0, 0, 200]
-            else:
-                color = [200, 0, 0]
-
-            pygame.draw.circle(
-                canvas, color, (position * ppu).astype(int), radius,
-            )
-            # add label in the center with agent index
-            font = pygame.font.Font(None, 100)
-            text = font.render(f"{j}", 1, (10, 10, 10))
-            textpos = text.get_rect()
-            textpos.centerx = position[0] * ppu
-            textpos.centery = position[1] * ppu
-            canvas.blit(text, textpos)
+            if obj.type == "rectangle":
+                pygame.draw.rect(
+                    canvas,
+                    obj.color,
+                    (
+                        (position * ppu).astype(int),
+                        (obj.size * ppu).astype(int),
+                    ),
+                )
+            elif obj.type == "circle":
+                radius = obj.size * ppu
+                pygame.draw.circle(
+                    canvas, obj.color, (position * ppu).astype(int), radius,
+                )
 
         if self.render_mode == "human":
             self.screen.blit(canvas, canvas.get_rect())
@@ -392,3 +373,57 @@ class SystemEnv(gymnasium.Env):
             return np.transpose(
                 np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2)
             )
+
+    def _render_state_with_objects(self, obs) -> list[RenderObject]:
+        if len(self._current_obs.shape) == 2 and self._current_obs.shape[0] > 1:
+            return []
+
+        # Add unsafe set
+        if str(self.system.unsafe_domain).startswith("Rectangle"):
+            dom_type = "rectangle"
+            position = np.array(self.system.unsafe_domain.lower_bounds[:2])
+            size = np.array(self.system.unsafe_domain.upper_bounds[:2]) - np.array(
+                self.system.unsafe_domain.lower_bounds[:2]
+            )
+        elif str(self.system.unsafe_domain).startswith("Sphere"):
+            dom_type = "circle"
+            position = np.array(self.system.unsafe_domain.center)
+            size = self.system.unsafe_domain.radius
+        else:
+            raise ValueError("Unsupported rendering for domain type {}".format(type(self.system.unsafe_domain)))
+
+        unsafe_obj = RenderObject(
+            type=dom_type,
+            position=position,
+            size=size,
+            color=[200, 0, 0],
+        )
+
+        # agent
+        position = obs.squeeze()[:2].numpy()
+        radius = self.collision_threshold / 2
+        agent_obj = RenderObject(
+            type="circle",
+            position=position,
+            size=radius,
+            color=[0, 0, 200],
+        )
+
+        return [unsafe_obj, agent_obj]
+
+
+if __name__=="__main__":
+    pass
+    system = make_system("SingleIntegrator")()
+    env = SystemEnv(system=system, max_steps=100, render_mode="human")
+    obs = env.reset()
+    done = False
+    while not done:
+        action = env.action_space.sample()
+        obs, reward, term, truncated, info = env.step(action)
+        done = term or truncated
+        env.render()
+        print(f"obs: {obs}, reward: {reward}, done: {done}")
+    env.close()
+    print("done")
+

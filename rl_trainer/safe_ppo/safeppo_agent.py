@@ -21,6 +21,7 @@ class SafeActorCriticAgent(ActorCriticAgent):
         self,
             envs: SystemEnv,
             barrier: TorchSymDiffModel | Callable,
+            compensator: TorchSymDiffModel | Callable = None,
     ):
         super().__init__(envs=envs)
         self.classk_size = 1
@@ -51,6 +52,7 @@ class SafeActorCriticAgent(ActorCriticAgent):
         self.umin = envs.action_space.low
         self.umax = envs.action_space.high
         self.barrier = barrier
+        self.xsigma = compensator
         self.safety_layer = self._make_barrier_layer()
 
         # extract continuous dynamics
@@ -128,7 +130,7 @@ class SafeActorCriticAgent(ActorCriticAgent):
         if use_safety_layer:
             n_batch = x.size(0)
             hx = self.barrier(x0).view(n_batch, 1)
-            dhdx = self.barrier.gradient(x0).view(n_batch, 1, self.output_size)
+            dhdx = self.barrier.gradient(x0).view(n_batch, 1, self.input_size)
 
             fx = self.fx(x0.view(-1, self.input_size, 1))
             gx = self.gx(x0.view(-1, self.input_size, 1))
@@ -137,6 +139,11 @@ class SafeActorCriticAgent(ActorCriticAgent):
             Lghx = (dhdx @ gx).view(n_batch, self.output_size)
             alpha = 4 * nn.Sigmoid()(action_k)
             alphahx = (alpha * hx).view(n_batch, 1)
+
+            # add compensation term if available
+            if self.xsigma is not None:
+                sigmax = self.xsigma(x0).view(n_batch, 1)
+                Lfhx = Lfhx - sigmax
 
             # note: no kwargs to cvxpylayer
             (safe_action, slack) = self.safety_layer(action, Lfhx, Lghx, alphahx)

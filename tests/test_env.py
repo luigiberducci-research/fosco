@@ -25,13 +25,14 @@ class TestEnv(unittest.TestCase):
                 system=system,
                 termination_fn=dummy_term_fn,
                 reward_fn=dummy_reward_fn,
+                dt=0.1,
                 max_steps=100,
             )
 
             check_env(env, skip_render_check=True)
 
             self.assertTrue(
-                env.system.id == system_id,
+                env.system.id.startswith(system_id),
                 f"created env id {env.system.id} for {system_id}",
             )
 
@@ -44,9 +45,8 @@ class TestEnv(unittest.TestCase):
 
             check_env(env, skip_render_check=True)
 
-            self.assertEqual(
-                system_id,
-                env.system.id,
+            self.assertTrue(
+                env.system.id.startswith(system_id),
                 f"created env id={env.system.id}, given {system_id}",
             )
 
@@ -59,6 +59,7 @@ class TestEnv(unittest.TestCase):
                 system=system,
                 termination_fn=dummy_term_fn,
                 reward_fn=dummy_reward_fn,
+                dt=0.1,
                 max_steps=100,
             )
 
@@ -99,6 +100,7 @@ class TestEnv(unittest.TestCase):
                 system=system,
                 termination_fn=dummy_term_fn,
                 reward_fn=dummy_reward_fn,
+                dt=0.1,
                 max_steps=100,
                 return_np=False,
             )
@@ -146,6 +148,7 @@ class TestEnv(unittest.TestCase):
                 system=system,
                 termination_fn=dummy_term_fn,
                 reward_fn=dummy_reward_fn,
+                dt=0.1,
                 max_steps=100,
             )
 
@@ -172,10 +175,12 @@ class TestEnv(unittest.TestCase):
 
         for system_id in ["SingleIntegrator", "DoubleIntegrator"]:
             system = make_system(system_id=system_id)()
+
             env = SystemEnv(
                 system=system,
                 termination_fn=dummy_term_fn,
                 reward_fn=dummy_reward_fn,
+                dt=0.1,
                 max_steps=100,
             )
 

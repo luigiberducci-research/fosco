@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 
 from fosco.models import TorchMLP
-from fosco.translator import MLPTranslator, make_translator, RobustMLPTranslator
+from fosco.translator import MLPTranslator, make_translator, RobustMLPTranslator, RobustMLPTranslatorDT
 from fosco.translator.translator_cbf_dt import MLPTranslatorDT
 from fosco.verifier.z3_verifier import round_expr
 
@@ -422,12 +422,12 @@ class TestTranslator(unittest.TestCase):
         )
         self.assertTrue(isinstance(translator, MLPTranslatorDT))
 
-        with self.assertRaises(NotImplementedError):
-            make_translator(
+        translator = make_translator(
                 certificate_type=CertificateType.RCBF,
                 verifier_type=VerifierType.Z3,
                 time_domain=TimeDomain.DISCRETE,
             )
+        self.assertTrue(isinstance(translator, RobustMLPTranslatorDT))
 
     def _test_sympy_activation(self):
         """
@@ -469,7 +469,7 @@ class TestTranslator(unittest.TestCase):
 
         translator = MLPTranslatorDT()
         result_dict, elapsed_time = translator.translate(
-            x_v_map={"v": x}, V_net=nn, xdot=xdot
+            x_v_map={"v": x.flatten()}, V_net=nn, xdot=xdot
         )
         expr_nn = result_dict["V_symbolic"]
         expr_nndot = result_dict["Vdot_symbolic"]

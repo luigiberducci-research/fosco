@@ -25,25 +25,16 @@ class TestCEGIS(unittest.TestCase):
     ]:
         system = SingleIntegrator()
 
-        XD = system.state_domain
-        UD = system.input_domain
-        XI = system.init_domain
-        XU = system.unsafe_domain
 
         dn = DomainName
-        domains = {
-            name: domain
-            for name, domain in zip(
-                [dn.XD.value, dn.UD.value, dn.XI.value, dn.XU.value], [XD, UD, XI, XU]
-            )
-        }
+        domains = system.domains
 
         data_gen = {
             dn.XD.value: lambda n: torch.concatenate(
-                [XD.generate_data(n), UD.generate_data(n)], dim=1
+                [system.state_domain.generate_data(n), system.input_domain.generate_data(n)], dim=1
             ),
-            dn.XI.value: lambda n: XI.generate_data(n),
-            dn.XU.value: lambda n: XU.generate_data(n),
+            dn.XI.value: lambda n: system.init_domain.generate_data(n),
+            dn.XU.value: lambda n: system.unsafe_domain.generate_data(n),
         }
 
         config = CegisConfig(
@@ -54,8 +45,8 @@ class TestCEGIS(unittest.TestCase):
             N_DATA=1000,
             LEARNING_RATE=1e-3,
             WEIGHT_DECAY=1e-4,
-            N_HIDDEN_NEURONS=(5, 5,),
-            ACTIVATION=("relu", "linear"),
+            N_HIDDEN_NEURONS=(5, ),
+            ACTIVATION=("square",),
             SEED=0,
         )
 
@@ -121,29 +112,19 @@ class TestCEGIS(unittest.TestCase):
         system = make_system(system_id=system_name)()
         system = add_uncertainty(uncertainty_type="AdditiveBounded", system=system)
 
-        XD = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
-        UD = domains.Rectangle(vars=["u0", "u1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
-        XI = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(-4.0, -4.0))
-        XU = domains.Sphere(
-            vars=["x0", "x1"], center=[0.0, 0.0], radius=1.0, dim_select=[0, 1]
-        )
-        ZD = domains.Rectangle(vars=["z0", "z1"], lb=(0.0, 0.0), ub=(0.0, 0.0))
+        sets = system.domains
 
-        sets = {
-            "lie": XD,
-            "input": UD,
-            "uncertainty": ZD,
-            "init": XI,
-            "unsafe": XU,
-        }
+        # quick test: zero uncertainty, cegis should find a certificate quickly
+        sets["uncertainty"] = domains.Rectangle(vars=["z0", "z1"], lb=(0.0, 0.0), ub=(0.0, 0.0))
+
         data_gen = {
-            "init": lambda n: XI.generate_data(n),
-            "unsafe": lambda n: XU.generate_data(n),
+            "init": lambda n: system.init_domain.generate_data(n),
+            "unsafe": lambda n: system.unsafe_domain.generate_data(n),
             "lie": lambda n: torch.concatenate(
-                [XD.generate_data(n), UD.generate_data(n)], dim=1
+                [system.state_domain.generate_data(n), system.input_domain.generate_data(n)], dim=1
             ),
             "uncertainty": lambda n: torch.concatenate(
-                [XD.generate_data(n), UD.generate_data(n), ZD.generate_data(n)], dim=1
+                [system.state_domain.generate_data(n), system.input_domain.generate_data(n), sets["uncertainty"].generate_data(n)], dim=1
             ),
         }
 

@@ -7,7 +7,7 @@ from fosco.systems.gym_env.system_env import SystemEnv
 from fosco.systems.uncertainty import add_uncertainty
 from rl_trainer.safe_ppo.safeppo_agent import BarrierPolicy
 
-from fosco.systems import make_system
+from fosco.systems import make_system, EulerDTSystem
 
 import time
 
@@ -15,11 +15,10 @@ import time
 def main():
     system_id = "SingleIntegrator"
     uncertainty_id = "AdditiveBounded"
-    model_dir = "/home/luigi/Development/fosco-robust/logs/models/SingleIntegrator_AdditiveBounded_rcbf_hx_sx_chained_square_Seed514796_20240321_142714"
-    barrier_to_load = f"{model_dir}/learner_5_barrier.yaml" # default"
-    compensator_to_load = f"{model_dir}/learner_5_sigma.yaml"  # default"  # "tunable"
-    batch_size = 10
-    max_steps = 2000
+    barrier_to_load = "default"
+    compensator_to_load = "default"
+    batch_size = 5
+    max_steps = 750
     dt = 0.01
 
     # this seed will give a policy which navigates towards the obstacle (demo)
@@ -30,9 +29,8 @@ def main():
     torch.manual_seed(seed)
 
     t0 = time.time()
-    system_fn = make_system(system_id=system_id)
-    system_fn = add_uncertainty(system_fn=system_fn, uncertainty_type=uncertainty_id)
-    system = system_fn()
+    system = make_system(system_id=system_id)()
+    system = add_uncertainty(system=system, uncertainty_type=uncertainty_id)
 
     env = SystemEnv(
         system=system,

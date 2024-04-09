@@ -12,13 +12,15 @@ from torch.nn import functional as F
 from rl_trainer.ppo.ppo_agent import ActorCriticAgent
 from fosco.models import TorchSymDiffModel
 from fosco.models.utils import layer_init
-from fosco.systems import ControlAffineDynamics
+from fosco.systems import ControlAffineDynamics, EulerDTSystem
 from fosco.systems.gym_env.system_env import SystemEnv
 
 
 class SafeActorCriticAgent(ActorCriticAgent):
     def __init__(
-        self, envs: SystemEnv, barrier: TorchSymDiffModel | Callable,
+        self,
+            envs: SystemEnv,
+            barrier: TorchSymDiffModel | Callable,
     ):
         super().__init__(envs=envs)
         self.classk_size = 1
@@ -50,8 +52,11 @@ class SafeActorCriticAgent(ActorCriticAgent):
         self.umax = envs.action_space.high
         self.barrier = barrier
         self.safety_layer = self._make_barrier_layer()
-        self.fx = envs.system.fx_torch
-        self.gx = envs.system.gx_torch
+
+        # extract continuous dynamics
+        assert isinstance(envs.system, EulerDTSystem) and not isinstance(envs.system.system, EulerDTSystem)
+        self.fx = envs.system.system.fx_torch
+        self.gx = envs.system.system.gx_torch
 
     def _make_barrier_layer(self) -> CvxpyLayer:
         """
@@ -206,6 +211,8 @@ class BarrierPolicy(nn.Module):
         self.fc22 = nn.Linear(nHidden1, nHidden22)
         self.fc31 = nn.Linear(nHidden21, self.nCls)
         self.fc32 = nn.Linear(nHidden22, 1)
+
+        self.actor_logstd = nn.Parameter(torch.zeros(1, self.nCls))
 
         self.umin = -torch.ones(self.nCls)
         self.umax = torch.ones(self.nCls)

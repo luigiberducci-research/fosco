@@ -29,8 +29,8 @@ import torch
 import pygame
 
 from fosco.common.domains import Rectangle, Sphere
-from fosco.systems import make_system
 from fosco.systems.core.system import ControlAffineDynamics, UncertainControlAffineDynamics
+from fosco.systems.discrete_time.system_dt import EulerDTSystem
 from fosco.systems.gym_env.rewards import RewardFnType
 
 
@@ -56,7 +56,7 @@ class SystemEnv(gymnasium.Env):
 
     def __init__(
         self,
-        system: str | ControlAffineDynamics,
+        system: ControlAffineDynamics,
         max_steps: int,
         dt: Optional[float] = 0.1,
         termination_fn: Optional[TermFnType] = None,
@@ -71,15 +71,18 @@ class SystemEnv(gymnasium.Env):
         assert max_steps and isinstance(
             max_steps, int
         ), f"max_steps must be a positive integer, got {max_steps}"
-        assert dt and isinstance(dt, float), f"dt must be a positive float, got {dt}"
 
         super(SystemEnv, self).__init__()
 
-        self.system = (
-            make_system(system_id=system)() if isinstance(system, str) else system
-        )
+        assert not isinstance(system, EulerDTSystem)
+        system = EulerDTSystem(system=system, dt=dt)
+        self.system = system
+        assert isinstance(
+            self.system, EulerDTSystem
+        ), f"system must be a discrete-time system, got {type(self.system)}"
+
         self.max_steps = max_steps
-        self.dt = dt
+        self.dt = self.system.dt
         self.termination_fn = termination_fn or (
             lambda obs, act: torch.zeros(obs.shape[0], dtype=torch.bool)
         )
@@ -231,14 +234,13 @@ class SystemEnv(gymnasium.Env):
             if isinstance(self.system, UncertainControlAffineDynamics):
                 batch_size = self._current_obs.shape[0]
                 z = self.system.uncertainty_domain.generate_data(batch_size)
-                dxdt = self.system.f(
+                next_observs = self.system.f(
                     v=self._current_obs,
                     u=actions,
                     z=z
                 )
             else:
-                dxdt = self.system.f(v=self._current_obs, u=actions)
-            next_observs = self._current_obs + self.dt * dxdt
+                next_observs = self.system.f(v=self._current_obs, u=actions)
             next_time = self._current_time + self.dt
 
             # rewards and terminations

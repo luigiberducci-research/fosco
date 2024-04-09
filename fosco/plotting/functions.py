@@ -102,7 +102,7 @@ def plot_func_and_domains(
 
     # show legend and hide colorbar
     fig.update_traces(showlegend=True)
-    fig.update_traces(showscale=False)
+    fig.update_traces(showscale=False, selector=dict(type="surface"))
 
     return fig
 

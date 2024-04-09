@@ -1,20 +1,27 @@
 """
 Example of verifying a known valid CBF for single-integrator dynamics.
 """
+from typing import Optional
+
 import torch
 
 from fosco.cegis import Cegis
-from fosco.common.consts import CertificateType
 from fosco.config import CegisConfig
-from systems import make_system
+from fosco.plotting.functions import plot_torch_function
+from fosco.systems import make_system
+from fosco.systems.discrete_time.system_dt import EulerDTSystem
 
 
 def main(args):
-    system_id = "SingleIntegrator"
-    verbose = 1
+    system_id: str = "SingleIntegrator"     # system id
+    dt: Optional[float] = 0.1               # discretization time step or None for continuous-time cbf
+    verbose: int = 1                        # verbosity level (0, 1, 2)
 
-    system_fn = make_system(system_id=system_id)
-    sets = system_fn().domains
+    # make system
+    system = make_system(system_id=system_id)()
+    if dt is not None:
+        system = EulerDTSystem(system=system, dt=dt)
+    sets = system.domains
 
     # data generator
     data_gen = {
@@ -26,16 +33,24 @@ def main(args):
     }
 
     config = CegisConfig(
-        SYSTEM=system_fn,
-        DOMAINS=sets,
-        DATA_GEN=data_gen,
-        CERTIFICATE=CertificateType.CBF,
-        USE_INIT_MODELS=True,
+        CERTIFICATE="cbf",
+        BARRIER_TO_LOAD="default",
         CEGIS_MAX_ITERS=1,
     )
-    cegis = Cegis(config=config, verbose=verbose)
+    cegis = Cegis(
+        system=system,
+        domains=sets,
+        data_gen=data_gen,
+        config=config,
+        verbose=verbose,
+    )
 
     result = cegis.solve()
+
+    print("result: ", result)
+
+    fig = plot_torch_function(function=result.barrier, domains=sets)
+    fig.show()
 
 
 if __name__ == "__main__":

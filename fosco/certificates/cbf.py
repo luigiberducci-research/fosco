@@ -1,20 +1,20 @@
-import logging
 import math
-from typing import Generator
+from typing import Generator, Callable
 
 import numpy as np
 import torch
+import z3
 from torch.optim import Optimizer
 
 from fosco.config import CegisConfig
 from fosco.certificates.certificate import Certificate, TrainableCertificate
 from fosco.common.domains import Set, Rectangle
-from fosco.common.consts import DomainName
+from fosco.common.consts import DomainName, LossReLUType, TimeDomain
 from fosco.common.utils import _set_assertion
 from fosco.learner import LearnerNN
+from fosco.models import TorchSymDiffFn
 from fosco.verifier.types import SYMBOL
-from fosco.logger import LOGGING_LEVELS
-from systems import ControlAffineDynamics
+from fosco.systems import ControlAffineDynamics
 
 XD = DomainName.XD.value
 XI = DomainName.XI.value
@@ -35,19 +35,15 @@ class ControlBarrierFunction(Certificate):
     """
 
     def __init__(
-        self,
-        system: ControlAffineDynamics,
-        vars: dict[str, list],
-        domains: dict[str, Set],
-        config: CegisConfig,
-        verbose: int = 0,
+            self,
+            system: ControlAffineDynamics,
+            variables: dict[str, list],
+            domains: dict[str, Set],
+            verbose: int = 0,
     ) -> None:
         # todo rename vars to x, u
-        assert all(
-            [sv in vars for sv in ["v", "u"]]
-        ), f"Missing symbolic variables, got {vars}"
-        self.x_vars = vars["v"]
-        self.u_vars = vars["u"]
+        self.x_vars = variables["v"]
+        self.u_vars = variables["u"]
 
         self.x_domain: SYMBOL = domains[XD].generate_domain(self.x_vars)
         self.u_set: Rectangle = domains[UD]
@@ -55,17 +51,45 @@ class ControlBarrierFunction(Certificate):
         self.initial_domain: SYMBOL = domains[XI].generate_domain(self.x_vars)
         self.unsafe_domain: SYMBOL = domains[XU].generate_domain(self.x_vars)
 
-        assert isinstance(
-            self.u_set, Rectangle
-        ), f"CBF only works with rectangular input domains, got {self.u_set}"
         self.n_vars = len(self.x_vars)
         self.n_controls = len(self.u_vars)
 
-        self._logger = logging.getLogger(__name__)
-        self._logger.setLevel(LOGGING_LEVELS[verbose])
-        self._logger.debug("CBF initialized")
+        super(ControlBarrierFunction, self).__init__(
+            system=system, variables=variables, domains=domains, verbose=verbose
+        )
 
-    def get_constraints(self, verifier, B, B_constr, sigma, sigma_constr, Bdot, Bdot_constr, *args) -> Generator:
+    def _assert_state(self) -> None:
+        dn = DomainName
+        domain_labels = set(self.domains.keys())
+
+        _set_assertion(
+            {dn.XD.value, dn.UD.value, dn.XI.value, dn.XU.value},
+            domain_labels,
+            "Symbolic Domains",
+        )
+
+        assert all(
+            [sv in self.variables for sv in ["v", "u"]]
+        ), f"Missing symbolic variables, got {self.variables}"
+
+        assert isinstance(
+            self.u_set, Rectangle
+        ), f"CBF only works with rectangular input domains, got {self.u_set}"
+
+    def get_constraints(
+            self,
+            verifier,
+            B,
+            B_constr,
+            B_vars,
+            sigma,
+            sigma_constr,
+            sigma_vars,
+            Bdot,
+            Bdot_constr,
+            Bdot_vars,
+            *args
+    ) -> Generator:
         """
         :param verifier: verifier object
         :param B: symbolic formula of the CBF
@@ -74,15 +98,22 @@ class ControlBarrierFunction(Certificate):
         :return: tuple of dictionaries of Barrier conditons
         """
         # todo extend signature with **kwargs
+        assert isinstance(B_vars, list) and all([isinstance(v, SYMBOL) for v in B_vars]), f"Expected list of SYMBOL, got {B_vars}"
+        assert isinstance(Bdot_vars, list) and all(
+            [isinstance(v, SYMBOL) for v in Bdot_vars]), f"Expected list of SYMBOL, got {Bdot_vars}"
 
         # Bx >= 0 if x \in initial
         # counterexample: B < 0 and x \in initial
+        initial_vars = self.x_vars
+        initial_aux_vars = [v for v in B_vars if v not in initial_vars]
         initial_constr = self._init_constraint_smt(
             verifier=verifier, B=B, B_constr=B_constr
         )
 
         # Bx < 0 if x \in unsafe
         # counterexample: B >= 0 and x \in unsafe
+        unsafe_vars = self.x_vars
+        unsafe_aux_vars = [v for v in B_vars if v not in unsafe_vars]
         unsafe_constr = self._unsafe_constraint_smt(
             verifier=verifier, B=B, B_constr=B_constr
         )
@@ -91,6 +122,8 @@ class ControlBarrierFunction(Certificate):
         # exists u Bdot + alpha * Bx >= 0 if x \in domain
         # counterexample: x \in domain s.t. forall u Bdot + alpha * Bx < 0
         alpha = lambda x: x  # todo make it part of the cbf and pass it in input
+        feasible_vars = self.x_vars + self.u_vars
+        feasible_aux_vars = [v for v in B_vars + Bdot_vars if v not in feasible_vars]
         feasible_constr = self._feasibility_constraint_smt(
             verifier=verifier,
             B=B,
@@ -100,13 +133,14 @@ class ControlBarrierFunction(Certificate):
             alpha=alpha,
         )
 
-        logging.debug(f"initial_constr: {initial_constr}")
-        logging.debug(f"unsafe_constr: {unsafe_constr}")
-        logging.debug(f"lie_constr: {feasible_constr}")
+        #self._logger.debug(f"initial_constr: {initial_constr}")
+        #self._logger.debug(f"unsafe_constr: {unsafe_constr}")
+        #self._logger.debug(f"lie_constr: {feasible_constr}")
 
         for cs in (
-            {XI: (initial_constr, self.x_vars), XU: (unsafe_constr, self.x_vars)},
-            {XD: (feasible_constr, self.x_vars + self.u_vars)},
+                {XD: (feasible_constr, feasible_vars, feasible_aux_vars)},
+                {XI: (initial_constr, initial_vars, initial_aux_vars),
+                 XU: (unsafe_constr, unsafe_vars, unsafe_aux_vars)},
         ):
             yield cs
 
@@ -147,7 +181,7 @@ class ControlBarrierFunction(Certificate):
         return unsafe_constr
 
     def _feasibility_constraint_smt(
-        self, verifier, B, B_constr, Bdot, Bdot_constr, alpha
+            self, verifier, B, B_constr, Bdot, Bdot_constr, alpha
     ) -> SYMBOL:
         """
         Feasibility constraint
@@ -177,68 +211,57 @@ class ControlBarrierFunction(Certificate):
 
         return lie_constr
 
-    @staticmethod
-    def _assert_state(domains, data):
-        dn = DomainName
-        domain_labels = set(domains.keys())
-        data_labels = set(data.keys())
-        _set_assertion(
-            {dn.XD.value, dn.UD.value, dn.XI.value, dn.XU.value},
-            domain_labels,
-            "Symbolic Domains",
-        )
-        _set_assertion(
-            {dn.XD.value, dn.XI.value, dn.XU.value}, data_labels, "Data Sets"
-        )
-
 
 class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
     def __init__(
-        self,
-        system: ControlAffineDynamics,
-        vars: dict[str, list],
-        domains: dict[str, Set],
-        config: CegisConfig,
-        verbose: int = 0,
+            self,
+            system: ControlAffineDynamics,
+            variables: dict[str, list],
+            domains: dict[str, Set],
+            config: CegisConfig,
+            verbose: int = 0,
     ):
-        super(TrainableCBF, self).__init__(
-            system=system, vars=vars, domains=domains, config=config, verbose=verbose
-        )
-
         # loss parameters
-        self.loss_relu = config.LOSS_RELU
+        self.loss_keys = [DomainName.XI.value, DomainName.XU.value, DomainName.XD.value, "conservative_b"]
+        self.loss_relu = LossReLUType[config.LOSS_RELU.upper()]
         self.epochs = config.N_EPOCHS
 
         # process loss margins
-        loss_keys = ["init", "unsafe", "lie"]
         if isinstance(config.LOSS_MARGINS, float):
-            loss_margins = {k: config.LOSS_MARGINS for k in loss_keys}
+            self.loss_margins = {k: config.LOSS_MARGINS for k in self.loss_keys}
         else:
-            assert all(
-                [k in config.LOSS_MARGINS for k in loss_keys]
-            ), f"Missing loss margin, got {config.LOSS_MARGINS}"
-            loss_margins = config.LOSS_MARGINS
-        self.loss_margins = loss_margins
+            self.loss_margins = config.LOSS_MARGINS
 
         # process loss weights
         if isinstance(config.LOSS_WEIGHTS, float):
-            loss_weights = {k: config.LOSS_WEIGHTS for k in loss_keys}
+            self.loss_weights = {k: config.LOSS_WEIGHTS for k in self.loss_keys}
         else:
-            assert all(
-                [k in config.LOSS_WEIGHTS for k in loss_keys]
-            ), f"Missing loss weight, got {config.LOSS_WEIGHTS}"
-            loss_weights = config.LOSS_WEIGHTS
-        self.loss_weights = loss_weights
+            self.loss_weights = config.LOSS_WEIGHTS
 
-        # regularization on net gradient
-        self.loss_netgrad_weight = config.LOSS_NETGRAD_WEIGHT
+        super(TrainableCBF, self).__init__(
+            system=system, variables=variables, domains=domains, config=config, verbose=verbose
+        )
+
+    def _assert_state(self) -> None:
+        super()._assert_state()
+
+        assert isinstance(self.loss_relu, LossReLUType), f"Expected LossReLUType, got {type(self.loss_relu)}"
+        assert isinstance(self.epochs, int) and self.epochs >= 0, f"Expected non-neg int for epochs, got {self.epochs}"
+
+        assert all(
+            [k in self.loss_margins for k in self.loss_keys]
+        ), f"Missing loss margin for any {self.loss_keys}, got {self.loss_margins}"
+
+        assert all(
+            [k in self.loss_weights for k in self.loss_keys]
+        ), f"Missing loss weight for any {self.loss_keys}, got {self.loss_weights}"
 
     def learn(
-        self,
-        learner: LearnerNN,
-        optimizers: Optimizer,
-        datasets: dict,
-        f_torch: callable,
+            self,
+            learner: LearnerNN,
+            optimizers: Optimizer,
+            datasets: dict,
+            f_torch: callable,
     ) -> dict[str, float | np.ndarray]:
         """
         Updates the CBF model.
@@ -256,12 +279,11 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
         condition_old = False
         i1 = datasets[XD].shape[0]
         i2 = datasets[XI].shape[0]
-        # samples = torch.cat([s for s in S.values()])
+
         label_order = [XD, XI, XU]
         state_samples = torch.cat(
             [datasets[label][:, : self.n_vars] for label in label_order]
         )
-        U_d = datasets[XD][:, self.n_vars : self.n_vars + self.n_controls]
 
         losses, accuracies, infos = {}, {}, {}
         for t in range(self.epochs):
@@ -269,39 +291,26 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
 
             # net gradient
             B = learner.net(state_samples)
-            gradB = learner.net.gradient(state_samples)
 
             B_d = B[:i1, 0]
-            B_i = B[i1 : i1 + i2, 0]
-            B_u = B[i1 + i2 :, 0]
+            B_i = B[i1: i1 + i2, 0]
+            B_u = B[i1 + i2:, 0]
 
             # compute lie derivative
-            assert (
-                B_d.shape[0] == U_d.shape[0]
-            ), f"expected pairs of state,input data. Got {B_d.shape[0]} and {U_d.shape[0]}"
-            X_d = state_samples[:i1]
-            gradB_d = gradB[:i1]
-            Sdot_d = f_torch(X_d, U_d)
-            Bdot_d = torch.sum(torch.mul(gradB_d, Sdot_d), dim=1)
+            Bdot_d = self._compute_barrier_difference(
+                X_d=datasets[XD][:, :self.n_vars],
+                U_d=datasets[XD][:, self.n_vars: self.n_vars + self.n_controls],
+                barrier=learner.net,
+                f_torch=f_torch
+            )
 
-            loss, losses, accuracies = self.compute_loss(
+            loss, losses, accuracies = self._compute_loss(
                 B_i, B_u, B_d, Bdot_d, alpha=1.0
             )
 
-            # regularization net gradient
-            netgrad_sos = torch.sum(torch.square(gradB))
-            netgrad_loss = self.loss_netgrad_weight * netgrad_sos
-            losses["netgrad_loss"] = netgrad_loss.item()
-            loss += netgrad_loss
-
-            # infos
-            infos = {
-                "netgrad_sos": netgrad_sos.item(),
-            }
-
             if t % math.ceil(self.epochs / 10) == 0 or self.epochs - t < 10:
                 # log_loss_acc(t, loss, accuracy, learner.verbose)
-                logging.debug(f"Epoch {t}: loss={loss}, accuracy={accuracies}")
+                self._logger.debug(f"Epoch {t}: loss={loss}, accuracy={accuracies}")
 
             # early stopping after 2 consecutive epochs with ~100% accuracy
             condition = all(acc >= 99.9 for name, acc in accuracies.items())
@@ -311,6 +320,7 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
 
             loss.backward()
             optimizers["barrier"].step()
+            infos = {}
 
         return {
             "loss": losses,
@@ -318,29 +328,53 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
             "info": infos,
         }
 
-    def compute_loss(
-        self,
-        B_i: torch.Tensor,
-        B_u: torch.Tensor,
-        B_d: torch.Tensor,
-        Bdot_d: torch.Tensor,
-        alpha: torch.Tensor | float,
+    def _compute_barrier_difference(self, X_d: torch.Tensor, U_d: torch.Tensor, barrier: TorchSymDiffFn, f_torch: Callable) -> torch.Tensor:
+        """
+        Computes the change over time of the barrier function subject to the system dynamics.
+        This is the Lie derivative of the barrier function for continuous-time systems,
+        and the difference between barrier value in consecutive time steps for discrete-time systems.
+
+        Args:
+            X_d (torch.Tensor): batch of states of shape (batch_size, n_vars)
+            U_d (torch.Tensor): batch of inputs of shape (batch_size, n_controls)
+            barrier (TorchSymDiffFn): barrier function
+            f_torch (Callable): system dynamics, xdot=f(x,u) for ct, x_{k+1}=f(x_k,u_k) for dt
+        """
+        assert X_d.shape[0] == U_d.shape[0], f"expected pairs of state,input data. Got {X_d.shape[0], U_d.shape[0]}"
+        if self.system.time_domain == TimeDomain.CONTINUOUS:
+            # Lie derivative of B: dB/dt = dB/dx * dx/dt
+            db_dx = barrier.gradient(X_d)
+            dx_dt = f_torch(X_d, U_d)
+            db_dt = torch.sum(torch.mul(db_dx, dx_dt), dim=1)
+        else:
+            # Time Difference of B: dB/dt = B(x_{k+1}) - B(x_k)
+            bx_t = barrier(X_d)
+            bx_t1 = barrier(f_torch(X_d, U_d))
+            db_dt = (bx_t1 - bx_t)[:, 0]
+        return db_dt
+
+    def _compute_loss(
+            self,
+            B_i: torch.Tensor,
+            B_u: torch.Tensor,
+            B_d: torch.Tensor,
+            Bdot_d: torch.Tensor,
+            alpha: torch.Tensor | float,
     ) -> tuple[torch.Tensor, dict, dict]:
-        # todo make this private
         """Computes loss function for CBF and its accuracy w.r.t. the batch of data.
 
         Args:
             B_i (torch.Tensor): Barrier values for initial set
             B_u (torch.Tensor): Barrier values for unsafe set
             B_d (torch.Tensor): Barrier values for domain
-            Bdot_d (torch.Tensor): Barrier derivative values for domain
+            Bdot_d (torch.Tensor): Barrier time-difference for domain set
             alpha (torch.Tensor): coeff. linear class-k function, f(x) = alpha * x, for alpha in R_+
 
         Returns:
             tuple[torch.Tensor, float]: loss and accuracy
         """
         assert (
-            Bdot_d is None or B_d.shape == Bdot_d.shape
+                Bdot_d is None or B_d.shape == Bdot_d.shape
         ), f"B_d and Bdot_d must have the same shape, got {B_d.shape} and {Bdot_d.shape}"
         assert isinstance(
             self.loss_margins, dict
@@ -356,6 +390,7 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
         weight_init = self.loss_weights["init"]
         weight_unsafe = self.loss_weights["unsafe"]
         weight_lie = self.loss_weights["lie"]
+        weight_conservative_b = self.loss_weights["conservative_b"]
 
         accuracy_i = (B_i >= margin_init).count_nonzero().item()
         accuracy_u = (B_u < -margin_unsafe).count_nonzero().item()
@@ -369,12 +404,23 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
         init_loss = weight_init * (self.loss_relu(margin_init - B_i)).mean()
         # penalize B_u > 0
         unsafe_loss = weight_unsafe * (self.loss_relu(B_u + margin_unsafe)).mean()
-        # penalize dB_d + alpha * B_d < 0
+        # penalize when B_d > 0 and dB_d + alpha * B_d < 0
+        loss_cond = torch.min(
+            B_d - margin_lie,
+            margin_lie -(Bdot_d + alpha * B_d)
+        )
         lie_loss = (
-            weight_lie * (self.loss_relu(margin_lie - (Bdot_d + alpha * B_d))).mean()
+                weight_lie * (self.loss_relu(loss_cond)).mean()
         )
 
-        loss = init_loss + unsafe_loss + lie_loss
+        # regularization losses
+        # penalize negative B (conservative)
+        loss_B_neg = self.loss_relu(-B_d).mean()  # penalize B_d < 0
+        loss_B_conservative = (
+                weight_conservative_b * loss_B_neg
+        )
+
+        loss = init_loss + unsafe_loss + lie_loss + loss_B_conservative
 
         losses = {
             "init_loss": init_loss.item(),
@@ -390,7 +436,9 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
         }
 
         # debug
-        logging.debug("Dataset Accuracy:")
-        logging.debug("\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
+        self._logger.debug("Dataset Accuracy:")
+        self._logger.debug("\n" + "\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
 
         return loss, losses, accuracy
+
+

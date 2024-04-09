@@ -1,57 +1,49 @@
+import pathlib
 from collections import namedtuple
 from dataclasses import dataclass, asdict
-from typing import Type, Any
+from typing import Type, Any, Iterable, Optional
 
-from fosco.common.consts import (
-    TimeDomain,
-    CertificateType,
-    VerifierType,
-    ActivationType,
-    LossReLUType,
+CegisResult = namedtuple(
+    "CegisResult",
+    ["found", "barrier", "compensator", "infos"]
 )
-from fosco.logger import LoggerType
-from systems import ControlAffineDynamics
-
-CegisResult = namedtuple("CegisResult", ["found", "net", "infos"])
 
 
 @dataclass
 class CegisConfig:
-    # system
-    SYSTEM: Type[ControlAffineDynamics] = None
-    DOMAINS: dict[str, Any] = None
-    TIME_DOMAIN: TimeDomain = TimeDomain.CONTINUOUS
     # fosco
-    CERTIFICATE: CertificateType = CertificateType.CBF
-    VERIFIER: VerifierType = VerifierType.Z3
+    CERTIFICATE: str = "CBF"
+    VERIFIER: str = "Z3"
     VERIFIER_TIMEOUT: int = 30
-    VERIFIER_N_CEX: int = 20
+    RESAMPLING_N: int = 20
+    RESAMPLING_STDDEV: float = 5e-3
     CEGIS_MAX_ITERS: int = 10
     ROUNDING: int = 3
-    USE_INIT_MODELS: bool = False
+    BARRIER_TO_LOAD: Optional[str | pathlib.Path] = None
+    SIGMA_TO_LOAD: Optional[str | pathlib.Path] = None
     # training
-    DATA_GEN: dict[str, callable] = None
     N_DATA: int = 500
     LEARNING_RATE: float = 1e-3
     WEIGHT_DECAY: float = 1e-4
     # net architecture
-    N_HIDDEN_NEURONS: tuple[int, ...] = (10,)
-    ACTIVATION: tuple[ActivationType, ...] = (ActivationType.SQUARE,)
+    N_HIDDEN_NEURONS: Iterable[int] = (10,)
+    ACTIVATION: Iterable[str] = ("relu",)
     # loss
-    OPTIMIZER: str | None = None
+    OPTIMIZER: str = "adam"
     LOSS_MARGINS: dict[str, float] | float = 0.0
     LOSS_WEIGHTS: dict[str, float] | float = 1.0
-    LOSS_RELU: LossReLUType = LossReLUType.RELU
-    LOSS_NETGRAD_WEIGHT: float = 0.0
+    LOSS_RELU: str = "softplus"
     N_EPOCHS: int = 100
     # seeding
-    SEED: int = None
+    SEED: Optional[int] = None
     # logging
-    LOGGER: LoggerType = None
-    EXP_NAME: str = None
+    MODEL_DIR: str = "logs/models"
+    LOGGER: Optional[str] = None
+    EXP_NAME: Optional[str] = None
 
     def __getitem__(self, item):
         return getattr(self, item)
 
     def dict(self):
-        return {k: str(v) for k, v in asdict(self).items()}
+        self.MODEL_DIR = str(pathlib.Path(self.MODEL_DIR).absolute())
+        return {k: v for k, v in asdict(self).items()}

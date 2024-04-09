@@ -1,6 +1,6 @@
 import logging
 from abc import abstractmethod, ABC
-from typing import Callable, Generator, Iterable, Type, Any
+from typing import Callable, Generator, Iterable, Any
 
 import torch
 
@@ -17,7 +17,6 @@ class Verifier(ABC):
         constraints_method: Callable[..., Generator],
         solver_vars: list[SYMBOL],
         solver_timeout: int,
-        n_counterexamples: int,
         rounding: int = -1,
         verbose: int = 0,
     ):
@@ -25,24 +24,27 @@ class Verifier(ABC):
         self.xs = solver_vars
         self.n = len(solver_vars)
         self.constraints_method = constraints_method
+        self._solver_timeout = solver_timeout
+        self._rounding = rounding
 
         # internal vars
         self.iter = -1
         self._last_cex = []
 
-        # todo: move this to consolidator
-        self.counterexample_n = n_counterexamples
-        self._n_cex_to_keep = self.counterexample_n * 1
-        self._solver_timeout = solver_timeout
-        self._rounding = rounding
-
-        assert self.counterexample_n > 0
-        assert self._n_cex_to_keep > 0
-        assert self._solver_timeout > 0
+        self._assert_state()
 
         self._logger = logging.getLogger(__name__)
         self._logger.setLevel(LOGGING_LEVELS[verbose])
         self._logger.debug("Verifier initialized")
+
+    def _assert_state(self) -> None:
+        assert (
+                self._solver_timeout > 0
+        ), f"Solver's timeout must be greater than 0, got {self._solver_timeout}"
+        assert isinstance(
+            self._solver_timeout, int
+        ), "solver timeout must be an integer (in seconds)"
+        assert isinstance(self._rounding, int) and self._rounding >= -1, "rounding must be an integer >= -1"
 
     @staticmethod
     @abstractmethod
@@ -111,12 +113,16 @@ class Verifier(ABC):
         self,
         V_symbolic: SYMBOL,
         V_symbolic_constr: Iterable[SYMBOL],
+        V_symbolic_vars: list[SYMBOL],
         sigma_symbolic: SYMBOL | None,
         sigma_symbolic_constr: Iterable[SYMBOL],
+        sigma_symbolic_vars: list[SYMBOL],
         Vdot_symbolic: SYMBOL,
         Vdot_symbolic_constr: Iterable[SYMBOL],
-        Vdotz_symbolic: SYMBOL | None,
-        Vdotz_symbolic_constr: Iterable[SYMBOL],
+        Vdot_symbolic_vars: list[SYMBOL],
+        Vdot_residual_symbolic: SYMBOL | None,
+        Vdot_residual_symbolic_constr: Iterable[SYMBOL],
+        Vdot_residual_symbolic_vars: list[SYMBOL],
         **kwargs,
     ):
         """
@@ -134,40 +140,44 @@ class Verifier(ABC):
             self,
             V_symbolic,
             V_symbolic_constr,
+            V_symbolic_vars,
             sigma_symbolic,
             sigma_symbolic_constr,
+            sigma_symbolic_vars,
             Vdot_symbolic,
             Vdot_symbolic_constr,
-            Vdotz_symbolic,
-            Vdotz_symbolic_constr,
+            Vdot_symbolic_vars,
+            Vdot_residual_symbolic,
+            Vdot_residual_symbolic_constr,
+            Vdot_residual_symbolic_vars,
         )
         results = {}
         solvers = {}
         solver_vars = {}
+        solver_aux_vars = {}
 
         for group in fmls:
             for label, condition_vars in group.items():
-                if isinstance(condition_vars, tuple):
-                    # CBF returns different variables depending on constraint
-                    condition, vars = condition_vars
-                else:
-                    # Other barriers always use only state variables
-                    condition = condition_vars
-                    vars = self.xs
+                assert isinstance(condition_vars, tuple) and len(condition_vars) == 3, \
+                    f"Expected tuple (condition, dataset-vars, aux-vars), got {condition_vars}"
+                condition, vars, aux_vars = condition_vars
 
                 s = self.new_solver()
-                self._logger.debug(f"Constraint: {label}, Formula: {self.pretty_formula(fml=condition)}")
+                #self._logger.debug(
+                #    f"Constraint: {label}, Formula: {self.pretty_formula(fml=condition)}"
+                #)
                 res, timedout = self._solver_solve(solver=s, fml=condition)
                 results[label] = res
                 solvers[label] = s
-                solver_vars[label] = vars  # todo: select diff vars for input and state
+                solver_vars[label] = vars
+                solver_aux_vars[label] = aux_vars
                 # if sat, found counterexample; if unsat, C is lyap
                 if timedout:
                     self._logger.info(label + "timed out")
             if any(self.is_sat(res) for res in results.values()):
                 break
 
-        ces = {label: [] for label in results.keys()}  # [[] for res in results.keys()]
+        ces = {label: [] for label in results.keys()}
 
         if all(self.is_unsat(res) for res in results.values()):
             self._logger.info("No counterexamples found!")
@@ -179,14 +189,18 @@ class Verifier(ABC):
                     original_point = self.compute_model(
                         vars=solver_vars[label], solver=solvers[label], res=res
                     )
+                    aux_point = self.compute_model(
+                        vars=solver_aux_vars[label], solver=solvers[label], res=res
+                    )
                     self._logger.info(
-                        f"{label}: Counterexample Found: {solver_vars[label]} = {original_point}"
+                        f"{label}: Counterexample Found: {solver_vars[label]} = {original_point[0]}, "
+                        f"{solver_aux_vars[label]} = {aux_point[0]}"
                     )
 
                     # debug
                     for sym_name, sym in zip(
-                        ["V", "Sigma", "Vdot", "Vdotz"],
-                        [V_symbolic, sigma_symbolic, Vdot_symbolic, Vdotz_symbolic],
+                        ["V", "Sigma", "Vdot", "Vdot_residual"],
+                        [V_symbolic, sigma_symbolic, Vdot_symbolic, Vdot_residual_symbolic],
                     ):
                         if sym is None:
                             continue
@@ -197,10 +211,11 @@ class Verifier(ABC):
                             fraction = replaced.as_fraction()
                             value = float(fraction.numerator / fraction.denominator)
                         else:
-                            value = None
-                        self._logger.debug(f"[cex] {sym_name}: {value}")
+                            self._logger.debug(f"Cannot extract value from {replaced} of type {type(replaced)}")
+                            value = str(replaced)
+                        self._logger.info(f"[cex] {sym_name}: {value}")
 
-                    ces[label] = self.randomise_counterex(original_point)
+                    ces[label] = original_point
                 else:
                     self._logger.info(f"{label}: {res}")
 
@@ -221,23 +236,4 @@ class Verifier(ABC):
         original_point = torch.tensor(temp)
         return original_point[None, :]
 
-    # given one ctx, useful to sample around it to increase data set
-    # these points might *not* be real ctx, but probably close to invalidity condition
-    # todo: this is not work of the consolidator?
-    def randomise_counterex(self, point):
-        """
-        :param point: tensor
-        :return: list of ctx
-        """
-        C = []
-        # dimensionality issue
-        shape = (1, max(point.shape[0], point.shape[1]))
-        point = point.reshape(shape)
-        for i in range(self.counterexample_n):
-            random_point = point + 5 * 1e-3 * torch.randn(
-                shape
-            )  # todo: parameterize this stddev
-            # if self.inner < torch.norm(random_point) < self.outer:
-            C.append(random_point)
-        C.append(point)
-        return torch.stack(C, dim=1)[0, :, :]
+

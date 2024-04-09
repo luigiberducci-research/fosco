@@ -28,23 +28,7 @@ def scatter_data(
         name=name,
         marker=dict(color=color, size=point_size, opacity=opacity),
     )
-    """
-    ncontours = 10
-    colorscale = ['#7A4579', '#D56073', 'rgb(236,158,105)', (1, 1, 0.2), (0.98, 0.98, 0.98)]
-    colorscale = clrs.validate_colors(colorscale, "rgb")
-    colorscale = make_linear_colorscale(colorscale)
-    
-    trace2 = graph_objs.Histogram2dContour(
-        x=x,
-        y=y,
-        name="density",
-        ncontours=ncontours,
-        reversescale=True,
-        showscale=False,
-        colorscale=colorscale,
-        opacity=opacity,
-    )
-    """
+
 
     for trace in [trace1]:
         fig.add_trace(trace)

@@ -1,12 +1,13 @@
 import unittest
+from typing import Callable
 
 import numpy as np
 import torch
 
 import fosco
 from fosco.cegis import Cegis
+from fosco.common.domains import Set
 from fosco.config import CegisConfig
-from fosco.common.domains import Rectangle, Sphere
 from fosco.common.consts import (
     TimeDomain,
     ActivationType,
@@ -14,64 +15,52 @@ from fosco.common.consts import (
     CertificateType,
     DomainName,
 )
-from systems.single_integrator import SingleIntegrator
+from fosco.systems import SingleIntegrator, ControlAffineDynamics
 
 
 class TestCEGIS(unittest.TestCase):
     @staticmethod
-    def _get_single_integrator_config() -> CegisConfig:
-        system = SingleIntegrator
+    def _get_single_integrator_config() -> tuple[
+        ControlAffineDynamics, dict[str, Set], dict[str, Callable], CegisConfig
+    ]:
+        system = SingleIntegrator()
 
-        XD = system().state_domain
-        UD = system().input_domain
-        XI = system().init_domain
-        XU = system().unsafe_domain
 
         dn = DomainName
-        domains = {
-            name: domain
-            for name, domain in zip(
-                [dn.XD.value, dn.UD.value, dn.XI.value, dn.XU.value], [XD, UD, XI, XU]
-            )
-        }
+        domains = system.domains
 
         data_gen = {
             dn.XD.value: lambda n: torch.concatenate(
-                [XD.generate_data(n), UD.generate_data(n)], dim=1
+                [system.state_domain.generate_data(n), system.input_domain.generate_data(n)], dim=1
             ),
-            dn.XI.value: lambda n: XI.generate_data(n),
-            dn.XU.value: lambda n: XU.generate_data(n),
+            dn.XI.value: lambda n: system.init_domain.generate_data(n),
+            dn.XU.value: lambda n: system.unsafe_domain.generate_data(n),
         }
 
         config = CegisConfig(
-            SYSTEM=SingleIntegrator,
-            DOMAINS=domains,
-            TIME_DOMAIN=TimeDomain.CONTINUOUS,
-            CERTIFICATE=CertificateType.CBF,
-            VERIFIER=VerifierType.Z3,
+            CERTIFICATE="cbf",
+            VERIFIER="z3",
             CEGIS_MAX_ITERS=5,
             ROUNDING=3,
-            DATA_GEN=data_gen,
             N_DATA=1000,
             LEARNING_RATE=1e-3,
             WEIGHT_DECAY=1e-4,
-            N_HIDDEN_NEURONS=(
-                5,
-                5,
-            ),
-            ACTIVATION=(ActivationType.RELU, ActivationType.LINEAR),
+            N_HIDDEN_NEURONS=(5, ),
+            ACTIVATION=("square",),
             SEED=0,
         )
 
-        return config
+        return system, domains, data_gen, config
 
     def test_loop(self):
-        config = self._get_single_integrator_config()
+        system, domains, data_gen, config = self._get_single_integrator_config()
         config.N_EPOCHS = (
             0  # make sure we don't train to check correctness of the cegis loop
         )
 
-        c = Cegis(config=config, verbose=0)
+        c = Cegis(
+            system=system, domains=domains, config=config, data_gen=data_gen, verbose=0
+        )
         results = c.solve()
 
         infos = results.infos
@@ -84,12 +73,13 @@ class TestCEGIS(unittest.TestCase):
         """
         Test the single integrator example. We expect to find a certificate in a couple of iterations.
         """
-        import fosco
 
-        config = self._get_single_integrator_config()
+        system, domains, data_gen, config = self._get_single_integrator_config()
         config.SEED = 916104
 
-        cegis = fosco.cegis.Cegis(config=config, verbose=0)
+        cegis = Cegis(
+            system=system, domains=domains, config=config, data_gen=data_gen, verbose=0
+        )
 
         result = cegis.solve()
 
@@ -107,64 +97,51 @@ class TestCEGIS(unittest.TestCase):
         this test simply checks that the code runs using a dummy zero uncertainty.
         """
         import fosco
-        from systems import make_system
-        from systems.uncertainty import add_uncertainty
+        from fosco.systems import make_system
+        from fosco.systems.uncertainty import add_uncertainty
         from fosco.common import domains
 
         seed = 916104
         system_name = "SingleIntegrator"
-        n_hidden_neurons = 5
-        activations = (ActivationType.RELU, ActivationType.LINEAR)
+        activations = ("relu", "linear")
         n_data_samples = 1000
-        n_hidden_neurons = (n_hidden_neurons,) * len(activations)
-        certificate_type = CertificateType.RCBF
+        n_hidden_neurons = (5,) * len(activations)
+        certificate_type = "rcbf"
         verbose = 0
 
-        system = make_system(system_id=system_name)
-        system = add_uncertainty(uncertainty_type="AdditiveBounded", system_fn=system)
+        system = make_system(system_id=system_name)()
+        system = add_uncertainty(uncertainty_type="AdditiveBounded", system=system)
 
-        XD = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
-        UD = domains.Rectangle(vars=["u0", "u1"], lb=(-5.0, -5.0), ub=(5.0, 5.0))
-        XI = domains.Rectangle(vars=["x0", "x1"], lb=(-5.0, -5.0), ub=(-4.0, -4.0))
-        XU = domains.Sphere(
-            vars=["x0", "x1"], centre=[0.0, 0.0], radius=1.0, dim_select=[0, 1]
-        )
-        ZD = domains.Rectangle(vars=["z0", "z1"], lb=(0.0, 0.0), ub=(0.0, 0.0))
+        sets = system.domains
 
-        sets = {
-            "lie": XD,
-            "input": UD,
-            "uncertainty": ZD,
-            "init": XI,
-            "unsafe": XU,
-        }
+        # quick test: zero uncertainty, cegis should find a certificate quickly
+        sets["uncertainty"] = domains.Rectangle(vars=["z0", "z1"], lb=(0.0, 0.0), ub=(0.0, 0.0))
+
         data_gen = {
-            "init": lambda n: XI.generate_data(n),
-            "unsafe": lambda n: XU.generate_data(n),
+            "init": lambda n: system.init_domain.generate_data(n),
+            "unsafe": lambda n: system.unsafe_domain.generate_data(n),
             "lie": lambda n: torch.concatenate(
-                [XD.generate_data(n), UD.generate_data(n)], dim=1
+                [system.state_domain.generate_data(n), system.input_domain.generate_data(n)], dim=1
             ),
             "uncertainty": lambda n: torch.concatenate(
-                [XD.generate_data(n), UD.generate_data(n), ZD.generate_data(n)], dim=1
+                [system.state_domain.generate_data(n), system.input_domain.generate_data(n), sets["uncertainty"].generate_data(n)], dim=1
             ),
         }
 
         config = fosco.cegis.CegisConfig(
-            SYSTEM=system,
-            DOMAINS=sets,
-            DATA_GEN=data_gen,
             CERTIFICATE=certificate_type,
-            TIME_DOMAIN=TimeDomain.CONTINUOUS,
-            VERIFIER=VerifierType.Z3,
+            VERIFIER="z3",
             ACTIVATION=activations,
             N_HIDDEN_NEURONS=n_hidden_neurons,
-            LOSS_RELU=fosco.common.consts.LossReLUType.SOFTPLUS,
+            LOSS_RELU="softplus",
             N_EPOCHS=1000,
             CEGIS_MAX_ITERS=20,
             N_DATA=n_data_samples,
             SEED=seed,
         )
-        cegis = fosco.cegis.Cegis(config=config, verbose=verbose)
+        cegis = Cegis(
+            system=system, domains=sets, config=config, data_gen=data_gen, verbose=verbose
+        )
 
         result = cegis.solve()
 
@@ -184,23 +161,35 @@ class TestCEGIS(unittest.TestCase):
             print("Random Seed:", seed)
 
             # first iter
-            config = self._get_single_integrator_config()
+            system, domains, data_gen, config = self._get_single_integrator_config()
             config.SEED = seed
             config.CEGIS_MAX_ITERS = 1
-            cegis = fosco.cegis.Cegis(config=config, verbose=0)
+            cegis = fosco.cegis.Cegis(
+                system=system,
+                domains=domains,
+                config=config,
+                data_gen=data_gen,
+                verbose=0,
+            )
             results = cegis.solve()
-            model = results.net
+            model = results.barrier
             params = list(model.parameters())
 
             for run_id in range(3):
                 print(f"Running {run_id}")
-                config = self._get_single_integrator_config()
+                system, domains, data_gen, config = self._get_single_integrator_config()
                 config.SEED = seed
                 config.CEGIS_MAX_ITERS = 1
 
-                cegis = fosco.cegis.Cegis(config=config, verbose=0)
+                cegis = fosco.cegis.Cegis(
+                    system=system,
+                    domains=domains,
+                    config=config,
+                    data_gen=data_gen,
+                    verbose=0,
+                )
                 results = cegis.solve()
-                model = results.net
+                model = results.barrier
                 new_params = list(model.parameters())
 
                 # check that the parameters are the same

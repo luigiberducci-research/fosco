@@ -42,3 +42,18 @@ This is a research prototype, tailored for CBF and built on top of [FOSSIL](http
 Our implementation aims to refactor the original codebase and keep the minimal functionality required for CBF synthesis.
 
 We invite to refer to the original codebase for synthesis of general Lyapunov certificates.
+
+
+# Known issues
+
+1. Rendering in Mujoco env
+If when using mujoco environments, you run into the following error
+```
+mujoco.FatalError: gladLoadGL error
+```
+
+Please have a look at [rendering in mujoco](https://pytorch.org/rl/reference/generated/knowledge_base/MUJOCO_INSTALLATION.html)
+Ensure dependencies are there and env variables.
+For ubuntu 20.04 install: 
+
+`sudo apt-get install libglfw3 libglew2.1 libgl1-mesa-glx libosmesa6`

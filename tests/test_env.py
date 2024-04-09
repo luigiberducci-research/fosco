@@ -4,8 +4,8 @@ import numpy as np
 import torch
 from gymnasium.utils.env_checker import check_env
 
-from systems import make_system
-from systems.system_env import SystemEnv
+from fosco.systems import make_system
+from fosco.systems.gym_env.system_env import SystemEnv
 
 
 def dummy_term_fn(actions, next_obss):
@@ -25,10 +25,30 @@ class TestEnv(unittest.TestCase):
                 system=system,
                 termination_fn=dummy_term_fn,
                 reward_fn=dummy_reward_fn,
+                dt=0.1,
                 max_steps=100,
             )
 
             check_env(env, skip_render_check=True)
+
+            self.assertTrue(
+                env.system.id.startswith(system_id),
+                f"created env id {env.system.id} for {system_id}",
+            )
+
+    def test_registered_system_envs(self):
+        import gymnasium
+
+        for system_id in ["SingleIntegrator", "DoubleIntegrator"]:
+            reward_id = "GoToUnsafeReward"
+            env = gymnasium.make(f"fosco.systems:{system_id}-{reward_id}-v0")
+
+            check_env(env, skip_render_check=True)
+
+            self.assertTrue(
+                env.system.id.startswith(system_id),
+                f"created env id={env.system.id}, given {system_id}",
+            )
 
     def test_numpy_batch_step(self):
         batch_size = 1000
@@ -36,7 +56,11 @@ class TestEnv(unittest.TestCase):
         for system_id in ["SingleIntegrator", "DoubleIntegrator"]:
             system = make_system(system_id=system_id)()
             env = SystemEnv(
-                system=system, termination_fn=dummy_term_fn, reward_fn=dummy_reward_fn, max_steps=100
+                system=system,
+                termination_fn=dummy_term_fn,
+                reward_fn=dummy_reward_fn,
+                dt=0.1,
+                max_steps=100,
             )
 
             obss, infos = env.reset(options={"batch_size": batch_size})
@@ -52,8 +76,19 @@ class TestEnv(unittest.TestCase):
                 f"next_obss is not a numpy array, got {type(next_obss)}",
             )
             self.assertTrue(
+                isinstance(rewards, np.ndarray), "rewards is not a numpy array",
+            )
+            self.assertTrue(
+                "costs" in infos and isinstance(infos["costs"], np.ndarray),
+                "costs not found in infos or it is not a numpy array",
+            )
+            self.assertTrue(
                 obss.shape[0] == actions.shape[0] == next_obss.shape[0],
                 "mismatch batch sizes",
+            )
+            self.assertTrue(
+                rewards.shape == infos["costs"].shape == (batch_size,),
+                f"wrong batch size for rewards or costs, got {rewards.shape}, {infos['costs'].shape}",
             )
 
     def test_tensor_batch_step(self):
@@ -65,11 +100,14 @@ class TestEnv(unittest.TestCase):
                 system=system,
                 termination_fn=dummy_term_fn,
                 reward_fn=dummy_reward_fn,
+                dt=0.1,
                 max_steps=100,
                 return_np=False,
             )
 
-            obss, infos = env.reset(options={"batch_size": batch_size, "return_as_np": False})
+            obss, infos = env.reset(
+                options={"batch_size": batch_size, "return_as_np": False}
+            )
             actions = np.stack([env.action_space.sample() for _ in range(batch_size)])
             next_obss, rewards, terminations, truncations, infos = env.step(actions)
 
@@ -82,12 +120,23 @@ class TestEnv(unittest.TestCase):
                 f"next_obss is not a torch tensor, got {type(next_obss)}",
             )
             self.assertTrue(
+                isinstance(rewards, torch.Tensor), "rewards is not a torch tensor",
+            )
+            self.assertTrue(
+                isinstance(infos["costs"], torch.Tensor),
+                "costs not found in infos or it is not a torch tensor",
+            )
+            self.assertTrue(
                 len(obss.shape) == len(actions.shape) == len(next_obss.shape),
                 "mismatch batch dimensions",
             )
             self.assertTrue(
                 obss.shape[0] == actions.shape[0] == next_obss.shape[0],
                 "mismatch batch sizes",
+            )
+            self.assertTrue(
+                rewards.shape == infos["costs"].shape == (batch_size,),
+                f"wrong batch size for rewards or costs, got {rewards.shape}, {infos['costs'].shape}",
             )
 
     def test_sequential_step(self):
@@ -96,7 +145,11 @@ class TestEnv(unittest.TestCase):
         for system_id in ["SingleIntegrator", "DoubleIntegrator"]:
             system = make_system(system_id=system_id)()
             env = SystemEnv(
-                system=system, termination_fn=dummy_term_fn, reward_fn=dummy_reward_fn, max_steps=100
+                system=system,
+                termination_fn=dummy_term_fn,
+                reward_fn=dummy_reward_fn,
+                dt=0.1,
+                max_steps=100,
             )
 
             for i in range(batch_size):
@@ -122,11 +175,19 @@ class TestEnv(unittest.TestCase):
 
         for system_id in ["SingleIntegrator", "DoubleIntegrator"]:
             system = make_system(system_id=system_id)()
+
             env = SystemEnv(
-                system=system, termination_fn=dummy_term_fn, reward_fn=dummy_reward_fn, max_steps=100
+                system=system,
+                termination_fn=dummy_term_fn,
+                reward_fn=dummy_reward_fn,
+                dt=0.1,
+                max_steps=100,
             )
 
             obs1, _ = env.reset(seed=seed, options={"batch_size": 100})
             obs2, _ = env.reset(seed=seed, options={"batch_size": 100})
 
-            self.assertTrue(np.allclose(obs1, obs2), f"reset does not return same obs, got {obs1} and {obs2}")
+            self.assertTrue(
+                np.allclose(obs1, obs2),
+                f"reset does not return same obs, got {obs1} and {obs2}",
+            )

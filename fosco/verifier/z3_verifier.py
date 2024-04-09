@@ -1,18 +1,28 @@
+import time
 import timeit
 from typing import Callable
 
 import z3
 
 from fosco.common.utils import contains_object
-from fosco.verifier.types import Z3SYMBOL, SYMBOL
+from fosco.verifier.types import Z3SYMBOL
 from fosco.verifier.verifier import Verifier
 
 
 class VerifierZ3(Verifier):
+    def _assert_state(self) -> None:
+        super()._assert_state()
+        assert all(
+            [isinstance(x, Z3SYMBOL) for x in self.xs]
+        ), f"Expected z3 variables, got {self.xs}"
+        assert isinstance(
+            self.constraints_method, Callable
+        ), f"Expected callable, got {self.constraints_method}"
+
     @staticmethod
     def new_vars(
         n: int | None = None, var_names: list[str] | None = None, base: str = "x"
-    ) -> list[SYMBOL]:
+    ) -> list[Z3SYMBOL]:
         assert (
             n is not None or var_names is not None
         ), "Must provide either n or var_names"
@@ -75,8 +85,11 @@ class VerifierZ3(Verifier):
         except:
             pass
 
+        fml = z3.simplify(fml)
         if self._rounding > 0:
-            fml = self.round_expr(fml, rounding=self._rounding)
+            fml = round_expr(fml, rounding=self._rounding)
+
+        self._logger.debug(fml.sexpr())
 
         timer = timeit.default_timer()
         solver.add(fml)
@@ -84,6 +97,10 @@ class VerifierZ3(Verifier):
         timer = timeit.default_timer() - timer
 
         timedout = timer >= self._solver_timeout
+        if timedout:
+            self._logger.debug(fml.sexpr())
+            self._logger.info(f"Timed out while solving, kill after {timer:.2f} sec")
+
         return res, timedout
 
     def _solver_model(self, solver, res):
@@ -103,10 +120,17 @@ class VerifierZ3(Verifier):
                 return float(model[x[0, 0]].as_fraction())
             except:  # when z3 finds non-rational numbers, prints them w/ '?' at the end --> approx 10 decimals
                 return float(model[x[0, 0]].approx(10).as_fraction())
+        except Exception as e:
+            print("model type", type(model))
+            print("model", model)
+            print("x", x)
+            print("i", i)
+            raise e
 
     @staticmethod
     def solver_fncts() -> dict[str, Callable]:
         return {
+            "RealVar": z3.Real,
             "And": z3.And,
             "Or": z3.Or,
             "If": z3.If,
@@ -121,27 +145,28 @@ class VerifierZ3(Verifier):
             "Sqrt": z3.Sqrt,
         }
 
-    def round_expr(self, e: Z3SYMBOL, rounding: int) -> Z3SYMBOL:
-        """
-        Recursive conversion of coefficients to rounded values.
-
-        Args:
-            e:  z3 expression
-            rounding: number of decimals to round to
-
-        Returns:
-            e: z3 expression with rounded coefficients
-        """
-        assert rounding > 0, "rounding must be > 0"
-
-        # base case: rational coeff
-        if z3.is_const(e) and hasattr(e, "as_fraction"):
-            num, den = e.as_fraction().numerator, e.as_fraction().denominator
-            return z3.RealVal(round(float(num) / float(den), rounding))
-
-        # recursive case: non-const expr
-        args = [self.round_expr(arg, rounding) for arg in e.children()]
-        return e.decl()(*args)
-
-    def pretty_formula(self, fml) -> str:
+    def pretty_formula(fml) -> str:
         return str(z3.simplify(fml))
+
+
+def round_expr(e: Z3SYMBOL, rounding: int) -> Z3SYMBOL:
+    """
+    Recursive conversion of coefficients to rounded values.
+
+    Args:
+        e:  z3 expression
+        rounding: number of decimals to round to
+
+    Returns:
+        e: z3 expression with rounded coefficients
+    """
+    assert rounding > 0, "rounding must be > 0"
+
+    # base case: rational coeff
+    if z3.is_const(e) and hasattr(e, "as_fraction"):
+        num, den = e.as_fraction().numerator, e.as_fraction().denominator
+        return z3.RealVal(round(float(num) / float(den), rounding))
+
+    # recursive case: non-const expr
+    args = [round_expr(arg, rounding) for arg in e.children()]
+    return e.decl()(*args)

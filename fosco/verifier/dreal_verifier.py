@@ -1,22 +1,30 @@
+import multiprocessing.context
+import timeit
+from multiprocessing.pool import ThreadPool
 from typing import Callable
 
 import dreal
 
 from fosco.common.utils import contains_object
 from fosco.verifier import Verifier
-from fosco.verifier.types import SYMBOL
+from fosco.verifier.types import DRSYMBOL
 
 
 class VerifierDR(Verifier):
     INFINITY: float = 1e300
     SECOND_CHANCE_BOUND: float = 1e3
 
+    def _assert_state(self) -> None:
+        super()._assert_state()
+        assert all([isinstance(x, DRSYMBOL) for x in self.xs]), f"Expected z3 variables, got {self.xs}"
+        assert isinstance(self.constraints_method, Callable), f"Expected callable, got {self.constraints_method}"
+
     @staticmethod
     def new_vars(
-            n: int | None = None, var_names: list[str] | None = None, base: str = "x"
-    ) -> list[SYMBOL]:
+        n: int | None = None, var_names: list[str] | None = None, base: str = "x"
+    ) -> list[DRSYMBOL]:
         assert (
-                n is not None or var_names is not None
+            n is not None or var_names is not None
         ), "Must provide either n or var_names"
         assert n is None or var_names is None, f"Cannot provide both n and var_names"
         assert var_names is None or len(var_names) == len(
@@ -31,9 +39,10 @@ class VerifierDR(Verifier):
     @staticmethod
     def solver_fncts() -> dict[str, Callable]:
         return {
-            "sin": dreal.sin,
-            "cos": dreal.cos,
-            "exp": dreal.exp,
+            "RealVar": dreal.Variable,
+            "Sin": dreal.sin,
+            "Cos": dreal.cos,
+            "Exp": dreal.exp,
             "And": dreal.And,
             "Or": dreal.Or,
             "If": dreal.if_then_else,
@@ -66,16 +75,29 @@ class VerifierDR(Verifier):
         )
 
     def _solver_solve(self, solver, fml):
-        res = dreal.CheckSatisfiability(fml, 0.0001)
+        timedout = False
+
+        pool = ThreadPool(processes=1)
+        async_result = pool.apply_async(dreal.CheckSatisfiability, args=(fml, 0.0001))
+
+        try:
+            t0 = timeit.default_timer()
+            res = async_result.get(timeout=self._solver_timeout)
+        except multiprocessing.context.TimeoutError:
+            res = None
+            timedout = True
+            self._logger.info(
+                f"Timed out while solving, kill after {timeit.default_timer() - t0} sec"
+            )
+            return res, timedout
+
         if self.is_sat(res) and not self.within_bounds(res):
             And_ = self.solver_fncts()["And"]
             self._logger.info("Second chance bound used")
             new_bound = self.SECOND_CHANCE_BOUND
             fml = And_(fml, *(And_(x < new_bound, x > -new_bound) for x in self.xs))
             res = dreal.CheckSatisfiability(fml, 0.0001)
-        # todo: dreal does not implement any timeout mechanism for now (2024/02/15)
-        # how to implement a timeout mechanism?
-        timedout = False
+
         return res, timedout
 
     def _solver_model(self, solver, res):

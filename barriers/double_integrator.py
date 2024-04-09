@@ -1,7 +1,6 @@
 import warnings
 from typing import Iterable
 
-import numpy as np
 import torch
 
 from fosco.verifier.types import SYMBOL
@@ -14,9 +13,11 @@ class DoubleIntegratorCBF(TorchSymDiffModel):
     def __init__(self, system: ControlAffineDynamics):
         super().__init__()
         self._system = system
-        self._safety_dist = 1.0  # todo this should be taken from system
+        self._safety_dist = 1.5  # todo this should be taken from system
         self._amax = 5.0  # todo this should be taken from system control input
-        self._dt = 1.0  # todo this should be taken from system
+
+        self._eps = 1e-6  # used to avoid division by zero and sqrt of negative numbers in gradient
+
     @property
     def input_size(self) -> int:
         return self._system.n_vars
@@ -34,132 +35,54 @@ class DoubleIntegratorCBF(TorchSymDiffModel):
         """
         self._assert_forward_input(x=x)
 
-        #dpT = x[:, :2].reshape(-1, 1, 2)
-        #dv = x[:, 2:].reshape(-1, 2, 1)
-        #dp_norm = torch.norm(dpT, dim=-1).squeeze()
+        dpT = x[:, :2].reshape(-1, 1, 2)
+        dv = x[:, 2:].reshape(-1, 2, 1)
+        dp_norm = torch.norm(dpT, dim=-1).squeeze()
 
-        #vrel = (dpT @ dv).squeeze() / dp_norm
-        #dist_cap = torch.maximum(
-        #    torch.zeros_like(vrel),
-        #    dp_norm - self._safety_dist
-        #)
+        vrel = (dpT @ dv).squeeze() / dp_norm
+        dist_cap = torch.maximum(
+            torch.zeros_like(vrel),
+            dp_norm - self._safety_dist
+        )
 
-        #hx = vrel + torch.sqrt(self._amax * dist_cap)
-
-        dp = x[:, :2]
-        dv = x[:, 2:]
-
-        next_dp = dp + self._dt * dv
-        hx = next_dp[:, 0] ** 2 + next_dp[:, 1] ** 2 - self._safety_dist ** 2
+        hx = vrel + torch.sqrt(self._amax * dist_cap)
+        hx = hx.reshape(x.shape[0])
 
         self._assert_forward_output(x=hx)
         return hx
 
     def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL], Iterable[SYMBOL]]:
-        self._assert_forward_smt_input(x=x)
-        fns = get_solver_fns(x=x)
-        _If = fns["If"]
-        _Sqrt = fns["Sqrt"]
-        _RealVar = fns["RealVar"]
-
-        symbolic_vars = x.copy()
-
-        """
-        dp = np.array([x[0], x[1]])
-        dv = np.array([x[2], x[3]])
-        dp_norm = _Sqrt(x[0] ** 2 + x[1] ** 2)
-
-        vrel = (dp[0] * dv[0] + dp[1] * dv[1]) / dp_norm
-        dist_cap = _If(dp_norm - self._safety_dist >= 0, dp_norm - self._safety_dist, 0)
-        hx = vrel + _Sqrt(self._amax * dist_cap)
-        """
-
-        dp = np.array([x[0], x[1]])
-        dv = np.array([x[2], x[3]])
-
-        next_dp = dp + self._dt * dv
-        hx = next_dp[0] ** 2 + next_dp[1] ** 2 - self._safety_dist ** 2
-
-        self._assert_forward_smt_output(x=hx)
-        return hx, [], symbolic_vars
+        raise NotImplementedError("forward_smt not implemented for DoubleIntegratorCBF")
 
     def gradient(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        dhdx0 = x0*sqrt(amax*(-ds + sqrt(x0**2 + x1**2)))/(2*(-ds + sqrt(x0**2 + x1**2))*sqrt(x0**2 + x1**2)) -
-                x0*(x0*x2 + x1*x3)/(x0**2 + x1**2)**(3/2) + x2/sqrt(x0**2 + x1**2)
-        dhdx1 = x1*sqrt(amax*(-ds + sqrt(x0**2 + x1**2)))/(2*(-ds + sqrt(x0**2 + x1**2))*sqrt(x0**2 + x1**2)) -
-                x1*(x0*x2 + x1*x3)/(x0**2 + x1**2)**(3/2) + x3/sqrt(x0**2 + x1**2)
-        dhdx2 = x0/sqrt(x0**2 + x1**2)
-        dhdx3 = x1/sqrt(x0**2 + x1**2)
-
         self._assert_forward_input(x=x)
 
         dp_norm = torch.norm(x[:, :2], dim=-1)
-        dhdx0 = x[:, 0] * torch.sqrt(self._amax * (-self._safety_dist + dp_norm)) / (
-            2 * (-self._safety_dist + dp_norm) * dp_norm
+        dist_cap = torch.maximum(
+            self._eps * torch.ones_like(dp_norm),
+            dp_norm - self._safety_dist
+        )
+
+        dhdx0 = x[:, 0] * torch.sqrt(self._amax * dist_cap) / (
+                2 * dist_cap * dp_norm
         ) - x[:, 0] * (x[:, 0] * x[:, 2] + x[:, 1] * x[:, 3]) / dp_norm ** 3 + x[:, 2] / dp_norm
 
-        dhdx1 = x[:, 1] * torch.sqrt(self._amax * (-self._safety_dist + dp_norm)) / (
-            2 * (-self._safety_dist + dp_norm) * dp_norm
+        dhdx1 = x[:, 1] * torch.sqrt(self._amax * dist_cap) / (
+                2 * dist_cap * dp_norm
         ) - x[:, 1] * (x[:, 0] * x[:, 2] + x[:, 1] * x[:, 3]) / dp_norm ** 3 + x[:, 3] / dp_norm
 
         dhdx2 = x[:, 0] / dp_norm
         dhdx3 = x[:, 1] / dp_norm
 
-        hx = torch.stack([dhdx0, dhdx1, dhdx2, dhdx3], dim=-1)
-        """
-        self._assert_forward_input(x=x)
-
-        dp = x[:, :2]
-        dv = x[:, 2:]
-
-        next_dp = dp + self._dt * dv
-        dhdx = torch.stack([2 * next_dp[:, 0], 2 * next_dp[:, 1],
-                          2 * self._dt * dp[:, 0], 2 * self._dt * dp[:, 1]], dim=-1)
+        dhdx = torch.stack([dhdx0, dhdx1, dhdx2, dhdx3], dim=-1)
 
         self._assert_gradient_output(x=dhdx)
         return dhdx
 
     def gradient_smt(
-        self, x: Iterable[SYMBOL]
+            self, x: Iterable[SYMBOL]
     ) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL], Iterable[SYMBOL]]:
-        """
-        dhdx0 = x0*sqrt(amax*(-ds + sqrt(x0**2 + x1**2)))/(2*(-ds + sqrt(x0**2 + x1**2))*sqrt(x0**2 + x1**2)) -
-                x0*(x0*x2 + x1*x3)/(x0**2 + x1**2)**(3/2) + x2/sqrt(x0**2 + x1**2)
-        dhdx1 = x1*sqrt(amax*(-ds + sqrt(x0**2 + x1**2)))/(2*(-ds + sqrt(x0**2 + x1**2))*sqrt(x0**2 + x1**2)) -
-                x1*(x0*x2 + x1*x3)/(x0**2 + x1**2)**(3/2) + x3/sqrt(x0**2 + x1**2)
-        dhdx2 = x0/sqrt(x0**2 + x1**2)
-        dhdx3 = x1/sqrt(x0**2 + x1**2)
-
-        self._assert_forward_smt_input(x=x)
-
-        fns = get_solver_fns(x=x)
-        _If = fns["If"]
-        _Sqrt = fns["Sqrt"]
-
-        dp_norm = _Sqrt(x[0] ** 2 + x[1] ** 2)
-        sqrt_term = _Sqrt(self._amax * (-self._safety_dist + dp_norm))
-
-        dhdx0 = x[0] * sqrt_term / (2 * (-self._safety_dist + dp_norm) * dp_norm) - x[0] * (
-            x[0] * x[2] + x[1] * x[3]) / _Sqrt(dp_norm ** 3) + x[2] / dp_norm
-        dhdx1 = x[1] * sqrt_term / (2 * (-self._safety_dist + dp_norm) * dp_norm) - x[1] * (
-            x[0] * x[2] + x[1] * x[3]) / _Sqrt(dp_norm ** 3) + x[3] / dp_norm
-
-        dhdx2 = x[0] / dp_norm
-        dhdx3 = x[1] / dp_norm
-
-        hx = np.array([[dhdx0, dhdx1, dhdx2, dhdx3]])
-        """
-        self._assert_forward_smt_input(x=x)
-
-        dp = np.array([x[0], x[1]])
-        dv = np.array([x[2], x[3]])
-        next_dp = dp + self._dt * dv
-        dhdx = np.array([[2 * next_dp[0], 2 * next_dp[1],
-                        2 * self._dt * dp[0], 2 * self._dt * dp[1]]])
-        dhdx_vars = x.copy()
-        self._assert_gradient_smt_output(x=dhdx)
-        return dhdx, [], dhdx_vars
+        raise NotImplementedError("gradient_smt not implemented for DoubleIntegratorCBF")
 
     def _assert_forward_input(self, x: torch.Tensor) -> None:
         state_dim = self._system.n_vars
@@ -167,10 +90,10 @@ class DoubleIntegratorCBF(TorchSymDiffModel):
             x, torch.Tensor
         ), f"expected batch input to be tensor, got {type(x)}"
         assert (
-            len(x.shape) == 2
+                len(x.shape) == 2
         ), f"expected batch input (batch, {state_dim}), got {x.shape}"
         assert (
-            x.shape[1] == state_dim
+                x.shape[1] == state_dim
         ), f"expected batch input (batch, {state_dim}), got {x.shape}"
 
     def _assert_forward_output(self, x: torch.Tensor) -> None:
@@ -185,10 +108,10 @@ class DoubleIntegratorCBF(TorchSymDiffModel):
             x, torch.Tensor
         ), f"expected batch output to be tensor, got {type(x)}"
         assert (
-            len(x.shape) == 2
+                len(x.shape) == 2
         ), f"expected batch output (batch, {state_dim}), got {x.shape}"
         assert (
-            x.shape[1] == state_dim
+                x.shape[1] == state_dim
         ), f"expected batch output (batch, {state_dim}), got {x.shape}"
 
     def _assert_forward_smt_input(self, x: Iterable[SYMBOL]) -> None:
@@ -197,7 +120,7 @@ class DoubleIntegratorCBF(TorchSymDiffModel):
             [isinstance(xi, SYMBOL) for xi in x]
         ), f"expected symbolic input, got {x}"
         assert (
-            len(x) == state_dim
+                len(x) == state_dim
         ), f"expected {state_dim} state variables, got input of length {len(x)}"
 
     def _assert_forward_smt_output(self, x: Iterable[SYMBOL]) -> None:
@@ -207,7 +130,7 @@ class DoubleIntegratorCBF(TorchSymDiffModel):
         state_dim = self._system.n_vars
         assert len(x.shape) == 2, f"expected shape (1, {state_dim}), got {x.shape}"
         assert (
-            x.shape[1] == state_dim
+                x.shape[1] == state_dim
         ), f"expected shape (1, {state_dim}), got {x.shape}"
         assert all(
             [isinstance(xi, SYMBOL) for xi in x[0]]
@@ -279,10 +202,10 @@ class DoubleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
             x, torch.Tensor
         ), f"expected batch input to be tensor, got {type(x)}"
         assert (
-            len(x.shape) == 2
+                len(x.shape) == 2
         ), f"expected batch input (batch, {state_dim}), got {x.shape}"
         assert (
-            x.shape[1] == state_dim
+                x.shape[1] == state_dim
         ), f"expected batch input (batch, {state_dim}), got {x.shape}"
 
     def _assert_forward_output(self, x: torch.Tensor) -> None:
@@ -297,7 +220,7 @@ class DoubleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
             [isinstance(xi, SYMBOL) for xi in x]
         ), f"expected symbolic input, got {x}"
         assert (
-            len(x) == state_dim
+                len(x) == state_dim
         ), f"expected {state_dim} state variables, got input of length {len(x)}"
 
     def _assert_forward_smt_output(self, x: Iterable[SYMBOL]) -> None:
@@ -311,15 +234,14 @@ class DoubleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
         warnings.warn("Loading is not supported for hand-crafted models")
 
 
-
 class DoubleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel):
 
     def __init__(self, h: TorchSymDiffModel, system: UncertainControlAffineDynamics):
         super().__init__()
         self._system = system
-        self._h = h # CBF (we use its gradient)
-        self._safety_dist = 1.0 # todo this should be taken from system
-        self._z_bound = 1.0 # todo this should be taken from system uncertainty
+        self._h = h  # CBF (we use its gradient)
+        self._safety_dist = 1.0  # todo this should be taken from system
+        self._z_bound = 1.0  # todo this should be taken from system uncertainty
 
         # this accounts for ensuring robustness over entire belt
         # without this, the rcbf might result non valid
@@ -332,7 +254,6 @@ class DoubleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
     @property
     def output_size(self) -> int:
         return 1
-
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -367,7 +288,7 @@ class DoubleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
             norm * norm == dhdx[0, 0] ** 2 + dhdx[0, 1] ** 2,
             norm >= 0.0
         ]
-        sigma = norm * self._z_bound* self._k_function_smt(hx)
+        sigma = norm * self._z_bound * self._k_function_smt(hx)
 
         self._assert_forward_smt_output(x=sigma)
         return sigma, hx_constraints + dhdx_constraints + norm_constraint, symbolic_vars
@@ -401,16 +322,16 @@ class DoubleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
 
         So we use a polynomial approximation which is valid for r in [0, inf]
         """
-        #return 2 / (1 + torch.exp(hx)) # z3 does not supports exp, try polynomial; also we can see what is the range of hx,
+        # return 2 / (1 + torch.exp(hx)) # z3 does not supports exp, try polynomial; also we can see what is the range of hx,
         return self._epsilon + 1 / (hx ** 2 + 1)
 
     def _k_function_smt(self, hx: SYMBOL) -> tuple[SYMBOL, Iterable[SYMBOL]]:
         """
         Instead of using exp, we use polynomial version which is valid for r in [0, inf]
         """
-        #assert isinstance(hx, DRSYMBOL), f"expected dreals symbolic expression, got {hx}"
-        #fns = get_solver_fns(x=[hx])
-        #return 2 / (1 + fns["Exp"](hx))
+        # assert isinstance(hx, DRSYMBOL), f"expected dreals symbolic expression, got {hx}"
+        # fns = get_solver_fns(x=[hx])
+        # return 2 / (1 + fns["Exp"](hx))
         return self._epsilon + 1 / (hx ** 2 + 1)
 
     def save(self, *args, **kwargs):
@@ -419,4 +340,3 @@ class DoubleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
     @staticmethod
     def load(*args, **kwargs):
         warnings.warn("Loading is not supported for hand-crafted models")
-

@@ -40,7 +40,7 @@ class TestCEGIS(unittest.TestCase):
         config = CegisConfig(
             CERTIFICATE="cbf",
             VERIFIER="z3",
-            CEGIS_MAX_ITERS=3,
+            CEGIS_MAX_ITERS=5,
             ROUNDING=3,
             N_DATA=1000,
             LEARNING_RATE=1e-3,

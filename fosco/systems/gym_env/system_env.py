@@ -342,7 +342,11 @@ class SystemEnv(gymnasium.Env):
         # Draw origin
         origin_translation = np.array(self.system.state_domain.lower_bounds[:2])
 
-        objects = self._render_state_with_objects(obs=self._current_obs)
+        if hasattr(self.system.system, "render_state_with_objects"):
+            objects = self.system.system.render_state_with_objects(obs=self._current_obs.numpy())
+        else:
+            objects = self._render_state_with_objects(obs=self._current_obs)
+
         for obj in objects:
             position = obj.position - origin_translation
 
@@ -409,10 +413,10 @@ class SystemEnv(gymnasium.Env):
 
 
 if __name__=="__main__":
-    pass
     system = make_system("SingleIntegrator")()
     env = SystemEnv(system=system, max_steps=100, render_mode="human")
     obs = env.reset()
+    env.render()
     done = False
     while not done:
         action = env.action_space.sample()

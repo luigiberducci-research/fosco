@@ -276,6 +276,9 @@ class Union(Set):
             s = torch.cat([s, set_i.generate_data(n_set_i)])
         return s[:batch_size]
 
+    def check_containment(self, x: np.ndarray | torch.Tensor) -> torch.Tensor:
+        return torch.stack([s.check_containment(x) for s in self.sets]).any(dim=0)
+
 
 class Intersection(Set):
     """
@@ -316,6 +319,9 @@ class Intersection(Set):
             samples = torch.cat([samples, s])
             max_iter -= 1
         return samples[:batch_size]
+
+    def check_containment(self, x: np.ndarray | torch.Tensor) -> torch.Tensor:
+        return torch.stack([s.check_containment(x) for s in self.sets]).all(dim=0)
 
 
 class Complement(Set):

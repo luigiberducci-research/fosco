@@ -201,10 +201,13 @@ class MultiParticle(ControlAffineDynamics):
 
         return [ego_obj] + objects
 
+register(
+    name="MultiParticleSingleIntegrator",
+    entrypoint=partial(MultiParticle, single_agent_dynamics=SingleIntegrator()),
+)
 
 if __name__=="__main__":
-    system = make_system("SingleIntegrator")()
-    system = MultiParticle(single_agent_dynamics=system, n_agents=4)
+    system = make_system("MultiParticleSingleIntegrator")(n_agents=4)
     env = SystemEnv(system=system, max_steps=100, render_mode="human")
     obs = env.reset()
     env.render()

@@ -24,8 +24,8 @@ class MultiParticle(ControlAffineDynamics):
 
     def __init__(
             self,
-            n_agents: int,
             single_agent_dynamics: ControlAffineDynamics,
+            n_agents: int = 3,
             initial_distance: float = 3.0,
             collision_distance: float = 1.0,
     ):

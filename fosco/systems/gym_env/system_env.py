@@ -185,7 +185,6 @@ class SystemEnv(gymnasium.Env):
     def step(
         self, actions: TensorType,
     ) -> Tuple[TensorType, TensorType, TensorType, TensorType, Dict]:
-        # todo: add deterministic or stochastic mode
         """
         Steps the model environment with the given batch of actions.
 
@@ -224,7 +223,6 @@ class SystemEnv(gymnasium.Env):
             actions.shape[1] == self.system.input_domain.dimension
         ), "actions must match the dimension of the input domain"
 
-        # todo: do we want to differentiate through the dynamics or not?
         with torch.no_grad():
             # if actions is tensor, code assumes it's already on self.device
             if isinstance(actions, np.ndarray):
@@ -233,6 +231,7 @@ class SystemEnv(gymnasium.Env):
             # step
             if isinstance(self.system, UncertainControlAffineDynamics):
                 batch_size = self._current_obs.shape[0]
+                # todo: add deterministic or stochastic mode
                 z = self.system.uncertainty_domain.generate_data(batch_size)
                 next_observs = self.system.f(
                     v=self._current_obs,

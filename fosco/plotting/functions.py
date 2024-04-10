@@ -48,6 +48,30 @@ def plot_func_and_domains(
     dim_select = dim_select or (0, 1)
     levels = levels or []
 
+    fig = plot_func_only(func, in_domain, levels, dim_select)
+
+    for dname, domain in domains.items():
+        color = DOMAIN_COLORS[dname] if dname in DOMAIN_COLORS else None
+        fig = plot_domain(domain, fig, color=color, dim_select=dim_select, label=dname)
+
+    # show legend and hide colorbar
+    fig.update_traces(showlegend=True)
+    fig.update_traces(showscale=False, selector=dict(type="surface"))
+
+    return fig
+
+def plot_func_only(
+    func: Callable[[np.ndarray], np.ndarray],
+    in_domain: Rectangle,
+    levels: list[float] = None,
+    dim_select: tuple[int, int] = None,
+) -> Figure:
+    """
+    Plot the function of a torch module projected onto 2d input space.
+    """
+    dim_select = dim_select or (0, 1)
+    levels = levels or []
+
     assert len(dim_select) == 2, "dim_select must be a tuple of 2 int"
     assert (
         type(dim_select[0]) == type(dim_select[1]) == int
@@ -69,7 +93,7 @@ def plot_func_and_domains(
         ), "x must be a batch of 2d points"
 
         lb, ub = np.array(in_domain.lower_bounds), np.array(in_domain.upper_bounds)
-        x_mean = lb + (ub - lb) / 2
+        x_mean = lb #+ (ub - lb) / 2
         x_ext = x_mean[None].repeat(x.shape[0], 0)
         x_ext[:, dim_select] = x
 
@@ -96,9 +120,15 @@ def plot_func_and_domains(
         opacity=0.5,
     )
 
-    for dname, domain in domains.items():
-        color = DOMAIN_COLORS[dname] if dname in DOMAIN_COLORS else None
-        fig = plot_domain(domain, fig, color=color, dim_select=dim_select, label=dname)
+
+    # set labels axis
+    fig.update_layout(
+        scene=dict(
+            xaxis_title=f"{in_domain.vars[dim_select[0]]}",
+            yaxis_title=f"{in_domain.vars[dim_select[1]]}",
+            zaxis_title="f(x)",
+        )
+    )
 
     # show legend and hide colorbar
     fig.update_traces(showlegend=True)

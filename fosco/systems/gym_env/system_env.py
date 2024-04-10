@@ -29,7 +29,6 @@ import torch
 import pygame
 
 from fosco.common.domains import Rectangle, Sphere
-from fosco.systems import make_system
 from fosco.systems.core.system import ControlAffineDynamics, UncertainControlAffineDynamics
 from fosco.systems.discrete_time.system_dt import EulerDTSystem
 from fosco.systems.gym_env.rewards import RewardFnType
@@ -153,6 +152,7 @@ class SystemEnv(gymnasium.Env):
 
         default_options = {
             "batch_size": 1,
+            "init_state": None,
             "return_as_np": True,
         }
         default_options.update(options or {})
@@ -162,9 +162,17 @@ class SystemEnv(gymnasium.Env):
         self._return_as_np = default_options["return_as_np"]
 
         # generate batch of tensor states
-        self._current_obs = init_domain.generate_data(batch_size=batch_size).to(
-            self._device
-        )
+        if default_options["init_state"] is not None:
+            assert (
+                len(default_options["init_state"].shape) == 1
+            ), f"init_state must be 1d tensor, got {default_options['init_state']}"
+            self._current_obs = torch.from_numpy(default_options["init_state"])[None].repeat(
+                batch_size, 1
+            ).float().to(self._device)
+        else:
+            self._current_obs = init_domain.generate_data(batch_size=batch_size).to(
+                self._device
+            )
         self._current_time = torch.zeros(batch_size, dtype=torch.float32).to(
             self._device
         )
@@ -415,6 +423,8 @@ class SystemEnv(gymnasium.Env):
 
 
 if __name__=="__main__":
+    from fosco.systems import make_system
+
     system = make_system("SingleIntegrator")()
     env = SystemEnv(system=system, max_steps=100, render_mode="human")
     obs = env.reset()

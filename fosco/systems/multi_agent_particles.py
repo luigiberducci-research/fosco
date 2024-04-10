@@ -6,9 +6,9 @@ import torch
 from fosco.common import domains
 from fosco.common.consts import TimeDomain
 from fosco.common.domains import Set, Rectangle
-from fosco.systems import SingleIntegrator, make_system
 from fosco.systems.core.system import register, ControlAffineDynamics
 from fosco.systems.gym_env.system_env import RenderObject, SystemEnv
+from fosco.systems import SingleIntegrator
 
 
 class MultiParticle(ControlAffineDynamics):
@@ -207,7 +207,8 @@ register(
 )
 
 if __name__=="__main__":
-    system = make_system("MultiParticleSingleIntegrator")(n_agents=4)
+
+    system = MultiParticle(single_agent_dynamics=SingleIntegrator(), n_agents=3)
     env = SystemEnv(system=system, max_steps=100, render_mode="human")
     obs = env.reset()
     env.render()

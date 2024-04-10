@@ -7,6 +7,7 @@ from fosco.systems.double_integrator import DoubleIntegrator
 from fosco.systems.unicycle_model import Unicycle
 from fosco.systems.unicycle_acc_model import UnicycleAcc
 from fosco.systems.static_office import StaticOffice
+from fosco.systems.multi_agent_particles import MultiParticle
 
 from fosco.systems.gym_env.rewards import REWARD_REGISTRY
 import gymnasium

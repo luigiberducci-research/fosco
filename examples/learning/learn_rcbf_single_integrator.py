@@ -29,8 +29,8 @@ def main():
 
     # learning parameters
     params = {
-        "activations": ["square"],
-        "n_hidden_neurons": [5],
+        "activations": ["htanh"],
+        "n_hidden_neurons": [20],
         "max_iters": 20,
         "n_data_samples": 5000,
         "n_resampling": 100,
@@ -47,9 +47,9 @@ def main():
     system = add_uncertainty(uncertainty_type=uncertainty_type, system=system)
 
     # learn control barrier function
-    barrier, compensator = learn_barrier_and_compensator(system=system, params=params, seed=seed, verbose=verbose)
-    #barrier = make_barrier(system=system)
-    #compensator = make_compensator(system=system)
+    #barrier, compensator = learn_barrier_and_compensator(system=system, params=params, seed=seed, verbose=verbose)
+    barrier = make_barrier(system=system)
+    compensator = make_compensator(system=system)
     for func in [barrier, compensator]:
         fig = plot_torch_function(function=func, domains=system.domains)
         fig.show()
@@ -116,7 +116,7 @@ def learn_barrier_and_compensator(system, params, seed, verbose):
         "init": lambda n: sets["init"].generate_data(n),
         "unsafe": lambda n: sets["unsafe"].generate_data(n),
         "lie": lambda n: torch.concatenate(
-            [sets["lie"].generate_data(n), sets["input"].generate_data(n)], dim=1
+            [sets["lie"].generate_data(n), torch.zeros(n, sets["input"].dimension), sets["uncertainty"].generate_data(n)], dim=1
         ),
         "uncertainty": lambda n: torch.concatenate(
             [sets["lie"].generate_data(n), sets["input"].generate_data(n), sets["uncertainty"].generate_data(n)], dim=1
@@ -134,14 +134,14 @@ def learn_barrier_and_compensator(system, params, seed, verbose):
         CEGIS_MAX_ITERS=params["max_iters"],
         N_DATA=params["n_data_samples"],
         SEED=seed,
-        LOGGER="aim",
+        LOGGER=None,
         LOSS_WEIGHTS={
             "init": 1.0,
             "unsafe": 1.0,
             "lie": 1.0,
             "robust": 1.0,
             "conservative_b": 1.0,
-            "conservative_sigma": 0.5,
+            "conservative_sigma": 0.1,
         },
     )
     cegis = Cegis(

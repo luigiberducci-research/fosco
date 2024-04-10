@@ -65,12 +65,15 @@ class SafeActorCriticAgent(ActorCriticAgent):
         self.device = device or torch.device("cpu")
         self.to(self.device)
 
-    def _make_barrier_layer(self) -> CvxpyLayer:
+    def _make_barrier_layer(self) -> CvxpyLayer | None:
         """
         Constructs a CvxpyLayer to implement the CBF problem:
             argmin_u u.T Q u + px.T u
             s.t. dh(x,u) + alpha(h(x)) >= 0
         """
+        if not self.barrier:
+            return None
+
         Q = torch.eye(self.output_size)
         px = cp.Parameter(self.output_size)
 
@@ -132,7 +135,7 @@ class SafeActorCriticAgent(ActorCriticAgent):
 
         # safety layer
         safe_action = action
-        if use_safety_layer:
+        if use_safety_layer and self.safety_layer is not None:
             n_batch = x.size(0)
             hx = self.barrier(x0).view(n_batch, 1)
             dhdx = self.barrier.gradient(x0).view(n_batch, 1, self.input_size)

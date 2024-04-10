@@ -29,8 +29,8 @@ def main():
 
     # learning parameters
     params = {
-        "activations": ["htanh", "htanh"],
-        "n_hidden_neurons": [5, 5],
+        "activations": ["htanh"],
+        "n_hidden_neurons": [10],
         "max_iters": 20,
         "n_data_samples": 5000,
         "n_resampling": 100,

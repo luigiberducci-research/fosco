@@ -1,5 +1,5 @@
 <h1 align="center">
-FOSCo: FOrmal Synthesis of COntrol Barrier Functions
+FoSRL: A Tool for Formally-Guaranteed Safe Reinforcement Learning
 </h1>
 
 <p align="center">
@@ -10,11 +10,12 @@ FOSCo: FOrmal Synthesis of COntrol Barrier Functions
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 </p>
 
-**Learner-verifier framework** for synthesis of Control Barrier Functions (**CBFs**) 
-for (nonlinear) control-affine systems.
 
-We use a **counterexample-guided inductive synthesis** (CEGIS) approach to
-learn a CBF which is guaranteed to be valid.
+**Learning framework** for Safe Reinforcement Learning with Control Barrier Functions (**CBFs**) 
+for control-affine systems.
+
+We combine **counterexample-guided pretraining** and **RL algorithms** to
+learn a policy which is guaranteed to be safe to a set of environmental assumptions.
 
 ![Example CBF Single-Integrator](docs%2Fsingle_integrator.gif)
 
@@ -38,10 +39,12 @@ python run_example.py
 ```
 
 ## :warning: Disclaimer
-This is a research prototype, tailored for CBF and built on top of [FOSSIL](https://github.com/oxford-oxcav/fossil).
-Our implementation aims to refactor the original codebase and keep the minimal functionality required for CBF synthesis.
+This is a research prototype, which builds on prior work on Lyapunov functions,
+and extend it to support CBF and Robust CBF.
+Our implementation refactored part of the original codebase.
 
-We invite to refer to the original codebase for synthesis of general Lyapunov certificates.
+However, if interested in other class of Lyapunov certificates,
+we invite to refer to the [FOSSIL](https://github.com/oxford-oxcav/fossil) codebase.
 
 
 # Known issues

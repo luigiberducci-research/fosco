@@ -20,60 +20,10 @@ class SafePPOTrainer(PPOTrainer):
     def __init__(
         self,
         envs: gymnasium.Env,
+        barrier: nn.Module,
         args: Namespace,
         device: Optional[torch.device] = None,
     ) -> None:
-        if not args.use_true_barrier and not args.barrier_path:
-            raise TypeError("safe ppo needs a cbf, either known or learned")
-
-        if args.barrier_path:
-            single_env = envs.envs[0] if envs.unwrapped.is_vector_env else envs
-            system = single_env.system
-
-            if pathlib.Path(args.barrier_path).exists():
-                raise NotImplementedError
-            else:
-                # load model from logs
-                from aim import Run
-
-                aim_run = Run(run_hash=args.barrier_path)
-                config = aim_run["config"]
-
-                timedomain = eval(config["TIME_DOMAIN"])
-                learner_type = make_learner(system=system)
-                # todo rewrite logs in primitive types to make loading easier
-                learner = learner_type(
-                    state_size=system.n_vars,
-                    learn_method=None,
-                    hidden_sizes=eval(
-                        config["N_HIDDEN_NEURONS"]
-                    ),  # todo: load from cfg instead of hardcoding
-                    activation=eval(config["ACTIVATION"]),  # todo: load from cfg
-                    optimizer=eval(config["OPTIMIZER"]),
-                    lr=eval(config["LEARNING_RATE"]),
-                    weight_decay=eval(config["WEIGHT_DECAY"]),
-                )
-
-                model_path = pathlib.Path(config["MODEL_DIR"]) / config["EXP_NAME"]
-                model_path = [p for p in model_path.glob("*pt")]
-
-                if len(model_path) == 0:
-                    raise FileNotFoundError(f"no model found in {model_path}")
-
-                model_path = model_path[0]  # pick first
-
-            learner.load(model_path=model_path)
-            barrier = learner.net
-            barrier.train()
-        else:
-            single_env = envs.envs[0] if envs.unwrapped.is_vector_env else envs
-            if not isinstance(single_env.unwrapped, SystemEnv):
-                raise TypeError(
-                    f"This trainer runs only in SystemEnv because it relies on the dynamics, got {single_env.unwrapped}"
-                )
-            system = single_env.system
-            barrier = make_barrier(system=system)["barrier"]
-
         agent_cls = partial(SafeActorCriticAgent, barrier=barrier)
         super().__init__(
             envs=envs, args=args, agent_cls=agent_cls, device=device,

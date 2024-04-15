@@ -3,6 +3,7 @@ import os
 import pathlib
 import random
 import time
+import warnings
 from dataclasses import dataclass
 from typing import Callable
 
@@ -12,6 +13,7 @@ import torch
 import tyro
 from torch.utils.tensorboard import SummaryWriter
 
+from fosco.systems.gym_env.system_env import SystemEnv
 from rl_trainer.safe_ppo.safeppo_trainer import SafePPOTrainer
 from rl_trainer.ppo.ppo_trainer import PPOTrainer
 from rl_trainer.common.utils import make_env
@@ -53,10 +55,6 @@ class Args:
     """the id of the environment"""
     trainer_id: str = "ppo"
     """the id of the rl trainer"""
-    use_true_barrier: bool = False
-    """toggle the use of grount-truth barrier"""
-    barrier_path: str = None
-    """barrier model or hash of training run from which load the barrier model"""
     total_timesteps: int = 50000
     """total timesteps of the experiments"""
     learning_rate: float = 3e-4
@@ -204,7 +202,12 @@ def run(args):
     if args.trainer_id == "ppo":
         trainer = PPOTrainer(envs=envs, args=args, device=device)
     elif args.trainer_id == "safe-ppo":
-        trainer = SafePPOTrainer(envs=envs, args=args, device=device)
+        if not isinstance(envs.envs[0].unwrapped, SystemEnv):
+            raise TypeError(f"SafePPO only supports SystemEnv, got {envs.envs[0].unwrapped}")
+        from barriers import make_barrier
+        system = envs.envs[0].unwrapped.system
+        barrier = make_barrier(system=system)
+        trainer = SafePPOTrainer(envs=envs, barrier=barrier, args=args, device=device)
     else:
         raise NotImplementedError(f"No trainer implemented for id={args.trainer_id}")
 
@@ -311,6 +314,7 @@ def run(args):
             )
 
     if logdir and args.save_model:
+        raise warnings.warn("saving model is not tested yet")
         checkpoint_dir = pathlib.Path(f"{logdir}/checkpoints/")
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
 

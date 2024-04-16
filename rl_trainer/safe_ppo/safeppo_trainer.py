@@ -1,5 +1,3 @@
-import pathlib
-from argparse import Namespace
 from functools import partial
 from typing import Optional
 
@@ -8,13 +6,11 @@ import numpy as np
 import torch
 from torch import nn
 
-from barriers import make_barrier
 from rl_trainer.ppo.ppo_config import PPOConfig
 from rl_trainer.safe_ppo.safeppo_agent import SafeActorCriticAgent
 from rl_trainer.common.buffer import CyclicBuffer
 from rl_trainer.ppo.ppo_trainer import PPOTrainer
-from fosco.systems.gym_env.system_env import SystemEnv
-from fosco.learner import make_learner
+
 
 
 class SafePPOTrainer(PPOTrainer):
@@ -46,7 +42,7 @@ class SafePPOTrainer(PPOTrainer):
             capacity=self.cfg.num_steps, feature_shapes=buffer_shapes, device=self.device
         )
 
-    def train(
+    def _update(
         self, next_obs: torch.Tensor, next_done: Optional[torch.Tensor] = None,
     ) -> dict[str, float]:
         data = self.buffer.sample()
@@ -87,7 +83,7 @@ class SafePPOTrainer(PPOTrainer):
         b_inds = np.arange(self.cfg.batch_size)
         clipfracs = []
         for epoch in range(self.cfg.update_epochs):
-            print(f"epoch {epoch}")
+            self._logger.debug(f"epoch {epoch}")
             np.random.shuffle(b_inds)
             for start in range(0, self.cfg.batch_size, self.cfg.minibatch_size):
                 end = start + self.cfg.minibatch_size

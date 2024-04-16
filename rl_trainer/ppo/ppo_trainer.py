@@ -1,3 +1,4 @@
+import logging
 import time
 from argparse import Namespace
 from typing import Optional, Type
@@ -7,6 +8,7 @@ import numpy as np
 import torch
 from torch import optim, nn
 
+from fosco.logger import LOGGING_LEVELS
 from rl_trainer.ppo.ppo_agent import ActorCriticAgent
 from rl_trainer.common.buffer import CyclicBuffer
 from rl_trainer.ppo.ppo_config import PPOConfig
@@ -15,14 +17,18 @@ from rl_trainer.trainer import RLTrainer
 
 class PPOTrainer(RLTrainer):
     def __init__(
-        self,
-        envs: gymnasium.Env,
-        config: PPOConfig,
-        agent_cls: Optional[Type[ActorCriticAgent]] = None,
-        device: Optional[torch.device] = None,
+            self,
+            envs: gymnasium.Env,
+            config: PPOConfig,
+            agent_cls: Optional[Type[ActorCriticAgent]] = None,
+            device: Optional[torch.device] = None,
     ) -> None:
         self.device = device or torch.device("cpu")
+
         self.cfg = config
+        self.cfg.batch_size = int(self.cfg.num_envs * self.cfg.num_steps)
+        self.cfg.minibatch_size = int(self.cfg.batch_size // self.cfg.num_minibatches)
+        self.cfg.num_iterations = self.cfg.total_timesteps // self.cfg.batch_size
 
         if envs.unwrapped.is_vector_env:
             single_env = envs.envs[0]
@@ -48,8 +54,21 @@ class PPOTrainer(RLTrainer):
         )
         self.iteration = 0
 
-    def train(self, envs, writer=None):
+        self._logger = logging.getLogger(__name__)
+
+    def train(self, envs, writer=None, verbose=1) -> dict[str, np.ndarray]:
         device = self.device
+
+        # verbosity
+        verbose = min(max(verbose, 0), len(LOGGING_LEVELS) - 1)
+        self._logger.setLevel(LOGGING_LEVELS[verbose])
+        self._logger.debug("Starting training...")
+
+        # statistics
+        train_steps = []
+        train_lengths = []
+        train_return = []
+        train_cost = []
 
         # TRY NOT TO MODIFY: start the game
         global_step = 0
@@ -59,6 +78,14 @@ class PPOTrainer(RLTrainer):
         next_done = torch.zeros(self.cfg.num_envs).to(device)
 
         for iteration in range(1, self.cfg.num_iterations + 1):
+            self._logger.info(
+                f"iteration {iteration}/{self.cfg.num_iterations} \n"
+                f"\tglobal step: {global_step}/{self.cfg.total_timesteps} \n"
+                f"\tepisodic returns: {np.mean(train_return[-10:]):.2f} +/- {np.std(train_return[-10:]):.2f} \n"
+                f"\tepisodic costs: {np.mean(train_cost[-10:]):.2f} +/- {np.std(train_cost[-10:]):.2f} \n"
+                f"\tepisodic lengths: {np.mean(train_lengths[-10:]):.2f} +/- {np.std(train_lengths[-10:]):.2f} \n"
+            )
+
             agent = self.get_actor()
 
             # data collection
@@ -114,6 +141,7 @@ class PPOTrainer(RLTrainer):
                                 else np.zeros(self.cfg.num_envs, dtype=np.float32)
                             )
                             cost.append(c)
+                    cost = np.array(cost)
 
                 self.buffer.push(
                     obs=cur_obs,
@@ -126,18 +154,24 @@ class PPOTrainer(RLTrainer):
                 if "final_info" in infos:
                     for info in infos["final_info"]:
                         if info and "episode" in info:
-                            print(
+                            self._logger.debug(
                                 f"global_step={global_step}, episodic_return={info['episode']['r']}, episodic_cost={info['episode']['c']}"
                             )
+
+                            train_steps.append(int(global_step))
+                            train_lengths.append(float(info["episode"]["l"]))
+                            train_return.append(float(info["episode"]["r"]))
+                            train_cost.append(float(info["episode"]["c"]))
+
                             if writer:
                                 writer.add_scalar(
-                                    "charts/episodic_return", info["episode"]["r"], global_step
+                                    "charts/episodic_return", train_return[-1], train_steps[-1]
                                 )
                                 writer.add_scalar(
-                                    "charts/episodic_cost", info["episode"]["c"], global_step
+                                    "charts/episodic_cost", train_cost[-1], train_steps[-1]
                                 )
                                 writer.add_scalar(
-                                    "charts/episodic_length", info["episode"]["l"], global_step
+                                    "charts/episodic_length", train_lengths[-1], train_steps[-1]
                                 )
 
             # update agent
@@ -145,7 +179,7 @@ class PPOTrainer(RLTrainer):
 
             # TRY NOT TO MODIFY: record rewards for plotting purposes
             sps = int(global_step / (time.time() - start_time))
-            print("SPS:", sps)
+            self._logger.info(f"SPS: {sps}")
             if writer:
                 for k, v in train_infos.items():
                     writer.add_scalar(k, v, global_step)
@@ -153,7 +187,14 @@ class PPOTrainer(RLTrainer):
                     "charts/SPS", int(global_step / (time.time() - start_time)), global_step
                 )
 
-    def _update(self, next_obs, next_done,) -> dict[str, float]:
+        return {
+            "train_steps": np.array(train_steps),
+            "train_lengths": np.array(train_lengths),
+            "train_returns": np.array(train_return),
+            "train_costs": np.array(train_cost)
+        }
+
+    def _update(self, next_obs, next_done, ) -> dict[str, float]:
         data = self.buffer.sample()
         obs = data["obs"]
         logprobs = data["logprob"]
@@ -188,7 +229,7 @@ class PPOTrainer(RLTrainer):
         b_inds = np.arange(self.cfg.batch_size)
         clipfracs = []
         for epoch in range(self.cfg.update_epochs):
-            print(f"epoch {epoch}")
+            self._logger.debug(f"epoch {epoch}")
             np.random.shuffle(b_inds)
             for start in range(0, self.cfg.batch_size, self.cfg.minibatch_size):
                 end = start + self.cfg.minibatch_size
@@ -218,7 +259,7 @@ class PPOTrainer(RLTrainer):
                 mb_advantages = b_advantages[mb_inds]
                 if self.cfg.norm_adv:
                     mb_advantages = (mb_advantages - mb_advantages.mean()) / (
-                        mb_advantages.std() + 1e-8
+                            mb_advantages.std() + 1e-8
                     )
 
                 # Policy loss
@@ -277,7 +318,7 @@ class PPOTrainer(RLTrainer):
         }
 
     def _advantage_estimation(
-        self, obs, actions, rewards, dones, next_obs, next_done, values
+            self, obs, actions, rewards, dones, next_obs, next_done, values
     ):
         # bootstrap value if not done
         with torch.no_grad():
@@ -297,11 +338,11 @@ class PPOTrainer(RLTrainer):
                         - values[t]
                 )
                 advantages[t] = lastgaelam = (
-                    delta
-                    + self.cfg.gamma
-                    * self.cfg.gae_lambda
-                    * nextnonterminal
-                    * lastgaelam
+                        delta
+                        + self.cfg.gamma
+                        * self.cfg.gae_lambda
+                        * nextnonterminal
+                        * lastgaelam
                 )
             returns = advantages + values
 

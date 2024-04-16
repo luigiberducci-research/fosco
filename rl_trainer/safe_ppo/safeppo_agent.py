@@ -56,9 +56,9 @@ class SafeActorCriticAgent(ActorCriticAgent):
         self.safety_layer = self._make_barrier_layer()
 
         # extract continuous dynamics
-        assert isinstance(envs.system, EulerDTSystem) and not isinstance(envs.system.system, EulerDTSystem)
-        self.fx = envs.system.system.fx_torch
-        self.gx = envs.system.system.gx_torch
+        assert isinstance(envs.system, EulerDTSystem) and not isinstance(envs.unwrapped.system.system, EulerDTSystem)
+        self.fx = envs.unwrapped.system.system.fx_torch
+        self.gx = envs.unwrapped.system.system.gx_torch
 
     def _make_barrier_layer(self) -> CvxpyLayer:
         """

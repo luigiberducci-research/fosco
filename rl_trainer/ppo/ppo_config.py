@@ -4,8 +4,10 @@ from dataclasses import dataclass
 
 @dataclass
 class PPOConfig:
-    # Algorithm specific arguments
-    total_timesteps: int = 15000
+    seed: int = 1
+    """seed of the experiment"""
+
+    total_timesteps: int = 50000
     """total timesteps of the experiments"""
     learning_rate: float = 3e-4
     """the learning rate of the optimizer"""

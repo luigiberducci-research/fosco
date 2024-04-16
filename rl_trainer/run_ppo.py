@@ -24,8 +24,6 @@ from rl_trainer.common.utils import make_env
 class Args(PPOConfig):
     exp_name: str = pathlib.Path(__file__).stem
     """the name of this experiment"""
-    seed: int = 1
-    """seed of the experiment"""
     torch_deterministic: bool = True
     """if toggled, `torch.backends.cudnn.deterministic=False`"""
     cuda: bool = True
@@ -164,7 +162,7 @@ def run(args):
     else:
         raise NotImplementedError(f"No trainer implemented for id={args.trainer_id}")
 
-    trainer.train(envs=envs, writer=writer)
+    results = trainer.train(envs=envs, writer=writer)
 
     if logdir and args.save_model:
         raise warnings.warn("saving model is not tested yet")

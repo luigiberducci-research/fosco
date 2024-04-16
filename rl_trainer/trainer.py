@@ -12,6 +12,7 @@ class RLTrainer(ABC):
             self,
             envs: gymnasium.Env,
             writer: Optional[SummaryWriter],
+            verbose: int = 1,
     ) -> dict[str, float]:
         pass
 

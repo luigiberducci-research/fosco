@@ -54,9 +54,20 @@ If when using mujoco environments, you run into the following error
 ```
 mujoco.FatalError: gladLoadGL error
 ```
-
 Please have a look at [rendering in mujoco](https://pytorch.org/rl/reference/generated/knowledge_base/MUJOCO_INSTALLATION.html)
 Ensure dependencies are there and env variables.
 For ubuntu 20.04 install: 
 
 `sudo apt-get install libglfw3 libglew2.1 libgl1-mesa-glx libosmesa6`
+
+
+2. Video recording with Moviepy.
+```
+TypeError: must be real number, not NoneType
+```
+Solved by reinstalling moviepy and decorator packages
+and reinstalling moviepy.
+```
+pip uninstall moviepy decorator
+pip install moviepy
+```

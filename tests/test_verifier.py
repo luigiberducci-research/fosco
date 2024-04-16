@@ -66,7 +66,7 @@ class TestVerifier(unittest.TestCase):
             "expected counterexample for any x > -1, got none",
         )
         self.assertTrue(
-            len(results2["cex"]["unsat"]) == 0,
+            results2["cex"]["unsat"] is None,
             f"expected no counterexample, got {results2['cex']['unsat']}",
         )
 
@@ -143,7 +143,7 @@ class TestVerifier(unittest.TestCase):
             "expected counterexample for any x > -1, got none",
         )
         self.assertTrue(
-            len(results2["cex"]["unsat"]) == 0,
+            results2["cex"]["unsat"] is None,
             f"expected no counterexample, got {results2['cex']['unsat']}",
         )
 

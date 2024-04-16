@@ -1,6 +1,6 @@
 import time
 import timeit
-from typing import Callable
+from typing import Callable, Optional
 
 import z3
 
@@ -21,7 +21,9 @@ class VerifierZ3(Verifier):
 
     @staticmethod
     def new_vars(
-        n: int | None = None, var_names: list[str] | None = None, base: str = "x"
+        n: Optional[int] = None,
+        var_names: Optional[list[str]] = None,
+        base: str = "x"
     ) -> list[Z3SYMBOL]:
         assert (
             n is not None or var_names is not None

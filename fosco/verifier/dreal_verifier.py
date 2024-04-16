@@ -1,7 +1,7 @@
 import multiprocessing.context
 import timeit
 from multiprocessing.pool import ThreadPool
-from typing import Callable
+from typing import Callable, Optional
 
 import dreal
 
@@ -21,7 +21,9 @@ class VerifierDR(Verifier):
 
     @staticmethod
     def new_vars(
-        n: int | None = None, var_names: list[str] | None = None, base: str = "x"
+        n: Optional[int] = None,
+        var_names: Optional[list[str]] = None,
+        base: str = "x"
     ) -> list[DRSYMBOL]:
         assert (
             n is not None or var_names is not None

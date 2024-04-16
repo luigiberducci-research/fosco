@@ -1,6 +1,6 @@
 import logging
 from abc import abstractmethod, ABC
-from typing import Callable, Generator, Iterable, Any
+from typing import Callable, Generator, Iterable, Any, Optional
 
 import torch
 
@@ -49,7 +49,9 @@ class Verifier(ABC):
     @staticmethod
     @abstractmethod
     def new_vars(
-        n: int | None, var_names: list[str] | None, base: str = "x"
+        n: Optional[int] = None,
+        var_names: Optional[list[str]] = None,
+        base: str = "x"
     ) -> list[SYMBOL]:
         """
         Returns a list of symbolic variables.

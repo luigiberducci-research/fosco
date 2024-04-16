@@ -1,6 +1,8 @@
 import logging
 from abc import ABC, abstractmethod
 
+from fosco.logger import LOGGING_LEVELS
+
 
 class Translator(ABC):
     """
@@ -11,7 +13,7 @@ class Translator(ABC):
         self._assert_state()
 
         self._logger = logging.getLogger(__name__)
-        self._logger.setLevel(verbose)
+        self._logger.setLevel(LOGGING_LEVELS[verbose])
         self._logger.debug("Translator initialized")
 
     @abstractmethod

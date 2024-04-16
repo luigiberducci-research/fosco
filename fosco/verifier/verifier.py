@@ -177,7 +177,7 @@ class Verifier(ABC):
             if any(self.is_sat(res) for res in results.values()):
                 break
 
-        ces = {label: [] for label in results.keys()}
+        ces = {label: None for label in results.keys()}
 
         if all(self.is_unsat(res) for res in results.values()):
             self._logger.info("No counterexamples found!")
@@ -213,11 +213,11 @@ class Verifier(ABC):
                         else:
                             self._logger.debug(f"Cannot extract value from {replaced} of type {type(replaced)}")
                             value = str(replaced)
-                        self._logger.info(f"[cex] {sym_name}: {value}")
+                        self._logger.debug(f"[cex] {sym_name}: {value}")
 
                     ces[label] = original_point
                 else:
-                    self._logger.info(f"{label}: {res}")
+                    self._logger.debug(f"{label}: {res}")
 
         return {"found": found, "cex": ces}
 

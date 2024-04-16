@@ -28,7 +28,6 @@ class Consolidator:
     @timed
     def get(self, cex, datasets, **kwargs):
         datasets = self._add_ces_to_data(cex, datasets)
-        # todo: return logging info about data augmentation
 
         self._logger.info(
             f"Dataset sizes: {', '.join([f'{k}: {v.shape[0]}' for k, v in datasets.items()])}"
@@ -38,7 +37,7 @@ class Consolidator:
 
     def _add_ces_to_data(self, cex, datasets):
         for lab, cex in cex.items():
-            if cex:
+            if cex is not None:
                 x = self._randomise_counterex(point=cex)
                 datasets[lab] = torch.cat([datasets[lab], x], dim=0).detach()
         return datasets

@@ -57,7 +57,7 @@ def scatter_datasets(
 
     if counter_examples is not None:
         for i, (name, data) in enumerate(counter_examples.items()):
-            if len(data) == 0:
+            if data is None:
                 continue
             color = colors[i % len(colors)]
             name = f"{name} - counterexamples"

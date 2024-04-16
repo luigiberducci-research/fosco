@@ -211,7 +211,7 @@ class Cegis:
         # todo pretrain supervised-learning
 
         for it in range(1, self.config.CEGIS_MAX_ITERS + 1):
-            self.tlogger.info(f"Iteration {it}")
+            self.tlogger.info(f"\nIteration {it}")
 
             # Log training distribution
             context = "dataset"
@@ -262,7 +262,7 @@ class Cegis:
                 self.tlogger.debug("found valid certificate")
                 break
 
-        self.tlogger.info(f"CEGIS finished after {it} iterations")
+        self.tlogger.info(f"CEG Pretraining finished after {it} iterations")
         self.logger.log_model(tag="learner_final", model=self.learner, step=it)
 
         infos = {"iter": it}

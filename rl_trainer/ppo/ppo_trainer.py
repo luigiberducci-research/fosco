@@ -105,11 +105,7 @@ class PPOTrainer(RLTrainer):
                 results = {
                     k: v.detach() for k, v in results.items()
                 }  # solution: detach all returned values
-                action = (
-                    results["safe_action"]
-                    if "safe_action" in results
-                    else results["action"]
-                )
+                action = results["action"]
 
                 # TRY NOT TO MODIFY: execute the game and log data.
                 next_obs, reward, terminations, truncations, infos = envs.step(
@@ -135,14 +131,14 @@ class PPOTrainer(RLTrainer):
                             c = (
                                 infos["costs"][i]
                                 if "costs" in infos
-                                else np.zeros(self.cfg.num_envs, dtype=np.float32)
+                                else np.float32(0.0)
                             )
                             cost.append(c)
                         else:
                             c = (
-                                info["costs"]
+                                info["costs"][i]
                                 if "costs" in infos
-                                else np.zeros(self.cfg.num_envs, dtype=np.float32)
+                                else np.float32(0.0)
                             )
                             cost.append(c)
                     cost = np.array(cost)

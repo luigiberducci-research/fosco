@@ -30,6 +30,7 @@ class SafePPOTrainer(PPOTrainer):
             "obs": (self.cfg.num_steps, self.cfg.num_envs)
             + envs.single_observation_space.shape,
             "action": (self.cfg.num_steps, self.cfg.num_envs) + envs.single_action_space.shape,
+            "unsafe_action": (self.cfg.num_steps, self.cfg.num_envs) + envs.single_action_space.shape,
             "classk": (self.cfg.num_steps, self.cfg.num_envs) + (1,),
             "logprob": (self.cfg.num_steps, self.cfg.num_envs),
             "classk_logprob": (self.cfg.num_steps, self.cfg.num_envs),
@@ -49,7 +50,7 @@ class SafePPOTrainer(PPOTrainer):
         obs = data["obs"]
         logprobs = data["logprob"]
         classk_logprobs = data["classk_logprob"]
-        actions = data["action"]
+        actions = data["unsafe_action"]
         classks = data["classk"]
         rewards = data["reward"]
         dones = data["done"]

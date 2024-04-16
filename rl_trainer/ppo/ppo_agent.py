@@ -45,7 +45,7 @@ class ActorCriticAgent(nn.Module):
 
         log_probs = probs.log_prob(action).sum(1)
         entropy = probs.entropy().sum(1)
-        value = self.critic(x)
+        value = self.critic(x)[..., 0]
 
         results = {
             "action": action,

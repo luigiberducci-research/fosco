@@ -1,11 +1,8 @@
 import logging
-import os
 import pathlib
 import random
 import time
-import warnings
 from dataclasses import dataclass
-from typing import Callable
 
 import gymnasium as gym
 import numpy as np
@@ -28,12 +25,6 @@ class Args(PPOConfig):
     """if toggled, `torch.backends.cudnn.deterministic=False`"""
     cuda: bool = True
     """if toggled, cuda will be enabled by default"""
-    track: bool = False
-    """if toggled, this experiment will be tracked with Weights and Biases"""
-    wandb_project_name: str = "cleanRL"
-    """the wandb's project name"""
-    wandb_entity: str = None
-    """the entity (team) of wandb's project"""
     capture_video: bool = True
     """whether to capture videos of the agent performances (check out `videos` folder)"""
     capture_video_eval: bool = True
@@ -51,27 +42,11 @@ class Args(PPOConfig):
 
 
 def evaluate(
-    make_env: Callable,
-    env_id: str,
+    envs: gym.vector.SyncVectorEnv,
     eval_episodes: int,
-    logdir: str,
     agent: torch.nn.Module,
     device: torch.device = torch.device("cpu"),
-    capture_video: bool = True,
-    gamma: float = 0.99,
 ):
-    envs = gym.vector.SyncVectorEnv(
-        [
-            make_env(
-                env_id=env_id,
-                seed=None,
-                idx=0,
-                capture_video=capture_video,
-                logdir=f"{logdir}/eval",
-                gamma=gamma,
-            )
-        ]
-    )
     agent.eval()
 
     obs, _ = envs.reset()
@@ -80,6 +55,7 @@ def evaluate(
     while len(episodic_returns) < eval_episodes:
         results = agent.get_action_and_value(torch.Tensor(obs).to(device))
         actions = results["action"]
+
         next_obs, _, _, _, infos = envs.step(actions.cpu().numpy())
         if "final_info" in infos:
             for info in infos["final_info"]:
@@ -162,14 +138,14 @@ def run(args):
     else:
         raise NotImplementedError(f"No trainer implemented for id={args.trainer_id}")
 
-    results = trainer.train(envs=envs, writer=writer)
+    results = trainer.train(envs=envs, writer=writer, verbose=1)
+    agent = trainer.get_actor()
 
     if logdir and args.save_model:
-        raise warnings.warn("saving model is not tested yet")
         checkpoint_dir = pathlib.Path(f"{logdir}/checkpoints/")
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
-        model_path = checkpoint_dir / f"model_{global_step}.pt"
+        model_path = checkpoint_dir / f"model_final.pt"
         torch.save(agent.state_dict(), str(model_path))
         print(f"model saved to {model_path}")
 
@@ -178,15 +154,25 @@ def run(args):
         agent.load(model_path=model_path, device=device)
 
     if args.num_eval_episodes > 0:
+        eval_envs = gym.vector.SyncVectorEnv(
+            [
+                make_env(
+                    env_id=args.env_id,
+                    seed=args.seed,
+                    idx=0,
+                    capture_video=args.capture_video_eval,
+                    logdir=logdir,
+                    gamma=args.gamma,
+                    render_mode=args.render_mode,
+                )
+            ]
+        )
+
         episodic_returns, episodic_costs = evaluate(
-            make_env=make_env,
-            env_id=args.env_id,
+            envs=eval_envs,
             eval_episodes=args.num_eval_episodes,
-            logdir=logdir,
-            capture_video=args.capture_video_eval,
             agent=agent,
             device=device,
-            gamma=args.gamma,
         )
         print(
             f"eval episodic returns: {np.mean(episodic_returns)} +/- {np.std(episodic_returns)}"
@@ -212,4 +198,10 @@ def run(args):
 
 if __name__ == "__main__":
     args = tyro.cli(Args)
+    args.env_id = "fosco.systems:SingleIntegrator-GoToUnsafeReward-v0"
+    args.trainer_id = "safe-ppo"
+    args.num_envs = 3
+
+    t0 = time.time()
     run(args=args)
+    print(f"elapsed time: {time.time() - t0:.2f}s")

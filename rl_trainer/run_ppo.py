@@ -130,8 +130,11 @@ def run(args):
         trainer = PPOTrainer(envs=envs, config=args, device=device)
     elif args.trainer_id == "safe-ppo":
         if not isinstance(envs.envs[0].unwrapped, SystemEnv):
-            raise TypeError(f"SafePPO only supports SystemEnv, got {envs.envs[0].unwrapped}")
+            raise TypeError(
+                f"SafePPO only supports SystemEnv, got {envs.envs[0].unwrapped}"
+            )
         from barriers import make_barrier
+
         system = envs.envs[0].unwrapped.system
         barrier = make_barrier(system=system)
         trainer = SafePPOTrainer(envs=envs, barrier=barrier, config=args, device=device)

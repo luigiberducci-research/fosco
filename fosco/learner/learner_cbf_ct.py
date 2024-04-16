@@ -19,27 +19,27 @@ class LearnerCBF(LearnerNN):
     """
 
     def __init__(
-            self,
-            state_size: int,
-            hidden_sizes: tuple[int, ...],
-            activation: tuple[ActivationType, ...],
-            epochs: int,
-            lr: float,
-            weight_decay: float,
-            loss_margins: dict[str, float] | float,
-            loss_weights: dict[str, float] | float,
-            loss_relu: str,
-            optimizer: Optional[str] = None,
-            initial_models: Optional[dict[str, nn.Module]] = None,
-            verbose: int = 0,
+        self,
+        state_size: int,
+        hidden_sizes: tuple[int, ...],
+        activation: tuple[ActivationType, ...],
+        epochs: int,
+        lr: float,
+        weight_decay: float,
+        loss_margins: dict[str, float] | float,
+        loss_weights: dict[str, float] | float,
+        loss_relu: str,
+        optimizer: Optional[str] = None,
+        initial_models: Optional[dict[str, nn.Module]] = None,
+        verbose: int = 0,
     ):
         super(LearnerCBF, self).__init__(verbose=verbose)
 
         # certificate function
         if (
-                initial_models
-                and "net" in initial_models
-                and initial_models["net"] is not None
+            initial_models
+            and "net" in initial_models
+            and initial_models["net"] is not None
         ):
             self.net = initial_models["net"]
         else:
@@ -57,11 +57,19 @@ class LearnerCBF(LearnerNN):
         self.optimizers = {}
         if len(list(self.parameters())) > 0:
             self.optimizers["barrier"] = make_optimizer(
-                optimizer, params=self.parameters(), lr=self.optimizer_lr, weight_decay=self.optimizer_wd
+                optimizer,
+                params=self.parameters(),
+                lr=self.optimizer_lr,
+                weight_decay=self.optimizer_wd,
             )
 
         # loss parameters
-        self.loss_keys = [DomainName.XI.value, DomainName.XU.value, DomainName.XD.value, "conservative_b"]
+        self.loss_keys = [
+            DomainName.XI.value,
+            DomainName.XU.value,
+            DomainName.XD.value,
+            "conservative_b",
+        ]
         self.loss_relu = LossReLUType[loss_relu.upper()]
         self.epochs = epochs
 
@@ -93,10 +101,12 @@ class LearnerCBF(LearnerNN):
             self.learn_method, Callable
         ), f"Expected callable, got {self.learn_method}"
 
-
-        assert isinstance(self.loss_relu, LossReLUType), f"Expected LossReLUType, got {type(self.loss_relu)}"
-        assert isinstance(self.epochs,
-                          int) and self.epochs >= 0, f"Expected non-neg int for epochs, got {self.epochs}"
+        assert isinstance(
+            self.loss_relu, LossReLUType
+        ), f"Expected LossReLUType, got {type(self.loss_relu)}"
+        assert (
+            isinstance(self.epochs, int) and self.epochs >= 0
+        ), f"Expected non-neg int for epochs, got {self.epochs}"
 
         assert all(
             [k in self.loss_margins for k in self.loss_keys]
@@ -119,8 +129,12 @@ class LearnerCBF(LearnerNN):
         return output
 
     def save(self, outdir: str, model_name: str = "model") -> None:
-        if not isinstance(self.net, TorchMLP) and not isinstance(self.net, SequentialTorchMLP):
-            raise ValueError(f"Saving model supported only for TorchMLP, got {type(self.net)}")
+        if not isinstance(self.net, TorchMLP) and not isinstance(
+            self.net, SequentialTorchMLP
+        ):
+            raise ValueError(
+                f"Saving model supported only for TorchMLP, got {type(self.net)}"
+            )
 
         net_path = self.net.save(outdir=outdir, model_name=f"{model_name}_barrier")
 
@@ -153,7 +167,7 @@ class LearnerCBF(LearnerNN):
         config_path = pathlib.Path(config_path)
         assert config_path.exists(), f"config file {config_path} does not exist"
         assert (
-                config_path.suffix == ".yaml"
+            config_path.suffix == ".yaml"
         ), f"expected .yaml file, got {config_path.suffix}"
 
         # load params.yaml
@@ -164,16 +178,18 @@ class LearnerCBF(LearnerNN):
             [k in params for k in ["module", "class", "kwargs"]]
         ), f"Missing keys in {params.keys()}"
         assert (
-                params["module"] == "fosco.learner.learner_cbf_ct"
+            params["module"] == "fosco.learner.learner_cbf_ct"
         ), f"Expected fosco.learner.learner_cbf_ct, got {params['module']}"
         assert (
-                params["class"] == "LearnerCBF"
+            params["class"] == "LearnerCBF"
         ), f"Expected LearnerCBF, got {params['class']}"
 
         kwargs = params["kwargs"]
         learner = LearnerCBF(**kwargs)
 
         # load net
-        learner.net = learner.net.load(config_path.parent / f"{config_path.stem}_barrier.yaml")
+        learner.net = learner.net.load(
+            config_path.parent / f"{config_path.stem}_barrier.yaml"
+        )
 
         return learner

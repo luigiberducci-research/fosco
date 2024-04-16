@@ -1,6 +1,5 @@
 import sympy as sp
 
-
 SYMPY_FNS = {
     "And": sp.And,
     "Or": sp.Or,

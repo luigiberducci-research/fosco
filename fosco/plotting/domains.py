@@ -6,11 +6,11 @@ from fosco.common.domains import Rectangle, Sphere, Set, Union
 
 
 def plot_rectangle(
-        domain: Rectangle,
-        fig: Figure,
-        color: str = None,
-        dim_select: tuple[int, int] = None,
-        label: str = "",
+    domain: Rectangle,
+    fig: Figure,
+    color: str = None,
+    dim_select: tuple[int, int] = None,
+    label: str = "",
 ) -> Figure:
     """
     Plot the rectangle domain as surface in 3d figure.
@@ -41,11 +41,11 @@ def plot_rectangle(
 
 
 def plot_sphere(
-        domain: Sphere,
-        fig: Figure,
-        color: str,
-        dim_select: tuple[int, int] = None,
-        label: str = "",
+    domain: Sphere,
+    fig: Figure,
+    color: str,
+    dim_select: tuple[int, int] = None,
+    label: str = "",
 ) -> Figure:
     """
     Plot the sphere domain in 2d.
@@ -58,7 +58,7 @@ def plot_sphere(
     radius = domain.radius
 
     resolution = 20  # lower resolution is faster but less accurate
-    u, v = np.mgrid[0: 2 * np.pi: resolution * 2j, 0: np.pi: resolution * 1j]
+    u, v = np.mgrid[0 : 2 * np.pi : resolution * 2j, 0 : np.pi : resolution * 1j]
 
     X = radius * np.cos(u) * np.sin(v) + x0
     Y = radius * np.sin(u) * np.sin(v) + y0
@@ -74,11 +74,11 @@ def plot_sphere(
 
 
 def plot_domain(
-        domain: Set,
-        fig: Figure,
-        color: str,
-        dim_select: tuple[int, int] = None,
-        label: str = "",
+    domain: Set,
+    fig: Figure,
+    color: str,
+    dim_select: tuple[int, int] = None,
+    label: str = "",
 ) -> Figure:
     """
     Plot the domain in 2d.
@@ -97,8 +97,14 @@ def plot_domain(
         # not a conventional domain, plot scattered points
         data = domain.generate_data(500)
         dim_select = dim_select or (0, 1)
-        fig.add_scatter3d(x=data[:, dim_select[0]], y=data[:, dim_select[1]], z=np.zeros_like(data[:, 0]),
-                          mode="markers", marker=dict(size=1, color=color), name=label)
+        fig.add_scatter3d(
+            x=data[:, dim_select[0]],
+            y=data[:, dim_select[1]],
+            z=np.zeros_like(data[:, 0]),
+            mode="markers",
+            marker=dict(size=1, color=color),
+            name=label,
+        )
     else:
         raise NotImplementedError(f"plot_domain not implemented for {type(domain)}")
 
@@ -114,11 +120,9 @@ if __name__ == "__main__":
 
     fig = Figure()
 
-
     def func(x):
         assert len(x.shape) == 2 and x.shape[1] == 2, "x must be a batch of 2d points"
         return np.sin(x[:, 0]) + np.cos(x[:, 1])
-
 
     fig = plot_surface(
         func, (-5, 5), (-5, 5), levels=[0], label="surface", fig=fig, opacity=0.75

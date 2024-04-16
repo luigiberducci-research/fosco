@@ -115,7 +115,11 @@ class Cegis:
         )
 
         assert isinstance(self.certificate, TrainableCertificate)
-        n_uncertain = self.f.n_uncertain if isinstance(self.f, UncertainControlAffineDynamics) else 0
+        n_uncertain = (
+            self.f.n_uncertain
+            if isinstance(self.f, UncertainControlAffineDynamics)
+            else 0
+        )
         learner_instance.learn_method = partial(
             self.certificate.learn,
             n_vars=self.f.n_vars,
@@ -123,7 +127,6 @@ class Cegis:
             n_uncertain=n_uncertain,
             f_torch=self.f._f_torch,
         )
-
 
         return learner_instance
 
@@ -263,9 +266,7 @@ class Cegis:
             self.tlogger.debug("Consolidator")
             outputs, elapsed_time = self.consolidator.get(**state)
             state.update(outputs)
-            self.logger.log_scalar(
-                tag="time_consolidator", value=elapsed_time, step=it
-            )
+            self.logger.log_scalar(tag="time_consolidator", value=elapsed_time, step=it)
 
             # Debug plot - Learned functions
             self._plot_all(state=state, iteration=it)
@@ -308,7 +309,10 @@ class Cegis:
         )
         for title, fig in zip(titles, figs):
             self.logger.log_image(
-                tag="barrier_grad", image=fig, step=iteration, context={"dimension": title}
+                tag="barrier_grad",
+                image=fig,
+                step=iteration,
+                context={"dimension": title},
             )
 
         figs, titles = plot_lie_derivative(

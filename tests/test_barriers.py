@@ -3,7 +3,6 @@ import unittest
 import numpy as np
 import torch
 
-
 from barriers import make_barrier, make_compensator
 from fosco.models import TorchSymDiffModel, TorchSymModel
 from fosco.systems import make_system

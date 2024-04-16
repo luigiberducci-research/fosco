@@ -87,9 +87,7 @@ class TestModel(unittest.TestCase):
         if os.path.exists(tmp_dir):
             shutil.rmtree(tmp_dir)
 
-        model = RobustGate(
-            activation_type="hsigmoid"
-        )
+        model = RobustGate(activation_type="hsigmoid")
         model.save(outdir=tmp_dir)
 
         # check if model saved
@@ -159,7 +157,10 @@ class TestModel(unittest.TestCase):
             ),
         }
 
-        cfg = CegisConfig(BARRIER_TO_LOAD="default", CEGIS_MAX_ITERS=10,)
+        cfg = CegisConfig(
+            BARRIER_TO_LOAD="default",
+            CEGIS_MAX_ITERS=10,
+        )
 
         cegis = Cegis(system=system_fn(), domains=sets, config=cfg, data_gen=data_gen)
 
@@ -209,7 +210,9 @@ class TestModel(unittest.TestCase):
             output_activation="linear",
         )
 
-        model = SequentialTorchMLP(mlps=[mlp1, mlp2],)
+        model = SequentialTorchMLP(
+            mlps=[mlp1, mlp2],
+        )
 
         x_batch = torch.randn(10, 2)
         y_batch = model(x_batch)
@@ -324,11 +327,20 @@ class TestModel(unittest.TestCase):
         for x in batch:
             y_val = model(torch.tensor(x)).item()
             dydx_val = model.gradient(torch.tensor(x)).item()
-            y_sym_val = z3.simplify(z3.substitute(y_sym, (x_sym[0], z3.RealVal(x.item()))))
-            dydx_sym_val = z3.simplify(z3.substitute(dydx_sym, (x_sym[0], z3.RealVal(x.item()))))
+            y_sym_val = z3.simplify(
+                z3.substitute(y_sym, (x_sym[0], z3.RealVal(x.item())))
+            )
+            dydx_sym_val = z3.simplify(
+                z3.substitute(dydx_sym, (x_sym[0], z3.RealVal(x.item())))
+            )
 
-            y_sym_val = float(y_sym_val.as_fraction().numerator/y_sym_val.as_fraction().denominator)
-            dydx_sym_val = float(dydx_sym_val.as_fraction().numerator/dydx_sym_val.as_fraction().denominator)
+            y_sym_val = float(
+                y_sym_val.as_fraction().numerator / y_sym_val.as_fraction().denominator
+            )
+            dydx_sym_val = float(
+                dydx_sym_val.as_fraction().numerator
+                / dydx_sym_val.as_fraction().denominator
+            )
             symbpoints.append(y_sym_val)
             self.assertTrue(
                 np.isclose(y_sym_val, y_val, atol=1e-3),
@@ -339,14 +351,13 @@ class TestModel(unittest.TestCase):
                 f"expected {dydx_val}, got {dydx_sym_val}",
             )
 
-        #plt.plot(batch, y, label="y")
-        #plt.plot(batch, symbpoints, label="y_sim")
-        #plt.show()
+        # plt.plot(batch, y, label="y")
+        # plt.plot(batch, symbpoints, label="y_sim")
+        # plt.show()
 
     def test_save_sequential_model_wt_robust_gate(self):
         from fosco.models import TorchMLP
         from fosco.models.network import RobustGate
-
 
         tmp_dir = "tmp"
 
@@ -356,14 +367,18 @@ class TestModel(unittest.TestCase):
 
         mlp1 = TorchMLP(
             input_size=2,
-            hidden_sizes=(4,4,),
-            activation=("relu","relu",),
+            hidden_sizes=(
+                4,
+                4,
+            ),
+            activation=(
+                "relu",
+                "relu",
+            ),
             output_size=1,
             output_activation="linear",
         )
-        mlp2 = RobustGate(
-            activation_type="hsigmoid"
-        )
+        mlp2 = RobustGate(activation_type="hsigmoid")
         model = SequentialTorchMLP(mlps=[mlp1, mlp2])
         model.save(outdir=tmp_dir, model_name="model")
 
@@ -388,7 +403,3 @@ class TestModel(unittest.TestCase):
 
         # remove tmp_dir
         shutil.rmtree(tmp_dir)
-
-
-
-

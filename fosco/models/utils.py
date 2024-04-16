@@ -17,7 +17,9 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
 def load_model(config_path: str | pathlib.Path) -> TorchSymDiffModel | TorchSymModel:
     """Load a model from a config file."""
     assert str(config_path).endswith(".yaml"), f"expected .yaml file, got {config_path}"
-    assert pathlib.Path(config_path).exists(), f"model path {config_path} does not exist"
+    assert pathlib.Path(
+        config_path
+    ).exists(), f"model path {config_path} does not exist"
 
     with open(config_path, "r") as file:
         params = yaml.safe_load(file)

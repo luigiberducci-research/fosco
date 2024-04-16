@@ -10,7 +10,6 @@ from fosco.systems.core.system import (
     ControlAffineDynamics,
 )
 
-
 UNCERTAINTY_REGISTRY = {}
 
 

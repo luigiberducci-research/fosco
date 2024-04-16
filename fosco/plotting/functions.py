@@ -167,7 +167,9 @@ def plot_lie_derivative(
 
         # lie derivative
         is_dt = time_domain == TimeDomain.DISCRETE
-        func = lambda x: lie_derivative_fn(certificate=function, f=f, ctrl=ctrl, is_dt=is_dt)(x)
+        func = lambda x: lie_derivative_fn(
+            certificate=function, f=f, ctrl=ctrl, is_dt=is_dt
+        )(x)
         fig = plot_func_and_domains(
             func=func,
             in_domain=in_domain,
@@ -182,7 +184,9 @@ def plot_lie_derivative(
     return figs, titles
 
 
-def lie_derivative_fn(certificate: TorchSymDiffFn, f: Callable, ctrl: Callable, is_dt: bool) -> Callable[[np.ndarray], np.ndarray]:
+def lie_derivative_fn(
+    certificate: TorchSymDiffFn, f: Callable, ctrl: Callable, is_dt: bool
+) -> Callable[[np.ndarray], np.ndarray]:
     def lie_derivative(x):
         grad_net = certificate.gradient(x)
         xdot = f(x, ctrl(x))

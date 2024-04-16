@@ -29,7 +29,6 @@ def scatter_data(
         marker=dict(color=color, size=point_size, opacity=opacity),
     )
 
-
     for trace in [trace1]:
         fig.add_trace(trace)
 

@@ -3,6 +3,7 @@ This example demonstrates how to learn a valid control barrier function (CBF) fo
 using the FOSCO library. The CBF is learned using a neural network, and the learned CBF is used to verify the
 safety of the system.
 """
+
 import time
 
 import numpy as np
@@ -24,7 +25,7 @@ def main():
     # system parameters
     system_type = "SingleIntegrator"
     uncertainty_type = "AdditiveBounded"
-    seed = 133636   # seed for reproducibility, None for random seed
+    seed = 133636  # seed for reproducibility, None for random seed
     verbose = 1
 
     # learning parameters
@@ -47,7 +48,7 @@ def main():
     system = add_uncertainty(uncertainty_type=uncertainty_type, system=system)
 
     # learn control barrier function
-    #barrier, compensator = learn_barrier_and_compensator(system=system, params=params, seed=seed, verbose=verbose)
+    # barrier, compensator = learn_barrier_and_compensator(system=system, params=params, seed=seed, verbose=verbose)
     barrier = make_barrier(system=system)
     compensator = make_compensator(system=system)
     for func in [barrier, compensator]:
@@ -95,7 +96,9 @@ def main():
     # plotting
     fig, ax = plt.subplots()
     unsafe_domain: Sphere = env.system.unsafe_domain
-    circle = plt.Circle(unsafe_domain.center[:2], unsafe_domain.radius, color='r', fill=False)
+    circle = plt.Circle(
+        unsafe_domain.center[:2], unsafe_domain.radius, color="r", fill=False
+    )
     ax.add_artist(circle)
 
     ax.plot(xs, ys)
@@ -103,7 +106,7 @@ def main():
     state_domain: Rectangle = env.system.state_domain
     ax.set_xlim(state_domain.lower_bounds[0], state_domain.upper_bounds[0])
     ax.set_ylim(state_domain.lower_bounds[1], state_domain.upper_bounds[1])
-    ax.set_aspect('equal', 'box')
+    ax.set_aspect("equal", "box")
 
     plt.show()
 
@@ -116,11 +119,21 @@ def learn_barrier_and_compensator(system, params, seed, verbose):
         "init": lambda n: sets["init"].generate_data(n),
         "unsafe": lambda n: sets["unsafe"].generate_data(n),
         "lie": lambda n: torch.concatenate(
-            [sets["lie"].generate_data(n), torch.zeros(n, sets["input"].dimension), sets["uncertainty"].generate_data(n)], dim=1
+            [
+                sets["lie"].generate_data(n),
+                torch.zeros(n, sets["input"].dimension),
+                sets["uncertainty"].generate_data(n),
+            ],
+            dim=1,
         ),
         "uncertainty": lambda n: torch.concatenate(
-            [sets["lie"].generate_data(n), sets["input"].generate_data(n), sets["uncertainty"].generate_data(n)], dim=1
-        )
+            [
+                sets["lie"].generate_data(n),
+                sets["input"].generate_data(n),
+                sets["uncertainty"].generate_data(n),
+            ],
+            dim=1,
+        ),
     }
 
     config = CegisConfig(
@@ -145,15 +158,12 @@ def learn_barrier_and_compensator(system, params, seed, verbose):
         },
     )
     cegis = Cegis(
-        system=system,
-        domains=sets,
-        config=config,
-        data_gen=data_gen,
-        verbose=verbose
+        system=system, domains=sets, config=config, data_gen=data_gen, verbose=verbose
     )
 
     result = cegis.solve()
     return result.barrier, result.compensator
+
 
 if __name__ == "__main__":
     main()

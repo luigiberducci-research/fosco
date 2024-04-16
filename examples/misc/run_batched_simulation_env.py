@@ -15,7 +15,7 @@ def dummy_reward_fn(actions, next_obss):
 
 
 def main():
-    system_id = "SingleIntegrator" #"DoubleIntegrator"
+    system_id = "SingleIntegrator"  # "DoubleIntegrator"
     max_steps = 100
     dt = 0.1
     batch_size = 1

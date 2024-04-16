@@ -47,13 +47,11 @@ class SingleIntegrator(ControlAffineDynamics):
 
     @property
     def init_domain(self) -> Set:
-        init_unsafe = domains.Rectangle(
-            vars=self.vars, lb=(-4.0, -4.0), ub=(4.0, 4.0)
-        )
+        init_unsafe = domains.Rectangle(vars=self.vars, lb=(-4.0, -4.0), ub=(4.0, 4.0))
         return domains.Complement(set=init_unsafe, outer_set=self.state_domain)
-        #return domains.Rectangle(
+        # return domains.Rectangle(
         #    vars=self.vars, lb=(-5.0,) * self.n_vars, ub=(-4.0,) * self.n_vars
-        #)
+        # )
 
     @property
     def unsafe_domain(self) -> Set:

@@ -7,7 +7,6 @@ import logging
 
 import numpy as np
 
-
 from fosco.verifier.types import Z3SYMBOL, DRSYMBOL, SPSYMBOL
 
 import z3
@@ -149,6 +148,7 @@ def hyper_tan(x):
             y[idx, 0] = dr.tanh(y[idx, 0])
     return y
 
+
 def hard_hyper_tan(x):
     """
     Hard hyperbolic tangent f(x) = max(-1, min(1, x))
@@ -222,8 +222,6 @@ def cosh(x):
     return y
 
 
-
-
 def rational_sym(x):
     """
     Rational activation f(x) = 1/(1 + x^2)
@@ -257,8 +255,6 @@ def step(x):
     return y.reshape(original_shape)
 
 
-
-
 def requ_der_z3(x):
     return 2 * relu(x)
 
@@ -276,6 +272,7 @@ def hyper_tan_der(x):
         for idx in range(len(y)):
             y[idx, 0] = 1 / dr.pow(dr.cosh(y[idx, 0]), 2)
     return y
+
 
 def hard_hyper_tan_der(x):
     y = x.copy()
@@ -324,8 +321,6 @@ def hard_sigm_der(x):
         )
 
     return y
-
-
 
 
 def rational_der_sym(x):

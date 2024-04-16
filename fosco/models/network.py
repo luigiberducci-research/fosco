@@ -137,7 +137,9 @@ class TorchMLP(TorchSymDiffModel):
             if z.shape == ():
                 z = z.item()
 
-        var_list = list(input_vars.flatten())#list(set([iv for iv in input_vars.flatten()]))
+        var_list = list(
+            input_vars.flatten()
+        )  # list(set([iv for iv in input_vars.flatten()]))
         return z, [], var_list
 
     def gradient(self, x: torch.Tensor) -> torch.Tensor:
@@ -245,6 +247,7 @@ class TorchMLP(TorchSymDiffModel):
 
         return model
 
+
 class RobustGate(TorchSymDiffModel):
     """
     Implements a robust-gate model as function of the barrier value:
@@ -260,10 +263,13 @@ class RobustGate(TorchSymDiffModel):
     We can do this by using `log m` and `log b` as parameters, and then exponentiate them in the forward pass.
     In the symbolic computations, we express everything in terms of m, w, b.
     """
+
     def __init__(self, activation_type: str | ActivationType = "sigmoid"):
         super(RobustGate, self).__init__()
 
-        assert isinstance(activation_type, str) or isinstance(activation_type, ActivationType), f"got {type(activation_type)}"
+        assert isinstance(activation_type, str) or isinstance(
+            activation_type, ActivationType
+        ), f"got {type(activation_type)}"
 
         self._activation_type = activation_type
         self._input_size: int = 1
@@ -292,7 +298,6 @@ class RobustGate(TorchSymDiffModel):
         m = torch.exp(self.log_m)
         w = self.w
         b = torch.exp(self.log_b)
-
 
         y = m * (self._sigmoid(p=w * x + b) - self._sigmoid(p=w * x - b))
         return y
@@ -326,6 +331,7 @@ class RobustGate(TorchSymDiffModel):
             retain_graph=True,
         )[0]
         return dydx
+
     def gradient_smt(
         self, x: Iterable[SYMBOL]
     ) -> tuple[Iterable[SYMBOL], Iterable[SYMBOL], list[SYMBOL]]:
@@ -340,9 +346,13 @@ class RobustGate(TorchSymDiffModel):
         w = self.w.data.numpy()
         b = np.exp(self.log_b.data.numpy())
 
-        dfdx = m * w * (
-                self._sigmoid_der_sym(p=w * input_vars + b) -
-                self._sigmoid_der_sym(p=w * input_vars - b)
+        dfdx = (
+            m
+            * w
+            * (
+                self._sigmoid_der_sym(p=w * input_vars + b)
+                - self._sigmoid_der_sym(p=w * input_vars - b)
+            )
         )
         dfdx = dfdx[0, 0]
 
@@ -604,5 +614,3 @@ def network_until_last_layer(
         jacobian = np.diagflat(activation_der_sym(net.acts[idx], zhat)) @ jacobian
 
     return z, jacobian
-
-

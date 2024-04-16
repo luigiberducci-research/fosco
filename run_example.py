@@ -109,11 +109,7 @@ def main(args):
         LOSS_RELU=loss_act_type,
     )
     cegis = fosco.cegis.Cegis(
-        system=system,
-        domains=sets,
-        config=config,
-        data_gen=data_gen,
-        verbose=verbose
+        system=system, domains=sets, config=config, data_gen=data_gen, verbose=verbose
     )
 
     result = cegis.solve()
@@ -135,7 +131,10 @@ if __name__ == "__main__":
         "--system", type=str, default="SingleIntegrator", choices=systems
     )
     parser.add_argument(
-        "--dt", type=float, default=None, help="Discretization time step for DT systems (None for CT)"
+        "--dt",
+        type=float,
+        default=None,
+        help="Discretization time step for DT systems (None for CT)",
     )
     parser.add_argument("--uncertainty", type=str, default=None, choices=uncertainties)
 
@@ -147,9 +146,7 @@ if __name__ == "__main__":
     parser.add_argument("--resampling-n", type=int, default=100)
     parser.add_argument("--resampling-std", type=float, default=5e-3)
 
-    parser.add_argument(
-        "--activations", type=str, nargs="+", default=None
-    )
+    parser.add_argument("--activations", type=str, nargs="+", default=None)
     parser.add_argument("--n-hiddens", type=int, nargs="+", default=None)
     parser.add_argument("--n-data-samples", type=int, default=5000)
     parser.add_argument("--max-iters", type=int, default=100)

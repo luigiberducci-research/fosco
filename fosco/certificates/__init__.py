@@ -4,7 +4,9 @@ from fosco.certificates.certificate import Certificate, TrainableCertificate
 from fosco.common.consts import CertificateType
 
 
-def make_certificate(certificate_type: str | CertificateType) -> Type[TrainableCertificate]:
+def make_certificate(
+    certificate_type: str | CertificateType,
+) -> Type[TrainableCertificate]:
     """
     Factory function for certificates.
     """
@@ -13,9 +15,11 @@ def make_certificate(certificate_type: str | CertificateType) -> Type[TrainableC
 
     if certificate_type == CertificateType.CBF:
         from fosco.certificates.cbf import TrainableCBF
+
         return TrainableCBF
     elif certificate_type == CertificateType.RCBF:
         from fosco.certificates.rcbf import TrainableRCBF
+
         return TrainableRCBF
     else:
         raise NotImplementedError(

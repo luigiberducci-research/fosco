@@ -29,10 +29,12 @@ import torch
 import pygame
 
 from fosco.common.domains import Rectangle, Sphere
-from fosco.systems.core.system import ControlAffineDynamics, UncertainControlAffineDynamics
+from fosco.systems.core.system import (
+    ControlAffineDynamics,
+    UncertainControlAffineDynamics,
+)
 from fosco.systems.discrete_time.system_dt import EulerDTSystem
 from fosco.systems.gym_env.rewards import RewardFnType
-
 
 TermFnType = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 TensorType = torch.Tensor | np.ndarray
@@ -144,7 +146,9 @@ class SystemEnv(gymnasium.Env):
         )
 
     def reset(
-        self, seed: int | None = None, options: dict[str, Any] | None = None,
+        self,
+        seed: int | None = None,
+        options: dict[str, Any] | None = None,
     ) -> tuple[TensorType, dict[str, Any]]:
         if seed:
             super().reset(seed=seed)
@@ -183,7 +187,8 @@ class SystemEnv(gymnasium.Env):
         return obs_batch, info
 
     def step(
-        self, actions: TensorType,
+        self,
+        actions: TensorType,
     ) -> Tuple[TensorType, TensorType, TensorType, TensorType, Dict]:
         """
         Steps the model environment with the given batch of actions.
@@ -233,11 +238,7 @@ class SystemEnv(gymnasium.Env):
                 batch_size = self._current_obs.shape[0]
                 # todo: add deterministic or stochastic mode
                 z = self.system.uncertainty_domain.generate_data(batch_size)
-                next_observs = self.system.f(
-                    v=self._current_obs,
-                    u=actions,
-                    z=z
-                )
+                next_observs = self.system.f(v=self._current_obs, u=actions, z=z)
             else:
                 next_observs = self.system.f(v=self._current_obs, u=actions)
             next_time = self._current_time + self.dt
@@ -344,8 +345,13 @@ class SystemEnv(gymnasium.Env):
         origin_translation = np.array(self.system.state_domain.lower_bounds[:2])
 
         if isinstance(self.system.unsafe_domain, Rectangle):
-            position = np.array(self.system.unsafe_domain.lower_bounds[:2]) - origin_translation
-            size = np.array(self.system.unsafe_domain.upper_bounds[:2]) - np.array(self.system.unsafe_domain.lower_bounds[:2])
+            position = (
+                np.array(self.system.unsafe_domain.lower_bounds[:2])
+                - origin_translation
+            )
+            size = np.array(self.system.unsafe_domain.upper_bounds[:2]) - np.array(
+                self.system.unsafe_domain.lower_bounds[:2]
+            )
             color = [200, 0, 0]
             pygame.draw.rect(
                 canvas,
@@ -360,7 +366,10 @@ class SystemEnv(gymnasium.Env):
             radius = self.system.unsafe_domain.radius * ppu
             color = [200, 0, 0]
             pygame.draw.circle(
-                canvas, color, (position * ppu).astype(int), radius,
+                canvas,
+                color,
+                (position * ppu).astype(int),
+                radius,
             )
 
         # Draw agents
@@ -373,7 +382,10 @@ class SystemEnv(gymnasium.Env):
                 color = [200, 0, 0]
 
             pygame.draw.circle(
-                canvas, color, (position * ppu).astype(int), radius,
+                canvas,
+                color,
+                (position * ppu).astype(int),
+                radius,
             )
             # add label in the center with agent index
             font = pygame.font.Font(None, 100)

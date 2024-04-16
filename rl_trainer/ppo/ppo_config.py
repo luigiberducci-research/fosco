@@ -49,4 +49,3 @@ class PPOConfig:
     """the mini-batch size (computed in runtime)"""
     num_iterations: int = 0
     """the number of iterations (computed in runtime)"""
-

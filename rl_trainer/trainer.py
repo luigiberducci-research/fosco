@@ -9,10 +9,10 @@ from torch.utils.tensorboard import SummaryWriter
 class RLTrainer(ABC):
     @abstractmethod
     def train(
-            self,
-            envs: gymnasium.Env,
-            writer: Optional[SummaryWriter],
-            verbose: int = 1,
+        self,
+        envs: gymnasium.Env,
+        writer: Optional[SummaryWriter],
+        verbose: int = 1,
     ) -> dict[str, float]:
         pass
 

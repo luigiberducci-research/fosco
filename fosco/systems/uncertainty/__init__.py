@@ -4,7 +4,9 @@ from .uncertainty_wrapper import UNCERTAINTY_REGISTRY
 from .. import ControlAffineDynamics
 
 
-def add_uncertainty(uncertainty_type: str | None, system: ControlAffineDynamics, **kwargs) -> callable:
+def add_uncertainty(
+    uncertainty_type: str | None, system: ControlAffineDynamics, **kwargs
+) -> callable:
     if uncertainty_type is None:
         return system
     if uncertainty_type in UNCERTAINTY_REGISTRY:

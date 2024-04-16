@@ -1,6 +1,10 @@
 from typing import Type
 
-from fosco.systems.core.system import ControlAffineDynamics, UncertainControlAffineDynamics, SYSTEM_REGISTRY
+from fosco.systems.core.system import (
+    ControlAffineDynamics,
+    UncertainControlAffineDynamics,
+    SYSTEM_REGISTRY,
+)
 from fosco.systems.discrete_time.system_dt import EulerDTSystem
 from fosco.systems.single_integrator import SingleIntegrator
 from fosco.systems.double_integrator import DoubleIntegrator

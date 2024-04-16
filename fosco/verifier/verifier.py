@@ -13,12 +13,12 @@ INF: float = 1e300
 
 class Verifier(ABC):
     def __init__(
-        self,
-        constraints_method: Callable[..., Generator],
-        solver_vars: list[SYMBOL],
-        solver_timeout: int,
-        rounding: int = -1,
-        verbose: int = 0,
+            self,
+            constraints_method: Callable[..., Generator],
+            solver_vars: list[SYMBOL],
+            solver_timeout: int,
+            rounding: int = -1,
+            verbose: int = 0,
     ):
         super().__init__()
         self.xs = solver_vars
@@ -49,9 +49,9 @@ class Verifier(ABC):
     @staticmethod
     @abstractmethod
     def new_vars(
-        n: Optional[int] = None,
-        var_names: Optional[list[str]] = None,
-        base: str = "x"
+            n: Optional[int] = None,
+            var_names: Optional[list[str]] = None,
+            base: str = "x"
     ) -> list[SYMBOL]:
         """
         Returns a list of symbolic variables.
@@ -112,20 +112,20 @@ class Verifier(ABC):
 
     @timed
     def verify(
-        self,
-        V_symbolic: SYMBOL,
-        V_symbolic_constr: Iterable[SYMBOL],
-        V_symbolic_vars: list[SYMBOL],
-        sigma_symbolic: SYMBOL | None,
-        sigma_symbolic_constr: Iterable[SYMBOL],
-        sigma_symbolic_vars: list[SYMBOL],
-        Vdot_symbolic: SYMBOL,
-        Vdot_symbolic_constr: Iterable[SYMBOL],
-        Vdot_symbolic_vars: list[SYMBOL],
-        Vdot_residual_symbolic: SYMBOL | None,
-        Vdot_residual_symbolic_constr: Iterable[SYMBOL],
-        Vdot_residual_symbolic_vars: list[SYMBOL],
-        **kwargs,
+            self,
+            V_symbolic: SYMBOL,
+            V_symbolic_constr: Iterable[SYMBOL],
+            V_symbolic_vars: list[SYMBOL],
+            sigma_symbolic: SYMBOL | None,
+            sigma_symbolic_constr: Iterable[SYMBOL],
+            sigma_symbolic_vars: list[SYMBOL],
+            Vdot_symbolic: SYMBOL,
+            Vdot_symbolic_constr: Iterable[SYMBOL],
+            Vdot_symbolic_vars: list[SYMBOL],
+            Vdot_residual_symbolic: SYMBOL | None,
+            Vdot_residual_symbolic_constr: Iterable[SYMBOL],
+            Vdot_residual_symbolic_vars: list[SYMBOL],
+            **kwargs,
     ):
         """
         :param V_symbolic: z3 expr of function V
@@ -165,9 +165,9 @@ class Verifier(ABC):
                 condition, vars, aux_vars = condition_vars
 
                 s = self.new_solver()
-                #self._logger.debug(
+                # self._logger.debug(
                 #    f"Constraint: {label}, Formula: {self.pretty_formula(fml=condition)}"
-                #)
+                # )
                 res, timedout = self._solver_solve(solver=s, fml=condition)
                 results[label] = res
                 solvers[label] = s
@@ -201,8 +201,8 @@ class Verifier(ABC):
 
                     # debug
                     for sym_name, sym in zip(
-                        ["V", "Sigma", "Vdot", "Vdot_residual"],
-                        [V_symbolic, sigma_symbolic, Vdot_symbolic, Vdot_residual_symbolic],
+                            ["V", "Sigma", "Vdot", "Vdot_residual"],
+                            [V_symbolic, sigma_symbolic, Vdot_symbolic, Vdot_residual_symbolic],
                     ):
                         if sym is None:
                             continue
@@ -237,5 +237,3 @@ class Verifier(ABC):
 
         original_point = torch.tensor(temp)
         return original_point[None, :]
-
-

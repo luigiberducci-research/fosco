@@ -93,11 +93,11 @@ class SumToOneSet(Set):
 
 class Rectangle(Set):
     def __init__(
-            self,
-            lb: tuple[float, ...],
-            ub: tuple[float, ...],
-            vars: Iterable[str],
-            dim_select=None,
+        self,
+        lb: tuple[float, ...],
+        ub: tuple[float, ...],
+        vars: Iterable[str],
+        dim_select=None,
     ):
         self.name = "box"
         self.lower_bounds = lb
@@ -165,12 +165,12 @@ class Rectangle(Set):
 
 class Sphere(Set):
     def __init__(
-            self,
-            center,
-            radius,
-            vars: Iterable[str],
-            dim_select=None,
-            include_boundary: bool = True,
+        self,
+        center,
+        radius,
+        vars: Iterable[str],
+        dim_select=None,
+        include_boundary: bool = True,
     ):
         self.center = center
         self.radius = radius
@@ -194,13 +194,13 @@ class Sphere(Set):
 
         if self.include_boundary:
             domain = (
-                    sum([(x[i] - self.center[i]) ** 2 for i in range(self.dimension)])
-                    <= self.radius ** 2
+                sum([(x[i] - self.center[i]) ** 2 for i in range(self.dimension)])
+                <= self.radius**2
             )
         else:
             domain = (
-                    sum([(x[i] - self.center[i]) ** 2 for i in range(self.dimension)])
-                    < self.radius ** 2
+                sum([(x[i] - self.center[i]) ** 2 for i in range(self.dimension)])
+                < self.radius**2
             )
         return domain
 
@@ -209,10 +209,10 @@ class Sphere(Set):
         param batch_size: number of data points to generate
         returns: data points generated in relevant domain according to shape
         """
-        return round_init_data(self.center, self.radius ** 2, batch_size)
+        return round_init_data(self.center, self.radius**2, batch_size)
 
     def check_containment(
-            self, x: np.ndarray | torch.Tensor, epsilon: float = 1e-6
+        self, x: np.ndarray | torch.Tensor, epsilon: float = 1e-6
     ) -> torch.Tensor:
         """
         Check if the points in x are contained in the sphere.
@@ -230,7 +230,7 @@ class Sphere(Set):
         if self.dim_select:
             x = x[:, self.dim_select]
         c = torch.tensor(self.center).reshape(1, -1).to(x.device)
-        return (x - c).norm(2, dim=-1) - self.radius ** 2 <= epsilon
+        return (x - c).norm(2, dim=-1) - self.radius**2 <= epsilon
 
 
 class Union(Set):

@@ -21,12 +21,12 @@ class VerifierZ3(Verifier):
 
     @staticmethod
     def new_vars(
-        n: Optional[int] = None,
-        var_names: Optional[list[str]] = None,
-        base: str = "x"
+            n: Optional[int] = None,
+            var_names: Optional[list[str]] = None,
+            base: str = "x"
     ) -> list[Z3SYMBOL]:
         assert (
-            n is not None or var_names is not None
+                n is not None or var_names is not None
         ), "Must provide either n or var_names"
         assert n is None or var_names is None, f"Cannot provide both n and var_names"
         assert var_names is None or len(var_names) == len(

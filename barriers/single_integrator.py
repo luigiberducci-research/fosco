@@ -30,13 +30,15 @@ class SingleIntegratorCBF(TorchSymDiffModel):
         h(x) = | x - x_o |^2 - R^2
         """
         self._assert_forward_input(x=x)
-        hx = x[:, 0] ** 2 + x[:, 1] ** 2 - self._safety_dist ** 2
+        hx = x[:, 0] ** 2 + x[:, 1] ** 2 - self._safety_dist**2
         self._assert_forward_output(x=hx)
         return hx
 
-    def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL], Iterable[SYMBOL]]:
+    def forward_smt(
+        self, x: list[SYMBOL]
+    ) -> tuple[SYMBOL, Iterable[SYMBOL], Iterable[SYMBOL]]:
         self._assert_forward_smt_input(x=x)
-        hx = x[0] ** 2 + x[1] ** 2 - self._safety_dist ** 2
+        hx = x[0] ** 2 + x[1] ** 2 - self._safety_dist**2
         hx_vars = x.copy()
         self._assert_forward_smt_output(x=hx)
         return hx, [], hx_vars
@@ -146,7 +148,9 @@ class SingleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
         self._assert_forward_output(x=sigma)
         return sigma
 
-    def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL], Iterable[SYMBOL]]:
+    def forward_smt(
+        self, x: list[SYMBOL]
+    ) -> tuple[SYMBOL, Iterable[SYMBOL], Iterable[SYMBOL]]:
         """
         Problem: z3 is not able to cope with sqrt.
 
@@ -210,15 +214,14 @@ class SingleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
         warnings.warn("Loading is not supported for hand-crafted models")
 
 
-
 class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel):
 
     def __init__(self, h: TorchSymDiffModel, system: UncertainControlAffineDynamics):
         super().__init__()
         self._system = system
-        self._h = h # CBF (we use its gradient)
-        self._safety_dist = 1.0 # todo this should be taken from system
-        self._z_bound = 1.0 # todo this should be taken from system uncertainty
+        self._h = h  # CBF (we use its gradient)
+        self._safety_dist = 1.0  # todo this should be taken from system
+        self._z_bound = 1.0  # todo this should be taken from system uncertainty
 
         # this accounts for ensuring robustness over entire belt
         # without this, the rcbf might result non valid
@@ -232,7 +235,6 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
     def output_size(self) -> int:
         return 1
 
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         sigma(x) = || h.gradient(x) || * z_bound * k(hx)
@@ -243,7 +245,9 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
         self._assert_forward_output(x=sigma)
         return sigma
 
-    def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL], Iterable[SYMBOL]]:
+    def forward_smt(
+        self, x: list[SYMBOL]
+    ) -> tuple[SYMBOL, Iterable[SYMBOL], Iterable[SYMBOL]]:
         """
         Problem: z3 is not able to cope with sqrt.
 
@@ -264,27 +268,39 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
 
         norm_constraint = [
             norm * norm == dhdx[0, 0] ** 2 + dhdx[0, 1] ** 2,
-            norm >= 0.0
+            norm >= 0.0,
         ]
-        sigma = norm * self._z_bound* self._k_function_smt(hx)
+        sigma = norm * self._z_bound * self._k_function_smt(hx)
 
         self._assert_forward_smt_output(x=sigma)
         return sigma, hx_constraints + dhdx_constraints + norm_constraint, symbolic_vars
 
     def _assert_forward_input(self, x: torch.Tensor) -> None:
         state_dim = self._system.n_vars
-        assert isinstance(x, torch.Tensor), f"expected batch input to be tensor, got {type(x)}"
-        assert len(x.shape) == 2, f"expected batch input (batch, {state_dim}), got {x.shape}"
-        assert x.shape[1] == state_dim, f"expected batch input (batch, {state_dim}), got {x.shape}"
+        assert isinstance(
+            x, torch.Tensor
+        ), f"expected batch input to be tensor, got {type(x)}"
+        assert (
+            len(x.shape) == 2
+        ), f"expected batch input (batch, {state_dim}), got {x.shape}"
+        assert (
+            x.shape[1] == state_dim
+        ), f"expected batch input (batch, {state_dim}), got {x.shape}"
 
     def _assert_forward_output(self, x: torch.Tensor) -> None:
-        assert isinstance(x, torch.Tensor), f"expected batch output to be tensor, got {type(x)}"
+        assert isinstance(
+            x, torch.Tensor
+        ), f"expected batch output to be tensor, got {type(x)}"
         assert len(x.shape) == 1, f"expected output of shape (batch,), got {x.shape}"
 
     def _assert_forward_smt_input(self, x: Iterable[SYMBOL]) -> None:
         state_dim = self._system.n_vars
-        assert all([isinstance(xi, SYMBOL) for xi in x]), f"expected symbolic input, got {x}"
-        assert len(x) == state_dim, f"expected {state_dim} state variables, got input of length {len(x)}"
+        assert all(
+            [isinstance(xi, SYMBOL) for xi in x]
+        ), f"expected symbolic input, got {x}"
+        assert (
+            len(x) == state_dim
+        ), f"expected {state_dim} state variables, got input of length {len(x)}"
 
     def _assert_forward_smt_output(self, x: Iterable[SYMBOL]) -> None:
         assert isinstance(x, SYMBOL), f"expected symbolic output, got {x}"
@@ -300,17 +316,17 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
 
         So we use a polynomial approximation which is valid for r in [0, inf]
         """
-        #return 2 / (1 + torch.exp(hx)) # z3 does not supports exp, try polynomial; also we can see what is the range of hx,
-        return self._epsilon + 1 / (hx ** 2 + 1)
+        # return 2 / (1 + torch.exp(hx)) # z3 does not supports exp, try polynomial; also we can see what is the range of hx,
+        return self._epsilon + 1 / (hx**2 + 1)
 
     def _k_function_smt(self, hx: SYMBOL) -> tuple[SYMBOL, Iterable[SYMBOL]]:
         """
         Instead of using exp, we use polynomial version which is valid for r in [0, inf]
         """
-        #assert isinstance(hx, DRSYMBOL), f"expected dreals symbolic expression, got {hx}"
-        #fns = get_solver_fns(x=[hx])
-        #return 2 / (1 + fns["Exp"](hx))
-        return self._epsilon + 1 / (hx ** 2 + 1)
+        # assert isinstance(hx, DRSYMBOL), f"expected dreals symbolic expression, got {hx}"
+        # fns = get_solver_fns(x=[hx])
+        # return 2 / (1 + fns["Exp"](hx))
+        return self._epsilon + 1 / (hx**2 + 1)
 
     def save(self, *args, **kwargs):
         warnings.warn("Saving is not supported for hand-crafted models")
@@ -325,7 +341,7 @@ class SingleIntegratorConvexHullUncertainty(TorchSymModel):
     def __init__(self, h: TorchSymDiffModel, system: ConvexHull):
         super().__init__()
         self._system = system
-        self._h = h # CBF (we use its gradient)
+        self._h = h  # CBF (we use its gradient)
 
     @property
     def input_size(self) -> int:
@@ -348,45 +364,61 @@ class SingleIntegratorConvexHullUncertainty(TorchSymModel):
         batch_size = x.shape[0]
         min_sigma = torch.zeros((batch_size)) + 1e10
         for f_uncertain_func in self._system.f_uncertainty:
-            new_sigma = torch.sum(dhdx * f_uncertain_func.forward(x).squeeze(dim=2), dim=1)
+            new_sigma = torch.sum(
+                dhdx * f_uncertain_func.forward(x).squeeze(dim=2), dim=1
+            )
             min_sigma = torch.min(min_sigma, new_sigma)
-        sigma = - min_sigma
+        sigma = -min_sigma
         self._assert_forward_output(x=sigma)
         return sigma
 
-    def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL], Iterable[SYMBOL]]:
+    def forward_smt(
+        self, x: list[SYMBOL]
+    ) -> tuple[SYMBOL, Iterable[SYMBOL], Iterable[SYMBOL]]:
 
         self._assert_forward_smt_input(x=x)
         fns = get_solver_fns(x=x)
 
         def min(x, y):
             _If = fns["If"]
-            return _If(x<=y, x, y)
+            return _If(x <= y, x, y)
 
         dhdx, dhdx_constraints, dhdx_vars = self._h.gradient_smt(x=x)
         min_sigma = (dhdx @ self._system.f_uncertainty[0].forward_smt(x)).item()
         for f_uncertain_func in self._system.f_uncertainty[1:]:
             new_sigma = (dhdx @ f_uncertain_func.forward_smt(x)).item()
             min_sigma = min(min_sigma, new_sigma)
-        sigma = - min_sigma
+        sigma = -min_sigma
 
         self._assert_forward_smt_output(x=sigma)
         return sigma, dhdx_constraints, dhdx_vars
 
     def _assert_forward_input(self, x: torch.Tensor) -> None:
         state_dim = self._system.n_vars
-        assert isinstance(x, torch.Tensor), f"expected batch input to be tensor, got {type(x)}"
-        assert len(x.shape) == 2, f"expected batch input (batch, {state_dim}), got {x.shape}"
-        assert x.shape[1] == state_dim, f"expected batch input (batch, {state_dim}), got {x.shape}"
+        assert isinstance(
+            x, torch.Tensor
+        ), f"expected batch input to be tensor, got {type(x)}"
+        assert (
+            len(x.shape) == 2
+        ), f"expected batch input (batch, {state_dim}), got {x.shape}"
+        assert (
+            x.shape[1] == state_dim
+        ), f"expected batch input (batch, {state_dim}), got {x.shape}"
 
     def _assert_forward_output(self, x: torch.Tensor) -> None:
-        assert isinstance(x, torch.Tensor), f"expected batch output to be tensor, got {type(x)}"
+        assert isinstance(
+            x, torch.Tensor
+        ), f"expected batch output to be tensor, got {type(x)}"
         assert len(x.shape) == 1, f"expected output of shape (batch,), got {x.shape}"
 
     def _assert_forward_smt_input(self, x: Iterable[SYMBOL]) -> None:
         state_dim = self._system.n_vars
-        assert all([isinstance(xi, SYMBOL) for xi in x]), f"expected symbolic input, got {x}"
-        assert len(x) == state_dim, f"expected {state_dim} state variables, got input of length {len(x)}"
+        assert all(
+            [isinstance(xi, SYMBOL) for xi in x]
+        ), f"expected symbolic input, got {x}"
+        assert (
+            len(x) == state_dim
+        ), f"expected {state_dim} state variables, got input of length {len(x)}"
 
     def _assert_forward_smt_output(self, x: Iterable[SYMBOL]) -> None:
         assert isinstance(x, SYMBOL), f"expected symbolic output, got {x}"
@@ -404,8 +436,8 @@ class SingleIntegratorPolytopeUncertainty(TorchSymModel):
     def __init__(self, h: TorchSymDiffModel, system: UncertainControlAffineDynamics):
         super().__init__()
         self._system = system
-        self._h = h # CBF (we use its gradient)
-        self._safety_dist = 1.0 # todo this should be taken from system
+        self._h = h  # CBF (we use its gradient)
+        self._safety_dist = 1.0  # todo this should be taken from system
         self._phi_x_u = torch.tensor([])
 
     @property
@@ -415,7 +447,6 @@ class SingleIntegratorPolytopeUncertainty(TorchSymModel):
     @property
     def output_size(self) -> int:
         return 1
-
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -427,7 +458,9 @@ class SingleIntegratorPolytopeUncertainty(TorchSymModel):
         self._assert_forward_output(x=sigma)
         return sigma
 
-    def forward_smt(self, x: list[SYMBOL]) -> tuple[SYMBOL, Iterable[SYMBOL], Iterable[SYMBOL]]:
+    def forward_smt(
+        self, x: list[SYMBOL]
+    ) -> tuple[SYMBOL, Iterable[SYMBOL], Iterable[SYMBOL]]:
         """
         Problem: z3 is not able to cope with sqrt.
 
@@ -448,7 +481,7 @@ class SingleIntegratorPolytopeUncertainty(TorchSymModel):
 
         norm_constraint = [
             norm * norm == dhdx[0, 0] ** 2 + dhdx[0, 1] ** 2,
-            norm >= 0.0
+            norm >= 0.0,
         ]
         sigma = norm * self._z_bound
 
@@ -457,18 +490,30 @@ class SingleIntegratorPolytopeUncertainty(TorchSymModel):
 
     def _assert_forward_input(self, x: torch.Tensor) -> None:
         state_dim = self._system.n_vars
-        assert isinstance(x, torch.Tensor), f"expected batch input to be tensor, got {type(x)}"
-        assert len(x.shape) == 2, f"expected batch input (batch, {state_dim}), got {x.shape}"
-        assert x.shape[1] == state_dim, f"expected batch input (batch, {state_dim}), got {x.shape}"
+        assert isinstance(
+            x, torch.Tensor
+        ), f"expected batch input to be tensor, got {type(x)}"
+        assert (
+            len(x.shape) == 2
+        ), f"expected batch input (batch, {state_dim}), got {x.shape}"
+        assert (
+            x.shape[1] == state_dim
+        ), f"expected batch input (batch, {state_dim}), got {x.shape}"
 
     def _assert_forward_output(self, x: torch.Tensor) -> None:
-        assert isinstance(x, torch.Tensor), f"expected batch output to be tensor, got {type(x)}"
+        assert isinstance(
+            x, torch.Tensor
+        ), f"expected batch output to be tensor, got {type(x)}"
         assert len(x.shape) == 1, f"expected output of shape (batch,), got {x.shape}"
 
     def _assert_forward_smt_input(self, x: Iterable[SYMBOL]) -> None:
         state_dim = self._system.n_vars
-        assert all([isinstance(xi, SYMBOL) for xi in x]), f"expected symbolic input, got {x}"
-        assert len(x) == state_dim, f"expected {state_dim} state variables, got input of length {len(x)}"
+        assert all(
+            [isinstance(xi, SYMBOL) for xi in x]
+        ), f"expected symbolic input, got {x}"
+        assert (
+            len(x) == state_dim
+        ), f"expected {state_dim} state variables, got input of length {len(x)}"
 
     def _assert_forward_smt_output(self, x: Iterable[SYMBOL]) -> None:
         assert isinstance(x, SYMBOL), f"expected symbolic output, got {x}"

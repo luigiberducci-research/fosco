@@ -89,9 +89,6 @@ def square(x):
     return torch.pow(x, 2)
 
 
-
-
-
 # ReQU: Rectified Quadratic Unit
 def requ(x):
     return x * torch.relu(x)
@@ -100,14 +97,18 @@ def requ(x):
 def hyper_tan(x):
     return torch.tanh(x)
 
+
 def hard_hyper_tan(x):
     return torch.nn.functional.hardtanh(x)
+
 
 def sigm(x):
     return torch.sigmoid(x)
 
+
 def hard_sigm(x):
     return torch.nn.functional.hardsigmoid(x)
+
 
 def softplus(x):
     return torch.nn.functional.softplus(x)
@@ -151,15 +152,18 @@ def relu_square_der(x):
 def hyper_tan_der(x):
     return torch.ones(x.shape) - torch.pow(torch.tanh(x), 2)
 
+
 def hard_hyper_tan_der(x):
     y_mask = (x < -1.0) | (x > 1.0)
     dydx = torch.ones(x.shape)
     dydx[y_mask] = 0
     return dydx
 
+
 def sigm_der(x):
     y = sigm(x)
     return y * (torch.ones(x.shape) - y)
+
 
 def hard_sigm_der(x):
     y_mask = (x < -3.0) | (x > 3.0)
@@ -174,7 +178,6 @@ def softplus_der(x):
 
 def sinh(x):
     return torch.sinh(x)
-
 
 
 def rational_der(x):

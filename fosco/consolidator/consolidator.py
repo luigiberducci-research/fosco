@@ -19,10 +19,10 @@ class Consolidator:
 
     def _assert_state(self) -> None:
         assert (
-                self.cex_n > 0
+            self.cex_n > 0
         ), f"Nr of counterexamples must be greater than 0, got {self.cex_n}"
         assert (
-                self.cex_stddev > 0
+            self.cex_stddev > 0
         ), f"Standard deviation must be greater than 0, got {self.cex_stddev}"
 
     @timed
@@ -54,12 +54,7 @@ class Consolidator:
         shape = (1, max(point.shape[0], point.shape[1]))
         point = point.reshape(shape)
         for i in range(self.cex_n):
-            random_point = point + self.cex_stddev * torch.randn(
-                shape
-            )
+            random_point = point + self.cex_stddev * torch.randn(shape)
             C.append(random_point)
         C.append(point)
         return torch.stack(C, dim=1)[0, :, :]
-
-
-

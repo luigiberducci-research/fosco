@@ -24,20 +24,19 @@ class TestPolicy(unittest.TestCase):
         system_id = "SingleIntegrator"
         system = make_system(system_id=system_id)()
         barrier = make_barrier(system=system)
-        env = SystemEnv(system=system, max_steps=500, dt=0.1,)
+        env = SystemEnv(
+            system=system,
+            max_steps=500,
+            dt=0.1,
+        )
 
         # create random safe policy
-        model = SafeActorCriticAgent(
-            envs=env,
-            barrier=barrier
-        ).to(device)
+        model = SafeActorCriticAgent(envs=env, barrier=barrier).to(device)
         model.eval()
 
         # simulation
         obs, infos = env.reset(seed=seed)
         termination = truncation = False
-
-
 
         # running on a vehicle
         safety, loc_x, loc_y = [], [], []
@@ -45,7 +44,7 @@ class TestPolicy(unittest.TestCase):
         while not termination and not truncation:
             # get safety metric
             px, py = obs
-            safe = (px - obs_x) ** 2 + (py - obs_y) ** 2 - R ** 2
+            safe = (px - obs_x) ** 2 + (py - obs_y) ** 2 - R**2
 
             safety.append(safe)
             loc_x.append(px)
@@ -98,10 +97,7 @@ class TestPolicy(unittest.TestCase):
         env = SystemEnv(system=system, max_steps=500, dt=0.1, device=device)
 
         # create random safe policy
-        model = SafeActorCriticAgent(
-            envs=env,
-            barrier=barrier
-        )
+        model = SafeActorCriticAgent(envs=env, barrier=barrier)
         model.eval()
 
         # simulation
@@ -114,7 +110,7 @@ class TestPolicy(unittest.TestCase):
         while not termination and not truncation:
             # get safety metric
             px, py = obs
-            safe = (px - obs_x) ** 2 + (py - obs_y) ** 2 - R ** 2
+            safe = (px - obs_x) ** 2 + (py - obs_y) ** 2 - R**2
 
             safety.append(safe)
             loc_x.append(px)

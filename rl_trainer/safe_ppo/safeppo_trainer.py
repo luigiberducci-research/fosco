@@ -12,7 +12,6 @@ from rl_trainer.common.buffer import CyclicBuffer
 from rl_trainer.ppo.ppo_trainer import PPOTrainer
 
 
-
 class SafePPOTrainer(PPOTrainer):
     def __init__(
         self,
@@ -23,14 +22,19 @@ class SafePPOTrainer(PPOTrainer):
     ) -> None:
         agent_cls = partial(SafeActorCriticAgent, barrier=barrier)
         super().__init__(
-            envs=envs, config=config, agent_cls=agent_cls, device=device,
+            envs=envs,
+            config=config,
+            agent_cls=agent_cls,
+            device=device,
         )
 
         buffer_shapes = {
             "obs": (self.cfg.num_steps, self.cfg.num_envs)
             + envs.single_observation_space.shape,
-            "action": (self.cfg.num_steps, self.cfg.num_envs) + envs.single_action_space.shape,
-            "unsafe_action": (self.cfg.num_steps, self.cfg.num_envs) + envs.single_action_space.shape,
+            "action": (self.cfg.num_steps, self.cfg.num_envs)
+            + envs.single_action_space.shape,
+            "unsafe_action": (self.cfg.num_steps, self.cfg.num_envs)
+            + envs.single_action_space.shape,
             "classk": (self.cfg.num_steps, self.cfg.num_envs) + (1,),
             "logprob": (self.cfg.num_steps, self.cfg.num_envs),
             "classk_logprob": (self.cfg.num_steps, self.cfg.num_envs),
@@ -40,11 +44,15 @@ class SafePPOTrainer(PPOTrainer):
             "value": (self.cfg.num_steps, self.cfg.num_envs),
         }
         self.buffer = CyclicBuffer(
-            capacity=self.cfg.num_steps, feature_shapes=buffer_shapes, device=self.device
+            capacity=self.cfg.num_steps,
+            feature_shapes=buffer_shapes,
+            device=self.device,
         )
 
     def _update(
-        self, next_obs: torch.Tensor, next_done: Optional[torch.Tensor] = None,
+        self,
+        next_obs: torch.Tensor,
+        next_done: Optional[torch.Tensor] = None,
     ) -> dict[str, float]:
         data = self.buffer.sample()
         obs = data["obs"]
@@ -116,10 +124,7 @@ class SafePPOTrainer(PPOTrainer):
                     old_approx_kl = (-logratio).mean()
                     approx_kl = ((ratio - 1) - logratio).mean()
                     clipfracs += [
-                        ((ratio - 1.0).abs() > self.cfg.clip_coef)
-                        .float()
-                        .mean()
-                        .item()
+                        ((ratio - 1.0).abs() > self.cfg.clip_coef).float().mean().item()
                     ]
 
                 mb_advantages = b_advantages[mb_inds]
@@ -152,9 +157,9 @@ class SafePPOTrainer(PPOTrainer):
 
                 entropy_loss = 0.5 * (entropy.mean() + classkentropy.mean())
                 loss = (
-                        pg_loss
-                        - self.cfg.ent_coef * entropy_loss
-                        + v_loss * self.cfg.vf_coef
+                    pg_loss
+                    - self.cfg.ent_coef * entropy_loss
+                    + v_loss * self.cfg.vf_coef
                 )
 
                 self.optimizer.zero_grad()

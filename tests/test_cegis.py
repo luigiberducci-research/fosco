@@ -20,18 +20,21 @@ from fosco.systems import SingleIntegrator, ControlAffineDynamics
 
 class TestCEGIS(unittest.TestCase):
     @staticmethod
-    def _get_single_integrator_config() -> tuple[
-        ControlAffineDynamics, dict[str, Set], dict[str, Callable], CegisConfig
-    ]:
+    def _get_single_integrator_config() -> (
+        tuple[ControlAffineDynamics, dict[str, Set], dict[str, Callable], CegisConfig]
+    ):
         system = SingleIntegrator()
-
 
         dn = DomainName
         domains = system.domains
 
         data_gen = {
             dn.XD.value: lambda n: torch.concatenate(
-                [system.state_domain.generate_data(n), system.input_domain.generate_data(n)], dim=1
+                [
+                    system.state_domain.generate_data(n),
+                    system.input_domain.generate_data(n),
+                ],
+                dim=1,
             ),
             dn.XI.value: lambda n: system.init_domain.generate_data(n),
             dn.XU.value: lambda n: system.unsafe_domain.generate_data(n),
@@ -45,7 +48,7 @@ class TestCEGIS(unittest.TestCase):
             N_DATA=1000,
             LEARNING_RATE=1e-3,
             WEIGHT_DECAY=1e-4,
-            N_HIDDEN_NEURONS=(5, ),
+            N_HIDDEN_NEURONS=(5,),
             ACTIVATION=("square",),
             SEED=0,
         )
@@ -115,16 +118,27 @@ class TestCEGIS(unittest.TestCase):
         sets = system.domains
 
         # quick test: zero uncertainty, cegis should find a certificate quickly
-        sets["uncertainty"] = domains.Rectangle(vars=["z0", "z1"], lb=(0.0, 0.0), ub=(0.0, 0.0))
+        sets["uncertainty"] = domains.Rectangle(
+            vars=["z0", "z1"], lb=(0.0, 0.0), ub=(0.0, 0.0)
+        )
 
         data_gen = {
             "init": lambda n: system.init_domain.generate_data(n),
             "unsafe": lambda n: system.unsafe_domain.generate_data(n),
             "lie": lambda n: torch.concatenate(
-                [system.state_domain.generate_data(n), system.input_domain.generate_data(n)], dim=1
+                [
+                    system.state_domain.generate_data(n),
+                    system.input_domain.generate_data(n),
+                ],
+                dim=1,
             ),
             "uncertainty": lambda n: torch.concatenate(
-                [system.state_domain.generate_data(n), system.input_domain.generate_data(n), sets["uncertainty"].generate_data(n)], dim=1
+                [
+                    system.state_domain.generate_data(n),
+                    system.input_domain.generate_data(n),
+                    sets["uncertainty"].generate_data(n),
+                ],
+                dim=1,
             ),
         }
 
@@ -140,7 +154,11 @@ class TestCEGIS(unittest.TestCase):
             SEED=seed,
         )
         cegis = Cegis(
-            system=system, domains=sets, config=config, data_gen=data_gen, verbose=verbose
+            system=system,
+            domains=sets,
+            config=config,
+            data_gen=data_gen,
+            verbose=verbose,
         )
 
         result = cegis.solve()

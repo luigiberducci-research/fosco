@@ -9,6 +9,7 @@ torch
 # for verification
 z3-solver
 dreal
+sympy
 # for convex-opt controller
 cvxpy
 cvxpylayers

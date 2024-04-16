@@ -12,7 +12,7 @@ class LearnerNN(nn.Module, ABC):
     Abstract base class for learners.
     """
 
-    def __init__(self,  verbose: int = 0, **kwargs):
+    def __init__(self, verbose: int = 0, **kwargs):
         super().__init__()
 
         self._learn_method = None
@@ -28,7 +28,6 @@ class LearnerNN(nn.Module, ABC):
     @learn_method.setter
     def learn_method(self, learn_fn: Callable) -> None:
         self._learn_method = learn_fn
-
 
     @abstractmethod
     def _assert_state(self) -> None:

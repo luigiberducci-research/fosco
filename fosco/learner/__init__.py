@@ -7,16 +7,14 @@ from fosco.learner.learner import LearnerNN
 from fosco.systems import ControlAffineDynamics, UncertainControlAffineDynamics
 
 
-def make_learner(
-    system: ControlAffineDynamics
-) -> Type[LearnerNN]:
-
+def make_learner(system: ControlAffineDynamics) -> Type[LearnerNN]:
     if isinstance(system, UncertainControlAffineDynamics):
         from fosco.learner.learner_rcbf_ct import LearnerRobustCBF
 
         return LearnerRobustCBF
     else:
         from fosco.learner.learner_cbf_ct import LearnerCBF
+
         return LearnerCBF
 
 

@@ -19,18 +19,18 @@ class LearnerRobustCBF(LearnerCBF):
 
     def __init__(
         self,
-            state_size: int,
-            hidden_sizes: tuple[int, ...],
-            activation: tuple[ActivationType, ...],
-            epochs: int,
-            lr: float,
-            weight_decay: float,
-            loss_margins: dict[str, float] | float,
-            loss_weights: dict[str, float] | float,
-            loss_relu: str,
-            optimizer: Optional[str] = None,
-            initial_models: Optional[dict[str, nn.Module]] = None,
-            verbose: int = 0,
+        state_size: int,
+        hidden_sizes: tuple[int, ...],
+        activation: tuple[ActivationType, ...],
+        epochs: int,
+        lr: float,
+        weight_decay: float,
+        loss_margins: dict[str, float] | float,
+        loss_weights: dict[str, float] | float,
+        loss_relu: str,
+        optimizer: Optional[str] = None,
+        initial_models: Optional[dict[str, nn.Module]] = None,
+        verbose: int = 0,
     ):
         super(LearnerRobustCBF, self).__init__(
             state_size=state_size,
@@ -48,14 +48,16 @@ class LearnerRobustCBF(LearnerCBF):
         )
 
         # compensator for additive state disturbances
-        if initial_models and "xsigma" in initial_models and initial_models["xsigma"] is not None:
+        if (
+            initial_models
+            and "xsigma" in initial_models
+            and initial_models["xsigma"] is not None
+        ):
             self.xsigma = initial_models["xsigma"]
         else:
             # we design the compensator to depend on the barrier function
             # xsigma(x) = xsigma(h(x))
-            head_model = RobustGate(
-                activation_type="hsigmoid"
-            )
+            head_model = RobustGate(activation_type="hsigmoid")
             self.xsigma = SequentialTorchMLP(
                 mlps=[self.net, head_model],
                 register_module=[False, True],
@@ -76,14 +78,18 @@ class LearnerRobustCBF(LearnerCBF):
             if isinstance(loss_margins, float):
                 self.loss_margins[loss_k] = loss_margins
             else:
-                assert loss_k in loss_margins, f"Missing loss margin {loss_k}, got {loss_margins}"
+                assert (
+                    loss_k in loss_margins
+                ), f"Missing loss margin {loss_k}, got {loss_margins}"
                 self.loss_margins[loss_k] = loss_margins[loss_k]
 
             # add extra loss weight for uncertainty loss
             if isinstance(loss_weights, float):
                 self.loss_weights[loss_k] = loss_weights
             else:
-                assert loss_k in loss_weights, f"Missing loss weight {loss_k}, got {loss_weights}"
+                assert (
+                    loss_k in loss_weights
+                ), f"Missing loss weight {loss_k}, got {loss_weights}"
                 self.loss_weights[loss_k] = loss_weights[loss_k]
 
         self.learn_method = TrainableRCBF.learn
@@ -97,9 +103,15 @@ class LearnerRobustCBF(LearnerCBF):
     def save(self, outdir: str, model_name: str = "model") -> None:
         param_path = super().save(outdir=outdir, model_name=model_name)
 
-        if not isinstance(self.xsigma, TorchMLP) and not isinstance(self.xsigma, SequentialTorchMLP):
-            raise ValueError(f"Saving model supported only for TorchMLP, got sigma {type(self.xsigma)}")
-        xsigma_path = self.xsigma.save(outdir=outdir, model_name=f"{model_name}_compensator")
+        if not isinstance(self.xsigma, TorchMLP) and not isinstance(
+            self.xsigma, SequentialTorchMLP
+        ):
+            raise ValueError(
+                f"Saving model supported only for TorchMLP, got sigma {type(self.xsigma)}"
+            )
+        xsigma_path = self.xsigma.save(
+            outdir=outdir, model_name=f"{model_name}_compensator"
+        )
 
         return param_path
 
@@ -108,7 +120,7 @@ class LearnerRobustCBF(LearnerCBF):
         config_path = pathlib.Path(config_path)
         assert config_path.exists(), f"config file {config_path} does not exist"
         assert (
-                config_path.suffix == ".yaml"
+            config_path.suffix == ".yaml"
         ), f"expected .yaml file, got {config_path.suffix}"
 
         # load params.yaml
@@ -119,17 +131,21 @@ class LearnerRobustCBF(LearnerCBF):
             [k in params for k in ["module", "class", "kwargs"]]
         ), f"Missing keys in {params.keys()}"
         assert (
-                params["module"] == "fosco.learner.learner_rcbf_ct"
+            params["module"] == "fosco.learner.learner_rcbf_ct"
         ), f"Expected fosco.learner.learner_rcbf_ct, got {params['module']}"
         assert (
-                params["class"] == "LearnerRobustCBF"
+            params["class"] == "LearnerRobustCBF"
         ), f"Expected LearnerRobustCBF, got {params['class']}"
 
         kwargs = params["kwargs"]
         learner = LearnerRobustCBF(**kwargs)
 
         # load models
-        learner.net = learner.net.load(config_path.parent / f"{config_path.stem}_barrier.yaml")
-        learner.xsigma = learner.xsigma.load(config_path.parent / f"{config_path.stem}_compensator.yaml")
+        learner.net = learner.net.load(
+            config_path.parent / f"{config_path.stem}_barrier.yaml"
+        )
+        learner.xsigma = learner.xsigma.load(
+            config_path.parent / f"{config_path.stem}_compensator.yaml"
+        )
 
         return learner

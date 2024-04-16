@@ -54,7 +54,7 @@ def main():
 
     traj = {"x": [obs], "u": [], "hx": [], "px": []}
     while not (any(terminations) or any(truncations)):
-        #with torch.no_grad():
+        # with torch.no_grad():
         obs = obs[None] if len(obs.shape) == 1 else obs
         u = pi(x=obs)
         u = u.detach().numpy()
@@ -127,9 +127,17 @@ def main():
     print(f"Plotting time: {time.time() - t0} seconds")
 
     plt.tight_layout()
-    barrier_name = barrier_to_load if barrier_to_load in ["default", "tunable"] else "learned"
-    compensator_name = compensator_to_load if compensator_to_load in ["default", "tunable"] else "learned"
-    plt.savefig(f"{system.id}-Barrier{barrier_name}-Compensator{compensator_name}-Seed{seed}-N{batch_size}.pdf")
+    barrier_name = (
+        barrier_to_load if barrier_to_load in ["default", "tunable"] else "learned"
+    )
+    compensator_name = (
+        compensator_to_load
+        if compensator_to_load in ["default", "tunable"]
+        else "learned"
+    )
+    plt.savefig(
+        f"{system.id}-Barrier{barrier_name}-Compensator{compensator_name}-Seed{seed}-N{batch_size}.pdf"
+    )
     plt.show()
 
 

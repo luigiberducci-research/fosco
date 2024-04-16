@@ -23,7 +23,7 @@ def main(args):
     max_iters = args.max_iters
     n_epochs = args.n_epochs
     verbose = args.verbose
-    logger_type = None  #"aim"
+    logger_type = None  # "aim"
 
     system = make_system(system_id=system_type)()
     sets = system.domains
@@ -53,11 +53,7 @@ def main(args):
         WEIGHT_DECAY=weight_decay,
     )
     cegis = Cegis(
-        system=system,
-        domains=sets,
-        data_gen=data_gen,
-        config=config,
-        verbose=verbose
+        system=system, domains=sets, data_gen=data_gen, config=config, verbose=verbose
     )
     result = cegis.solve()
     print("result: ", result)

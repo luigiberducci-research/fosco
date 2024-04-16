@@ -457,6 +457,9 @@ class TestUncertainControlAffineDynamicalSystem(unittest.TestCase):
                 self.assertTrue(isinstance(dt_system, ControlAffineDynamics))
                 self.assertTrue(system.id in dt_system.id)
                 self.assertTrue(f"dt{dt}" in dt_system.id)
-                self.assertTrue(all([a == b for a, b in zip(system.vars, dt_system.vars)]))
-                self.assertTrue(all([a == b for a, b in zip(system.controls, dt_system.controls)]))
-
+                self.assertTrue(
+                    all([a == b for a, b in zip(system.vars, dt_system.vars)])
+                )
+                self.assertTrue(
+                    all([a == b for a, b in zip(system.controls, dt_system.controls)])
+                )

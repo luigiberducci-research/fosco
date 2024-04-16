@@ -16,11 +16,11 @@ from rl_trainer.trainer import RLTrainer
 
 class PPOTrainer(RLTrainer):
     def __init__(
-            self,
-            envs: gymnasium.Env,
-            config: PPOConfig,
-            agent_cls: Optional[Type[ActorCriticAgent]] = None,
-            device: Optional[torch.device] = None,
+        self,
+        envs: gymnasium.Env,
+        config: PPOConfig,
+        agent_cls: Optional[Type[ActorCriticAgent]] = None,
+        device: Optional[torch.device] = None,
     ) -> None:
         self.device = device or torch.device("cpu")
 
@@ -36,8 +36,10 @@ class PPOTrainer(RLTrainer):
         self.agent = agent_cls(envs=single_env).to(device)
 
         buffer_shapes = {
-            "obs": (self.cfg.num_steps, self.cfg.num_envs) + single_env.observation_space.shape,
-            "action": (self.cfg.num_steps, self.cfg.num_envs) + single_env.action_space.shape,
+            "obs": (self.cfg.num_steps, self.cfg.num_envs)
+            + single_env.observation_space.shape,
+            "action": (self.cfg.num_steps, self.cfg.num_envs)
+            + single_env.action_space.shape,
             "logprob": (self.cfg.num_steps, self.cfg.num_envs),
             "reward": (self.cfg.num_steps, self.cfg.num_envs),
             "cost": (self.cfg.num_steps, self.cfg.num_envs),
@@ -45,7 +47,9 @@ class PPOTrainer(RLTrainer):
             "value": (self.cfg.num_steps, self.cfg.num_envs),
         }
         self.buffer = CyclicBuffer(
-            capacity=self.cfg.num_steps, feature_shapes=buffer_shapes, device=self.device
+            capacity=self.cfg.num_steps,
+            feature_shapes=buffer_shapes,
+            device=self.device,
         )
 
         self.optimizer = optim.Adam(
@@ -78,12 +82,10 @@ class PPOTrainer(RLTrainer):
         next_done = torch.zeros(self.cfg.num_envs).to(device)
 
         for iteration in range(1, self.cfg.num_iterations + 1):
-            self._logger.info(
-                f"iteration {iteration}/{self.cfg.num_iterations}"
-            )
+            self._logger.info(f"iteration {iteration}/{self.cfg.num_iterations}")
             if len(train_steps) > klog:
                 self._logger.info(
-                    f"Last {klog} episodes: \n" 
+                    f"Last {klog} episodes: \n"
                     f"\tglobal step: {global_step}/{self.cfg.total_timesteps} \n"
                     f"\tepisodic returns: {np.mean(train_return[-klog:]):.2f} +/- {np.std(train_return[-klog:]):.2f} \n"
                     f"\tepisodic costs: {np.mean(train_cost[-klog:]):.2f} +/- {np.std(train_cost[-klog:]):.2f} \n"
@@ -165,17 +167,26 @@ class PPOTrainer(RLTrainer):
 
                             if writer:
                                 writer.add_scalar(
-                                    "charts/episodic_return", train_return[-1], train_steps[-1]
+                                    "charts/episodic_return",
+                                    train_return[-1],
+                                    train_steps[-1],
                                 )
                                 writer.add_scalar(
-                                    "charts/episodic_cost", train_cost[-1], train_steps[-1]
+                                    "charts/episodic_cost",
+                                    train_cost[-1],
+                                    train_steps[-1],
                                 )
                                 writer.add_scalar(
-                                    "charts/episodic_length", train_lengths[-1], train_steps[-1]
+                                    "charts/episodic_length",
+                                    train_lengths[-1],
+                                    train_steps[-1],
                                 )
 
             # update agent
-            train_infos = self._update(next_obs=next_obs, next_done=next_done, )
+            train_infos = self._update(
+                next_obs=next_obs,
+                next_done=next_done,
+            )
 
             # TRY NOT TO MODIFY: record rewards for plotting purposes
             sps = int(global_step / (time.time() - start_time))
@@ -184,17 +195,23 @@ class PPOTrainer(RLTrainer):
                 for k, v in train_infos.items():
                     writer.add_scalar(k, v, global_step)
                 writer.add_scalar(
-                    "charts/SPS", int(global_step / (time.time() - start_time)), global_step
+                    "charts/SPS",
+                    int(global_step / (time.time() - start_time)),
+                    global_step,
                 )
 
         return {
             "train_steps": np.array(train_steps),
             "train_lengths": np.array(train_lengths),
             "train_returns": np.array(train_return),
-            "train_costs": np.array(train_cost)
+            "train_costs": np.array(train_cost),
         }
 
-    def _update(self, next_obs, next_done, ) -> dict[str, float]:
+    def _update(
+        self,
+        next_obs,
+        next_done,
+    ) -> dict[str, float]:
         data = self.buffer.sample()
         obs = data["obs"]
         logprobs = data["logprob"]
@@ -250,16 +267,13 @@ class PPOTrainer(RLTrainer):
                     old_approx_kl = (-logratio).mean()
                     approx_kl = ((ratio - 1) - logratio).mean()
                     clipfracs += [
-                        ((ratio - 1.0).abs() > self.cfg.clip_coef)
-                        .float()
-                        .mean()
-                        .item()
+                        ((ratio - 1.0).abs() > self.cfg.clip_coef).float().mean().item()
                     ]
 
                 mb_advantages = b_advantages[mb_inds]
                 if self.cfg.norm_adv:
                     mb_advantages = (mb_advantages - mb_advantages.mean()) / (
-                            mb_advantages.std() + 1e-8
+                        mb_advantages.std() + 1e-8
                     )
 
                 # Policy loss
@@ -286,9 +300,9 @@ class PPOTrainer(RLTrainer):
 
                 entropy_loss = entropy.mean()
                 loss = (
-                        pg_loss
-                        - self.cfg.ent_coef * entropy_loss
-                        + v_loss * self.cfg.vf_coef
+                    pg_loss
+                    - self.cfg.ent_coef * entropy_loss
+                    + v_loss * self.cfg.vf_coef
                 )
 
                 self.optimizer.zero_grad()
@@ -318,7 +332,7 @@ class PPOTrainer(RLTrainer):
         }
 
     def _advantage_estimation(
-            self, obs, actions, rewards, dones, next_obs, next_done, values
+        self, obs, actions, rewards, dones, next_obs, next_done, values
     ):
         # bootstrap value if not done
         with torch.no_grad():
@@ -333,16 +347,16 @@ class PPOTrainer(RLTrainer):
                     nextnonterminal = 1.0 - dones[t + 1]
                     nextvalues = values[t + 1]
                 delta = (
-                        rewards[t]
-                        + self.cfg.gamma * nextvalues * nextnonterminal
-                        - values[t]
+                    rewards[t]
+                    + self.cfg.gamma * nextvalues * nextnonterminal
+                    - values[t]
                 )
                 advantages[t] = lastgaelam = (
-                        delta
-                        + self.cfg.gamma
-                        * self.cfg.gae_lambda
-                        * nextnonterminal
-                        * lastgaelam
+                    delta
+                    + self.cfg.gamma
+                    * self.cfg.gae_lambda
+                    * nextnonterminal
+                    * lastgaelam
                 )
             returns = advantages + values
 

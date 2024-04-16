@@ -29,14 +29,20 @@ class TextLogger(Logger):
     def log_image(self, tag: str, image: ImageType, step: int, **kwargs):
         self._counters["image"] += 1
         if self._counters["image"] % self._warn_every_k == 0:
-            self._logger.warning(msg=f"step: {step}, tag: {tag}, log image not supported")
+            self._logger.warning(
+                msg=f"step: {step}, tag: {tag}, log image not supported"
+            )
 
     def log_video(self, tag: str, image: ImageType, step: int, **kwargs):
         self._counters["video"] += 1
         if self._counters["video"] % self._warn_every_k == 0:
-            self._logger.warning(msg=f"step: {step}, tag: {tag}, log video not supported")
+            self._logger.warning(
+                msg=f"step: {step}, tag: {tag}, log video not supported"
+            )
 
     def log_model(self, tag: str, model: torch.nn.Module, step: int, **kwargs):
         self._counters["model"] += 1
         if self._counters["model"] % self._warn_every_k == 0:
-            self._logger.warning(msg=f"step: {step}, tag: {tag}, log model not supported")
+            self._logger.warning(
+                msg=f"step: {step}, tag: {tag}, log model not supported"
+            )

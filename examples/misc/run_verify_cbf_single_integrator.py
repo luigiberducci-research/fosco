@@ -1,6 +1,7 @@
 """
 Example of verifying a known valid CBF for single-integrator dynamics.
 """
+
 from typing import Optional
 
 import torch
@@ -13,9 +14,11 @@ from fosco.systems.discrete_time.system_dt import EulerDTSystem
 
 
 def main(args):
-    system_id: str = "SingleIntegrator"     # system id
-    dt: Optional[float] = 0.1               # discretization time step or None for continuous-time cbf
-    verbose: int = 1                        # verbosity level (0, 1, 2)
+    system_id: str = "SingleIntegrator"  # system id
+    dt: Optional[float] = (
+        0.1  # discretization time step or None for continuous-time cbf
+    )
+    verbose: int = 1  # verbosity level (0, 1, 2)
 
     # make system
     system = make_system(system_id=system_id)()

@@ -33,11 +33,11 @@ class ControlBarrierFunction(Certificate):
     """
 
     def __init__(
-            self,
-            system: ControlAffineDynamics,
-            variables: dict[str, list],
-            domains: dict[str, Set],
-            verbose: int = 0,
+        self,
+        system: ControlAffineDynamics,
+        variables: dict[str, list],
+        domains: dict[str, Set],
+        verbose: int = 0,
     ) -> None:
         # todo rename vars to x, u
         self.x_vars = variables["v"]
@@ -75,18 +75,18 @@ class ControlBarrierFunction(Certificate):
         ), f"CBF only works with rectangular input domains, got {self.u_set}"
 
     def get_constraints(
-            self,
-            verifier,
-            B,
-            B_constr,
-            B_vars,
-            sigma,
-            sigma_constr,
-            sigma_vars,
-            Bdot,
-            Bdot_constr,
-            Bdot_vars,
-            *args
+        self,
+        verifier,
+        B,
+        B_constr,
+        B_vars,
+        sigma,
+        sigma_constr,
+        sigma_vars,
+        Bdot,
+        Bdot_constr,
+        Bdot_vars,
+        *args,
     ) -> Generator:
         """
         :param verifier: verifier object
@@ -96,9 +96,12 @@ class ControlBarrierFunction(Certificate):
         :return: tuple of dictionaries of Barrier conditons
         """
         # todo extend signature with **kwargs
-        assert isinstance(B_vars, list) and all([isinstance(v, SYMBOL) for v in B_vars]), f"Expected list of SYMBOL, got {B_vars}"
+        assert isinstance(B_vars, list) and all(
+            [isinstance(v, SYMBOL) for v in B_vars]
+        ), f"Expected list of SYMBOL, got {B_vars}"
         assert isinstance(Bdot_vars, list) and all(
-            [isinstance(v, SYMBOL) for v in Bdot_vars]), f"Expected list of SYMBOL, got {Bdot_vars}"
+            [isinstance(v, SYMBOL) for v in Bdot_vars]
+        ), f"Expected list of SYMBOL, got {Bdot_vars}"
 
         # Bx >= 0 if x \in initial
         # counterexample: B < 0 and x \in initial
@@ -131,14 +134,16 @@ class ControlBarrierFunction(Certificate):
             alpha=alpha,
         )
 
-        #self._logger.debug(f"initial_constr: {initial_constr}")
-        #self._logger.debug(f"unsafe_constr: {unsafe_constr}")
-        #self._logger.debug(f"lie_constr: {feasible_constr}")
+        # self._logger.debug(f"initial_constr: {initial_constr}")
+        # self._logger.debug(f"unsafe_constr: {unsafe_constr}")
+        # self._logger.debug(f"lie_constr: {feasible_constr}")
 
         for cs in (
-                {XD: (feasible_constr, feasible_vars, feasible_aux_vars)},
-                {XI: (initial_constr, initial_vars, initial_aux_vars),
-                 XU: (unsafe_constr, unsafe_vars, unsafe_aux_vars)},
+            {XD: (feasible_constr, feasible_vars, feasible_aux_vars)},
+            {
+                XI: (initial_constr, initial_vars, initial_aux_vars),
+                XU: (unsafe_constr, unsafe_vars, unsafe_aux_vars),
+            },
         ):
             yield cs
 
@@ -179,7 +184,7 @@ class ControlBarrierFunction(Certificate):
         return unsafe_constr
 
     def _feasibility_constraint_smt(
-            self, verifier, B, B_constr, Bdot, Bdot_constr, alpha
+        self, verifier, B, B_constr, Bdot, Bdot_constr, alpha
     ) -> SYMBOL:
         """
         Feasibility constraint
@@ -214,13 +219,13 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
 
     @staticmethod
     def learn(
-            learner,
-            optimizers: Optimizer,
-            datasets: dict,
-            f_torch: callable,
-            n_vars: int,
-            n_controls: int,
-            **kwargs
+        learner,
+        optimizers: Optimizer,
+        datasets: dict,
+        f_torch: callable,
+        n_vars: int,
+        n_controls: int,
+        **kwargs,
     ) -> dict[str, float | np.ndarray | dict]:
         """
         Updates the CBF model.
@@ -241,7 +246,7 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
 
         label_order = [XD, XI, XU]
         state_samples = torch.cat(
-            [datasets[label][:, : n_vars] for label in label_order]
+            [datasets[label][:, :n_vars] for label in label_order]
         )
 
         losses, accuracies, infos = {}, {}, {}
@@ -252,20 +257,19 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
             B = learner.net(state_samples)
 
             B_d = B[:i1, 0]
-            B_i = B[i1: i1 + i2, 0]
-            B_u = B[i1 + i2:, 0]
+            B_i = B[i1 : i1 + i2, 0]
+            B_u = B[i1 + i2 :, 0]
 
             # compute lie derivative
             Bdot_d = TrainableCBF._compute_barrier_difference(
                 X_d=datasets[XD][:, :n_vars],
-                U_d=datasets[XD][:, n_vars: n_vars + n_controls],
+                U_d=datasets[XD][:, n_vars : n_vars + n_controls],
                 barrier=learner.net,
-                f_torch=f_torch
+                f_torch=f_torch,
             )
 
             loss, losses, accuracies = TrainableCBF._compute_loss(
-                learner=learner,
-                B_i=B_i, B_u=B_u, B_d=B_d, Bdot_d=Bdot_d, alpha=1.0
+                learner=learner, B_i=B_i, B_u=B_u, B_d=B_d, Bdot_d=Bdot_d, alpha=1.0
             )
 
             if t % math.ceil(learner.epochs / 10) == 0 or learner.epochs - t < 10:
@@ -289,7 +293,9 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
         }
 
     @staticmethod
-    def _compute_barrier_difference(X_d: torch.Tensor, U_d: torch.Tensor, barrier: TorchSymDiffFn, f_torch: Callable) -> torch.Tensor:
+    def _compute_barrier_difference(
+        X_d: torch.Tensor, U_d: torch.Tensor, barrier: TorchSymDiffFn, f_torch: Callable
+    ) -> torch.Tensor:
         """
         Computes the change over time of the barrier function subject to the system dynamics.
         This is the Lie derivative of the barrier function for continuous-time systems.
@@ -300,7 +306,9 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
             barrier (TorchSymDiffFn): barrier function
             f_torch (Callable): system dynamics, xdot=f(x,u) for ct, x_{k+1}=f(x_k,u_k) for dt
         """
-        assert X_d.shape[0] == U_d.shape[0], f"expected pairs of state,input data. Got {X_d.shape[0], U_d.shape[0]}"
+        assert (
+            X_d.shape[0] == U_d.shape[0]
+        ), f"expected pairs of state,input data. Got {X_d.shape[0], U_d.shape[0]}"
 
         # Lie derivative of B: dB/dt = dB/dx * dx/dt
         db_dx = barrier.gradient(X_d)
@@ -311,12 +319,12 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
 
     @staticmethod
     def _compute_loss(
-            learner,
-            B_i: torch.Tensor,
-            B_u: torch.Tensor,
-            B_d: torch.Tensor,
-            Bdot_d: torch.Tensor,
-            alpha: torch.Tensor | float,
+        learner,
+        B_i: torch.Tensor,
+        B_u: torch.Tensor,
+        B_d: torch.Tensor,
+        Bdot_d: torch.Tensor,
+        alpha: torch.Tensor | float,
     ) -> tuple[torch.Tensor, dict, dict]:
         """Computes loss function for CBF and its accuracy w.r.t. the batch of data.
 
@@ -331,7 +339,7 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
             tuple[torch.Tensor, float]: loss and accuracy
         """
         assert (
-                Bdot_d is None or B_d.shape == Bdot_d.shape
+            Bdot_d is None or B_d.shape == Bdot_d.shape
         ), f"B_d and Bdot_d must have the same shape, got {B_d.shape} and {Bdot_d.shape}"
         assert isinstance(
             learner.loss_margins, dict
@@ -362,20 +370,13 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
         # penalize B_u > 0
         unsafe_loss = weight_unsafe * (learner.loss_relu(B_u + margin_unsafe)).mean()
         # penalize when B_d > 0 and dB_d + alpha * B_d < 0
-        loss_cond = torch.min(
-            B_d - margin_lie,
-            margin_lie -(Bdot_d + alpha * B_d)
-        )
-        lie_loss = (
-                weight_lie * (learner.loss_relu(loss_cond)).mean()
-        )
+        loss_cond = torch.min(B_d - margin_lie, margin_lie - (Bdot_d + alpha * B_d))
+        lie_loss = weight_lie * (learner.loss_relu(loss_cond)).mean()
 
         # regularization losses
         # penalize negative B (conservative)
         loss_B_neg = learner.loss_relu(-B_d).mean()  # penalize B_d < 0
-        loss_B_conservative = (
-                weight_conservative_b * loss_B_neg
-        )
+        loss_B_conservative = weight_conservative_b * loss_B_neg
 
         loss = init_loss + unsafe_loss + lie_loss + loss_B_conservative
 
@@ -394,8 +395,8 @@ class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
 
         # debug
         learner._logger.debug("Dataset Accuracy:")
-        learner._logger.debug("\n" + "\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
+        learner._logger.debug(
+            "\n" + "\n".join([f"{k}:{v}" for k, v in accuracy.items()])
+        )
 
         return loss, losses, accuracy
-
-

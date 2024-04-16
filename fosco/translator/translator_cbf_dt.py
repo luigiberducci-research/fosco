@@ -47,7 +47,9 @@ class MLPTranslatorDT(Translator):
 
         V_symbolic, V_symbolic_constr, V_symbolic_vars = V_net.forward_smt(x=x_vars)
         V_symbolic = symplify_fn(V_symbolic)
-        Vnext_symbolic, Vnext_symbolic_constr, Vnext_symbolic_vars = V_net.forward_smt(x=xdot)
+        Vnext_symbolic, Vnext_symbolic_constr, Vnext_symbolic_vars = V_net.forward_smt(
+            x=xdot
+        )
         Vnext_symbolic = symplify_fn(Vnext_symbolic)
         Vdot_symbolic = Vnext_symbolic - V_symbolic
         Vdot_symbolic = symplify_fn(Vdot_symbolic)
@@ -55,7 +57,9 @@ class MLPTranslatorDT(Translator):
         Vdot_symbolic_vars = V_symbolic_vars
 
         assert len(V_symbolic_constr) == 0, "Expected no constraints for V_symbolic"
-        assert len(Vnext_symbolic_constr) == 0, "Expected no constraints for Vnext_symbolic"
+        assert (
+            len(Vnext_symbolic_constr) == 0
+        ), "Expected no constraints for Vnext_symbolic"
 
         assert isinstance(
             V_symbolic, SYMBOL

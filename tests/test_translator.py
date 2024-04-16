@@ -3,7 +3,12 @@ import unittest
 import numpy as np
 
 from fosco.models import TorchMLP
-from fosco.translator import MLPTranslator, make_translator, RobustMLPTranslator, RobustMLPTranslatorDT
+from fosco.translator import (
+    MLPTranslator,
+    make_translator,
+    RobustMLPTranslator,
+    RobustMLPTranslatorDT,
+)
 from fosco.translator.translator_cbf_dt import MLPTranslatorDT
 from fosco.verifier.z3_verifier import round_expr
 
@@ -423,10 +428,10 @@ class TestTranslator(unittest.TestCase):
         self.assertTrue(isinstance(translator, MLPTranslatorDT))
 
         translator = make_translator(
-                certificate_type=CertificateType.RCBF,
-                verifier_type=VerifierType.Z3,
-                time_domain=TimeDomain.DISCRETE,
-            )
+            certificate_type=CertificateType.RCBF,
+            verifier_type=VerifierType.Z3,
+            time_domain=TimeDomain.DISCRETE,
+        )
         self.assertTrue(isinstance(translator, RobustMLPTranslatorDT))
 
     def _test_sympy_activation(self):

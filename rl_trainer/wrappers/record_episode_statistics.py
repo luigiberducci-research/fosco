@@ -1,4 +1,5 @@
 """Wrapper that tracks the cumulative rewards and episode lengths."""
+
 import time
 from collections import deque
 from typing import Optional
@@ -89,9 +90,13 @@ class RecordEpisodeStatistics(gym.Wrapper, gym.utils.RecordConstructorArgs):
 
     def step(self, action):
         """Steps through the environment, recording the episode statistics."""
-        (observations, rewards, terminations, truncations, infos,) = self.env.step(
-            action
-        )
+        (
+            observations,
+            rewards,
+            terminations,
+            truncations,
+            infos,
+        ) = self.env.step(action)
         assert isinstance(
             infos, dict
         ), f"`info` dtype is {type(infos)} while supported dtype is `dict`. This may be due to usage of other wrappers in the wrong order."

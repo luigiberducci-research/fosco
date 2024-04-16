@@ -76,7 +76,8 @@ class TestEnv(unittest.TestCase):
                 f"next_obss is not a numpy array, got {type(next_obss)}",
             )
             self.assertTrue(
-                isinstance(rewards, np.ndarray), "rewards is not a numpy array",
+                isinstance(rewards, np.ndarray),
+                "rewards is not a numpy array",
             )
             self.assertTrue(
                 "costs" in infos and isinstance(infos["costs"], np.ndarray),
@@ -120,7 +121,8 @@ class TestEnv(unittest.TestCase):
                 f"next_obss is not a torch tensor, got {type(next_obss)}",
             )
             self.assertTrue(
-                isinstance(rewards, torch.Tensor), "rewards is not a torch tensor",
+                isinstance(rewards, torch.Tensor),
+                "rewards is not a torch tensor",
             )
             self.assertTrue(
                 isinstance(infos["costs"], torch.Tensor),

@@ -1,7 +1,6 @@
 import time
 import unittest
 
-
 from fosco.common.consts import VerifierType
 from fosco.verifier import make_verifier, Verifier
 from fosco.verifier.verifier import SYMBOL
@@ -11,10 +10,22 @@ class TestVerifier(unittest.TestCase):
     def test_simple_constraints(self):
         verifier_fn = make_verifier(type=VerifierType.Z3)
 
-        def constraint_gen(verif: Verifier, C: SYMBOL, C_constr: list[SYMBOL], C_vars: list[SYMBOL], *args):
+        def constraint_gen(
+            verif: Verifier,
+            C: SYMBOL,
+            C_constr: list[SYMBOL],
+            C_vars: list[SYMBOL],
+            *args,
+        ):
             yield {"sat": (C >= 0.0, C_vars, [])}
 
-        def constraint_gen2(verif: Verifier, C: SYMBOL, C_constr: list[SYMBOL], C_vars: list[SYMBOL], *args):
+        def constraint_gen2(
+            verif: Verifier,
+            C: SYMBOL,
+            C_constr: list[SYMBOL],
+            C_vars: list[SYMBOL],
+            *args,
+        ):
             And_ = verif.solver_fncts()["And"]
             yield {"unsat": (And_(C >= 0.0, C < 0), C_vars, [])}
 
@@ -88,10 +99,22 @@ class TestVerifier(unittest.TestCase):
     def test_simple_constraints_dreal(self):
         verifier_fn = make_verifier(type=VerifierType.DREAL)
 
-        def constraint_gen(verif: Verifier, C: SYMBOL, C_constr: list[SYMBOL], C_vars: list[SYMBOL], *args):
+        def constraint_gen(
+            verif: Verifier,
+            C: SYMBOL,
+            C_constr: list[SYMBOL],
+            C_vars: list[SYMBOL],
+            *args,
+        ):
             yield {"sat": (C >= 0.0, C_vars, [])}
 
-        def constraint_gen2(verif: Verifier, C: SYMBOL, C_constr: list[SYMBOL], C_vars: list[SYMBOL], *args):
+        def constraint_gen2(
+            verif: Verifier,
+            C: SYMBOL,
+            C_constr: list[SYMBOL],
+            C_vars: list[SYMBOL],
+            *args,
+        ):
             And_ = verif.solver_fncts()["And"]
             yield {"unsat": (And_(C >= 0.0, C < 0), C_vars, [])}
 
@@ -152,7 +175,13 @@ class TestVerifier(unittest.TestCase):
         vars = verifier_fn.new_vars(n=1)
         timeout_s = 1
 
-        def constraint_gen(verif: Verifier, C: SYMBOL, C_constr: list[SYMBOL], C_vars: list[SYMBOL], *args):
+        def constraint_gen(
+            verif: Verifier,
+            C: SYMBOL,
+            C_constr: list[SYMBOL],
+            C_vars: list[SYMBOL],
+            *args,
+        ):
             yield {"sat": (C >= 0.0, C_vars, [])}
 
         verifier = verifier_fn(
@@ -188,7 +217,13 @@ class TestVerifier(unittest.TestCase):
         vars = verifier_fn.new_vars(n=1)
         timeout_s = 1
 
-        def constraint_gen(verif: Verifier, C: SYMBOL, C_constr: list[SYMBOL], C_vars: list[SYMBOL], *args):
+        def constraint_gen(
+            verif: Verifier,
+            C: SYMBOL,
+            C_constr: list[SYMBOL],
+            C_vars: list[SYMBOL],
+            *args,
+        ):
             yield {"sat": (C >= 0.0, C_vars, [])}
 
         verifier = verifier_fn(

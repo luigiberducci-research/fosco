@@ -1,6 +1,7 @@
 """
 Example of verifying a known valid CBF for single-integrator dynamics with convex hull uncertainty.
 """
+
 import torch
 import numpy as np
 
@@ -25,22 +26,31 @@ class UncertainFunc(TorchSymFn):
         if len(x.size()) == 3:
             x = torch.squeeze(x, dim=2)
         return (x * torch.tensor(self.uncertain_func)).unsqueeze(dim=2)
-    
+
     def forward_smt(self, x: list) -> list | np.ndarray:
         return np.array(self.uncertain_func) * np.array(x)
+
 
 def main(args):
     system_id = "SingleIntegrator"
     uncertainty_id = "ConvexHull"
     verbose = 1
 
-    uncertain_func_list = [[0.2, 0.2], [0.3, 0.2], [0.5, 0.1]] # define uncertain function to be linear
+    uncertain_func_list = [
+        [0.2, 0.2],
+        [0.3, 0.2],
+        [0.5, 0.1],
+    ]  # define uncertain function to be linear
     f_uncertainty = []
     for uncertain_func in uncertain_func_list:
         f_uncertainty.append(UncertainFunc(uncertain_func))
 
     system_fn = make_system(system_id=system_id)
-    system_fn = add_uncertainty(uncertainty_type=uncertainty_id, system_fn=system_fn, f_uncertainty=f_uncertainty)
+    system_fn = add_uncertainty(
+        uncertainty_type=uncertainty_id,
+        system_fn=system_fn,
+        f_uncertainty=f_uncertainty,
+    )
 
     sets = system_fn().domains
 
@@ -70,14 +80,14 @@ def main(args):
         CERTIFICATE="rcbf",
         MODEL_TO_LOAD="default",
         CEGIS_MAX_ITERS=1,
-        #LOGGER="aim"
+        # LOGGER="aim"
     )
     cegis = Cegis(
         system=system_fn,
         domains=sets,
         data_gen=data_gen,
         config=config,
-        verbose=verbose
+        verbose=verbose,
     )
 
     result = cegis.solve()

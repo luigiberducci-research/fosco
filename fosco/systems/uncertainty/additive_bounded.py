@@ -77,7 +77,9 @@ class AdditiveBounded(UncertaintyWrapper):
         assert (
             len(z.shape) == 3
         ), "expected batched z with shape (batch_size, state_dim, 1)"
-        assert x.shape[0] == z.shape[0], f"expected same batch size for x and z, got {x.shape[0]} and {z.shape[0]}"
+        assert (
+            x.shape[0] == z.shape[0]
+        ), f"expected same batch size for x and z, got {x.shape[0]} and {z.shape[0]}"
         assert isinstance(
             x, type(z)
         ), f"expected same type for x and z, got {type(x)} and {type(z)}"

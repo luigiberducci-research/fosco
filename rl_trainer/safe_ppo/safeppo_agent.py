@@ -17,9 +17,9 @@ from fosco.systems.gym_env.system_env import SystemEnv
 class SafeActorCriticAgent(ActorCriticAgent):
     def __init__(
         self,
-            envs: SystemEnv,
-            barrier: TorchSymDiffModel | Callable,
-            compensator: TorchSymDiffModel | Callable = None,
+        envs: SystemEnv,
+        barrier: TorchSymDiffModel | Callable,
+        compensator: TorchSymDiffModel | Callable = None,
     ):
         super().__init__(envs=envs)
         self.classk_size = 1
@@ -54,7 +54,9 @@ class SafeActorCriticAgent(ActorCriticAgent):
         self.safety_layer = self._make_barrier_layer()
 
         # extract continuous dynamics
-        assert isinstance(envs.system, EulerDTSystem) and not isinstance(envs.unwrapped.system.system, EulerDTSystem)
+        assert isinstance(envs.system, EulerDTSystem) and not isinstance(
+            envs.unwrapped.system.system, EulerDTSystem
+        )
         self.fx = envs.unwrapped.system.system.fx_torch
         self.gx = envs.unwrapped.system.system.gx_torch
 
@@ -82,7 +84,7 @@ class SafeActorCriticAgent(ActorCriticAgent):
         constraints += [Lfhx + Lghx @ u + alphahx + slack >= 0.0]
 
         # objective: u.T Q u + p.T u
-        objective = 1 / 2 * cp.quad_form(u, Q) + px.T @ u + 1000 * slack ** 2
+        objective = 1 / 2 * cp.quad_form(u, Q) + px.T @ u + 1000 * slack**2
         problem = cp.Problem(cp.Minimize(objective), constraints)
 
         return CvxpyLayer(

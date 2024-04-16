@@ -6,6 +6,7 @@ for the system.
 After having found a valid CBF or having reached the maximum number of iterations, the learned function is used
 in simulation with a random explorative policy to demonstrate it can preserve safety while exploring the state space.
 """
+
 import time
 
 import numpy as np
@@ -25,7 +26,7 @@ from rl_trainer.safe_ppo.safeppo_agent import SafeActorCriticAgent
 def main():
     # system parameters
     system_type = "DoubleIntegrator"
-    seed = 133636   # seed for reproducibility, None for random seed
+    seed = 133636  # seed for reproducibility, None for random seed
     verbose = 1
 
     # learning parameters
@@ -48,10 +49,10 @@ def main():
 
     # learn control barrier function
     barrier = learn_barrier(system=system, params=params, seed=seed, verbose=verbose)
-    #barrier = make_barrier(system=system)
+    # barrier = make_barrier(system=system)
     for func in [barrier]:
-       fig = plot_torch_function(function=func, domains=system.domains)
-       fig.show()
+        fig = plot_torch_function(function=func, domains=system.domains)
+        fig.show()
 
     # create simulation environment
     env = SystemEnv(
@@ -108,7 +109,7 @@ def main():
 
     ax.set_xlim(state_domain.lower_bounds[0], state_domain.upper_bounds[0])
     ax.set_ylim(state_domain.lower_bounds[1], state_domain.upper_bounds[1])
-    ax.set_aspect('equal', 'box')
+    ax.set_aspect("equal", "box")
 
     plt.show()
 
@@ -137,7 +138,7 @@ def learn_barrier(system, params, seed, verbose) -> torch.nn.Module:
         "unsafe": lambda n: sets["unsafe"].generate_data(n),
         "lie": lambda n: torch.concatenate(
             [sets["lie"].generate_data(n), sets["input"].generate_data(n)], dim=1
-        )
+        ),
     }
 
     config = CegisConfig(
@@ -160,15 +161,12 @@ def learn_barrier(system, params, seed, verbose) -> torch.nn.Module:
         },
     )
     cegis = Cegis(
-        system=system,
-        domains=sets,
-        config=config,
-        data_gen=data_gen,
-        verbose=verbose
+        system=system, domains=sets, config=config, data_gen=data_gen, verbose=verbose
     )
 
     result = cegis.solve()
     return result.barrier
+
 
 if __name__ == "__main__":
     main()

@@ -3,10 +3,7 @@ from collections import namedtuple
 from dataclasses import dataclass, asdict
 from typing import Type, Any, Iterable, Optional
 
-CegisResult = namedtuple(
-    "CegisResult",
-    ["found", "barrier", "compensator", "infos"]
-)
+CegisResult = namedtuple("CegisResult", ["found", "barrier", "compensator", "infos"])
 
 
 @dataclass

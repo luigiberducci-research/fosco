@@ -18,6 +18,7 @@ class RobustMLPTranslatorDT(MLPTranslatorDT):
         super().__init__(**kwargs)
 
         self._logger.debug("RobustMLPTranslator initialized")
+
     @timed
     def translate(
         self,
@@ -45,8 +46,12 @@ class RobustMLPTranslatorDT(MLPTranslatorDT):
         assert sigma_net is not None, "sigma_net must be not None"
         assert xdot_residual is not None, "xdot_residual not supported"
         assert isinstance(xdot, np.ndarray), "Expected xdot to be np.ndarray"
-        assert isinstance(xdot_residual, np.ndarray), "Expected xdot_residual to be np.ndarray"
-        assert xdot_residual.shape == xdot.shape, f"Expected same shape for xdot and xdot_residual, got {xdot_residual.shape} and {xdot.shape}"
+        assert isinstance(
+            xdot_residual, np.ndarray
+        ), "Expected xdot_residual to be np.ndarray"
+        assert (
+            xdot_residual.shape == xdot.shape
+        ), f"Expected same shape for xdot and xdot_residual, got {xdot_residual.shape} and {xdot.shape}"
 
         x_vars = x_v_map["v"]
         symplify_fn = get_solver_simplify(x_vars)
@@ -59,12 +64,16 @@ class RobustMLPTranslatorDT(MLPTranslatorDT):
         Vdot_symbolic = symbolic_dict["Vdot_symbolic"]
 
         # robust cbf: compensation term
-        sigma_symbolic, sigma_symbolic_constr, sigma_symbolic_vars = sigma_net.forward_smt(x=x_vars)
+        sigma_symbolic, sigma_symbolic_constr, sigma_symbolic_vars = (
+            sigma_net.forward_smt(x=x_vars)
+        )
         sigma_symbolic = symplify_fn(sigma_symbolic)
 
         # time-diff of barrier at the next step under uncertain dynamics
         next_xz = xdot + xdot_residual
-        Vnextz_symbolic, Vnextz_symbolic_constr, Vnextz_symbolic_vars = V_net.forward_smt(x=next_xz)
+        Vnextz_symbolic, Vnextz_symbolic_constr, Vnextz_symbolic_vars = (
+            V_net.forward_smt(x=next_xz)
+        )
         Vdotz_symbolic = Vnextz_symbolic - V_symbolic
 
         # residual in the time-difference of V

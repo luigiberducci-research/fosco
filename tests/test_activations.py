@@ -51,7 +51,9 @@ class TestActivations(unittest.TestCase):
 
             act_success.append(activation_type)
 
-        print(f"Z3 symbolic activations passed {len(act_success)}/{len(ActivationType)}")
+        print(
+            f"Z3 symbolic activations passed {len(act_success)}/{len(ActivationType)}"
+        )
         print(f"Failed activations: {act_fail}")
 
     def test_all_derivative_z3(self):
@@ -95,5 +97,7 @@ class TestActivations(unittest.TestCase):
 
             act_success.append(activation_type)
 
-        print(f"Z3 symbolic activations passed {len(act_success)}/{len(ActivationType)}")
+        print(
+            f"Z3 symbolic activations passed {len(act_success)}/{len(ActivationType)}"
+        )
         print(f"Failed activations: {act_fail}")

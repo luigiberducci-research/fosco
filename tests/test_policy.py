@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 from barriers import make_barrier
-from rl_trainer.safe_ppo.safeppo_agent import BarrierPolicy
+from rl_trainer.safe_ppo.safeppo_agent import SafeActorCriticAgent
 from fosco.systems import make_system
 from fosco.systems.gym_env.system_env import SystemEnv
 
@@ -24,15 +24,20 @@ class TestPolicy(unittest.TestCase):
         system_id = "SingleIntegrator"
         system = make_system(system_id=system_id)()
         barrier = make_barrier(system=system)
+        env = SystemEnv(system=system, max_steps=500, dt=0.1,)
 
         # create random safe policy
-        model = BarrierPolicy(system=system, barrier=barrier).to(device)
+        model = SafeActorCriticAgent(
+            envs=env,
+            barrier=barrier
+        ).to(device)
         model.eval()
 
         # simulation
-        env = SystemEnv(system=system, max_steps=500, dt=0.1,)
         obs, infos = env.reset(seed=seed)
         termination = truncation = False
+
+
 
         # running on a vehicle
         safety, loc_x, loc_y = [], [], []
@@ -49,7 +54,8 @@ class TestPolicy(unittest.TestCase):
             # prepare for model input
             with torch.no_grad():
                 x_r = torch.from_numpy(obs)[None, :].to(device)
-                action = model(x_r)[0]
+                results = model.get_action_and_value(x_r)
+                action = results["action"][0]
 
             # update state
             obs, reward, termination, truncation, infos = env.step(actions=action)
@@ -89,13 +95,16 @@ class TestPolicy(unittest.TestCase):
         system_id = "SingleIntegrator"
         system = make_system(system_id=system_id)()
         barrier = make_barrier(system=system)
+        env = SystemEnv(system=system, max_steps=500, dt=0.1, device=device)
 
         # create random safe policy
-        model = BarrierPolicy(system=system, barrier=barrier, device=device).to(device)
+        model = SafeActorCriticAgent(
+            envs=env,
+            barrier=barrier
+        )
         model.eval()
 
         # simulation
-        env = SystemEnv(system=system, max_steps=500, dt=0.1, device=device)
         obs, infos = env.reset(seed=seed)
         termination = truncation = False
 
@@ -114,7 +123,8 @@ class TestPolicy(unittest.TestCase):
             # prepare for model input
             with torch.no_grad():
                 x_r = torch.from_numpy(obs)[None, :].to(device)
-                action = model(x_r)[0]
+                results = model.get_action_and_value(x_r)
+                action = results["action"][0]
 
             # update state
             obs, reward, termination, truncation, infos = env.step(actions=action)

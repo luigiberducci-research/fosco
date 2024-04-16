@@ -47,18 +47,7 @@ class TrainableCertificate(Certificate):
     Abstract class for certificates that can be trained.
     """
 
+    @staticmethod
     @abstractmethod
-    def __init__(
-        self,
-        system: ControlAffineDynamics,
-        variables: dict[str, list[SYMBOL]],
-        domains: dict[str, Set],
-        config: CegisConfig,
-        verbose: int = 0,
-    ) -> None:
-        super().__init__(system, variables, domains, verbose)
-        self.config = config
-
-    @abstractmethod
-    def learn(self, **kwargs) -> dict[str, float | np.ndarray]:
+    def learn(**kwargs) -> dict[str, float | np.ndarray | dict]:
         raise NotImplementedError

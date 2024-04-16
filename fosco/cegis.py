@@ -1,12 +1,13 @@
 import logging
 from datetime import datetime
+from functools import partial
 from typing import Callable
 
 import numpy as np
 import torch
 
 from barriers import make_barrier, make_compensator
-from fosco.certificates import make_certificate, Certificate
+from fosco.certificates import make_certificate, Certificate, TrainableCertificate
 from fosco.common.domains import Set
 from fosco.config import CegisConfig, CegisResult
 from fosco.consolidator import make_consolidator, Consolidator
@@ -100,15 +101,30 @@ class Cegis:
 
         learner_instance = learner_type(
             state_size=self.f.n_vars,
-            learn_method=self.certificate.learn,
             hidden_sizes=self.config.N_HIDDEN_NEURONS,
             activation=self.config.ACTIVATION,
             optimizer=self.config.OPTIMIZER,
+            epochs=self.config.N_EPOCHS,
             lr=self.config.LEARNING_RATE,
             weight_decay=self.config.WEIGHT_DECAY,
+            loss_margins=self.config.LOSS_MARGINS,
+            loss_weights=self.config.LOSS_WEIGHTS,
+            loss_relu=self.config.LOSS_RELU,
             initial_models=initial_models,
             verbose=self.verbose,
         )
+
+        assert isinstance(self.certificate, TrainableCertificate)
+        n_uncertain = self.f.n_uncertain if isinstance(self.f, UncertainControlAffineDynamics) else 0
+        learner_instance.learn_method = partial(
+            self.certificate.learn,
+            n_vars=self.f.n_vars,
+            n_controls=self.f.n_controls,
+            n_uncertain=n_uncertain,
+            f_torch=self.f._f_torch,
+        )
+
+
         return learner_instance
 
     def _initialise_verifier(self):
@@ -184,7 +200,6 @@ class Cegis:
             system=self.f,
             variables=self.x_map,
             domains=self.domains,
-            config=self.config,
             verbose=self.verbose,
         )
 

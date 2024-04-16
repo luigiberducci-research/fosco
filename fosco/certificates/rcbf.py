@@ -12,7 +12,6 @@ from fosco.config import CegisConfig
 from fosco.common.domains import Set, Rectangle
 from fosco.common.consts import DomainName
 from fosco.common.utils import _set_assertion
-from fosco.learner.learner_rcbf_ct import LearnerRobustCT
 from fosco.verifier.verifier import SYMBOL
 from fosco.systems import ControlAffineDynamics
 
@@ -102,10 +101,14 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
         Returns:
             generator: yields constraints for each domain
         """
-        assert isinstance(B_vars, list) and all([isinstance(v, SYMBOL) for v in B_vars]), f"Expected list of SYMBOL, got {B_vars}"
-        assert isinstance(sigma_vars, list) and all([isinstance(v, SYMBOL) for v in sigma_vars]), f"Expected list of SYMBOL, got {sigma_vars}"
-        assert isinstance(Bdot_vars, list) and all([isinstance(v, SYMBOL) for v in Bdot_vars]), f"Expected list of SYMBOL, got {Bdot_vars}"
-        assert isinstance(Bdot_residual_vars, list) and all([isinstance(v, SYMBOL) for v in Bdot_residual_vars]), f"Expected list of SYMBOL, got {Bdot_residual_vars}"
+        assert isinstance(B_vars, list) and all(
+            [isinstance(v, SYMBOL) for v in B_vars]), f"Expected list of SYMBOL, got {B_vars}"
+        assert isinstance(sigma_vars, list) and all(
+            [isinstance(v, SYMBOL) for v in sigma_vars]), f"Expected list of SYMBOL, got {sigma_vars}"
+        assert isinstance(Bdot_vars, list) and all(
+            [isinstance(v, SYMBOL) for v in Bdot_vars]), f"Expected list of SYMBOL, got {Bdot_vars}"
+        assert isinstance(Bdot_residual_vars, list) and all(
+            [isinstance(v, SYMBOL) for v in Bdot_residual_vars]), f"Expected list of SYMBOL, got {Bdot_residual_vars}"
 
         # initial condition
         # Bx >= 0 if x \in initial
@@ -228,7 +231,7 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
         Robustness constraint
 
         spec := forall x in belt(B==0) forall u forall z  B(x)>0 -> (sigma(x, u, z) >= - (Bdotz - Bdot))
-        counterexample: x \in xdomain and z \in zdomain and u \in udomain and
+        counterexample: x in xdomain and z in zdomain and u in udomain and
                         B(x) > 0 and B(x) < 0.5 and sigma(x,u,z) < - (Bdotz - Bdot)
         """
         _And = verifier.solver_fncts()["And"]
@@ -261,61 +264,18 @@ class RobustControlBarrierFunction(ControlBarrierFunction):
 class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
     """
     Trainable robust CBF (RCBF) for continuous time controlled systems with control affine dynamics.
-
-    Parameters
-    ----------
-    config : CegisConfig
-        The configuration for the CEGIS algorithm.
-    kwargs : dict
-        Other parameters as in TrainableCBF.
-
-    Raises
-    ------
-    AssertionError
-        If the arguments are not of the expected type or if the domains are not valid.
     """
 
-    def __init__(
-            self,
-            system: ControlAffineDynamics,
-            variables: dict[str, list],
-            domains: dict[str, Set],
-            config: CegisConfig,
-            verbose: int = 0,
-    ) -> None:
-        super(TrainableRCBF, self).__init__(
-            system=system, variables=variables, domains=domains, config=config, verbose=verbose
-        )
-
-        # add extra loss margin for uncertainty loss
-        self.loss_keys = self.loss_keys + ["robust", "conservative_sigma"]
-        if isinstance(config.LOSS_MARGINS, float):
-            for loss_k in ["robust", "conservative_sigma"]:
-                self.loss_margins[loss_k] = config.LOSS_MARGINS
-        else:
-            assert "robust" in config.LOSS_MARGINS, f"Missing loss margin 'robust', got {config.LOSS_MARGINS}"
-            assert "conservative_sigma" in config.LOSS_MARGINS, f"Missing loss margin 'conservative_sigma', got {config.LOSS_MARGINS}"
-            self.loss_margins["robust"] = config.LOSS_MARGINS["robust"]
-            self.loss_margins["conservative_sigma"] = config.LOSS_MARGINS["conservative_sigma"]
-
-        # add extra loss weight for uncertainty loss
-        if isinstance(config.LOSS_WEIGHTS, float):
-            for loss in ["robust", "conservative_sigma"]:
-                self.loss_weights[loss] = config.LOSS_WEIGHTS
-        else:
-            for loss in ["robust", "conservative_sigma"]:
-                assert loss in config.LOSS_WEIGHTS, f"Missing loss weight {loss}, got {config.LOSS_WEIGHTS}"
-                self.loss_weights[loss] = config.LOSS_WEIGHTS[loss]
-
-        # rerun assertion with extended loss terms
-        self._assert_state()
-
+    @staticmethod
     def learn(
-            self,
-            learner: LearnerRobustCT,
+            learner,
             optimizers: dict[str, Optimizer],
             datasets: dict,
             f_torch: callable,
+            n_vars: int,
+            n_controls: int,
+            n_uncertain: int,
+            **kwargs,
     ) -> dict[str, float | np.ndarray | dict]:
         """
         Updates the CBF model.
@@ -337,23 +297,20 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
         i3 = datasets[XU].shape[0]
 
         states_d = torch.cat(
-            [datasets[label][:, : self.n_vars] for label in [XD, XI, XU]]
+            [datasets[label][:, : n_vars] for label in [XD, XI, XU]]
         )
-        input_d = datasets[XD][:, self.n_vars: self.n_vars + self.n_controls]
+        input_d = datasets[XD][:, n_vars: n_vars + n_controls]
 
-
-        states_dz = datasets[ZD][:, : self.n_vars]
-        input_dz = datasets[ZD][:, self.n_vars: self.n_vars + self.n_controls]
+        states_dz = datasets[ZD][:, : n_vars]
+        input_dz = datasets[ZD][:, n_vars: n_vars + n_controls]
         uncert_dz = datasets[ZD][
-               :,
-               self.n_vars
-               + self.n_controls: self.n_vars
-                                  + self.n_controls
-                                  + self.n_uncertain,
-               ]
+                    :,
+                    n_vars
+                    + n_controls: n_vars + n_controls + n_uncertain,
+                    ]
 
         losses, accuracies, infos = {}, {}, {}
-        for t in range(self.epochs):
+        for t in range(learner.epochs):
             optimizers["barrier"].zero_grad()
 
             # compute output for barrier loss
@@ -369,14 +326,15 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
                     B_d.shape[0] == input_d.shape[0]
             ), f"expected pairs of state,input data. Got {B_d.shape[0]} and {input_d.shape[0]}"
             sigma_d = sigma[:i1, 0]
-            Bdot_d = self._compute_barrier_difference(
-                X_d=datasets[XD][:, : self.n_vars],
-                U_d=datasets[XD][:, self.n_vars: self.n_vars + self.n_controls],
+            Bdot_d = TrainableRCBF._compute_barrier_difference(
+                X_d=datasets[XD][:, : n_vars],
+                U_d=datasets[XD][:, n_vars: n_vars + n_controls],
                 barrier=learner.net,
                 f_torch=partial(f_torch, z=None, only_nominal=True),
             )
 
-            barrier_loss, barrier_losses, barrier_accuracies = self._compute_loss(
+            barrier_loss, barrier_losses, barrier_accuracies = TrainableRCBF._compute_loss(
+                learner=learner,
                 B_i=B_i,
                 B_u=B_u,
                 B_d=B_d,
@@ -392,20 +350,21 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
 
             B_dz = learner.net(states_dz)[:, 0]
             sigma_dz = learner.xsigma(states_dz)[:, 0]
-            Bdot_dz = self._compute_barrier_difference(
+            Bdot_dz = TrainableRCBF._compute_barrier_difference(
                 X_d=states_dz,
                 U_d=input_dz,
                 barrier=learner.net,
                 f_torch=partial(f_torch, z=uncert_dz, only_nominal=True)
             )
-            Bdotz_dz = self._compute_barrier_difference(
+            Bdotz_dz = TrainableRCBF._compute_barrier_difference(
                 X_d=states_dz,
                 U_d=input_dz,
                 barrier=learner.net,
                 f_torch=partial(f_torch, z=uncert_dz, only_nominal=False)
             )
 
-            sigma_loss, sigma_losses, sigma_accuracies = self.compute_robust_loss(
+            sigma_loss, sigma_losses, sigma_accuracies = TrainableRCBF.compute_robust_loss(
+                learner=learner,
                 B_dz=B_dz,
                 Bdotz_dz=Bdotz_dz,
                 Bdot_dz=Bdot_dz,
@@ -421,7 +380,7 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
                 "netgrad_sos": netgrad_sos.item(),
             }
 
-            if t % math.ceil(self.epochs / 10) == 0 or self.epochs - t < 10:
+            if t % math.ceil(learner.epochs / 10) == 0 or learner.epochs - t < 10:
                 # log_loss_acc(t, loss, accuracy, learner.verbose)
                 logging.debug(f"Epoch {t}")
                 logging.debug(f"accuracy={accuracies}")
@@ -444,8 +403,9 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
             "info": infos,
         }
 
+    @staticmethod
     def compute_robust_loss(
-            self,
+            learner,
             B_dz: torch.Tensor,
             Bdotz_dz: torch.Tensor,
             Bdot_dz: torch.Tensor,
@@ -459,14 +419,14 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
         ), f"B_d and Bdotz_dz must have the same shape, got {B_dz.shape} and {Bdotz_dz.shape}"
 
         belt_margin = 0.5
-        margin_robust = self.loss_margins["robust"]
-        weight_robust = self.loss_weights["robust"]
-        weight_conservative_s = self.loss_weights["conservative_sigma"]
+        margin_robust = learner.loss_margins["robust"]
+        weight_robust = learner.loss_weights["robust"]
+        weight_conservative_s = learner.loss_weights["conservative_sigma"]
 
         accuracy_z = torch.logical_and(
-                B_dz < belt_margin,
-                sigma_dz + Bdotz_dz - Bdot_dz >= 0,
-            ).count_nonzero().item()
+            B_dz < belt_margin,
+            sigma_dz + Bdotz_dz - Bdot_dz >= 0,
+        ).count_nonzero().item()
 
         percent_accuracy_robust = 100 * accuracy_z / Bdot_dz.shape[0]
 
@@ -475,12 +435,12 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
         compensator_term = belt_mask * (margin_robust - (sigma_dz + Bdotz_dz - Bdot_dz))
 
         robust_loss = (
-                weight_robust * self.loss_relu(compensator_term).mean()
+                weight_robust * learner.loss_relu(compensator_term).mean()
         )
 
         # regularization losses
         # penalize high sigma (conservative)
-        loss_sigma_pos = self.loss_relu(sigma_dz).mean()  # penalize sigma_dz > 0
+        loss_sigma_pos = learner.loss_relu(sigma_dz).mean()  # penalize sigma_dz > 0
         loss_sigma_conservative = (
                 weight_conservative_s * loss_sigma_pos
         )
@@ -498,8 +458,7 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
         }
 
         # debug
-        logging.debug("Dataset Accuracy:")
-        logging.debug("\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
+        learner._logger.debug("Dataset Accuracy:")
+        learner._logger.debug("\n".join([f"{k}:{v}" for k, v in accuracy.items()]))
 
         return sigma_loss, losses, accuracy
-

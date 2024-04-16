@@ -12,12 +12,12 @@ def make_learner(
 ) -> Type[LearnerNN]:
 
     if isinstance(system, UncertainControlAffineDynamics):
-        from fosco.learner.learner_rcbf_ct import LearnerRobustCT
+        from fosco.learner.learner_rcbf_ct import LearnerRobustCBF
 
-        return LearnerRobustCT
+        return LearnerRobustCBF
     else:
-        from fosco.learner.learner_cbf_ct import LearnerCT
-        return LearnerCT
+        from fosco.learner.learner_cbf_ct import LearnerCBF
+        return LearnerCBF
 
 
 def make_optimizer(optimizer: str | None, **kwargs) -> torch.optim.Optimizer:

@@ -1,6 +1,5 @@
 import logging
 import time
-from argparse import Namespace
 from typing import Optional, Type
 
 import gymnasium
@@ -60,6 +59,7 @@ class PPOTrainer(RLTrainer):
         device = self.device
 
         # verbosity
+        klog = 10  # show logs for last k episodes
         verbose = min(max(verbose, 0), len(LOGGING_LEVELS) - 1)
         self._logger.setLevel(LOGGING_LEVELS[verbose])
         self._logger.debug("Starting training...")
@@ -79,12 +79,16 @@ class PPOTrainer(RLTrainer):
 
         for iteration in range(1, self.cfg.num_iterations + 1):
             self._logger.info(
-                f"iteration {iteration}/{self.cfg.num_iterations} \n"
-                f"\tglobal step: {global_step}/{self.cfg.total_timesteps} \n"
-                f"\tepisodic returns: {np.mean(train_return[-10:]):.2f} +/- {np.std(train_return[-10:]):.2f} \n"
-                f"\tepisodic costs: {np.mean(train_cost[-10:]):.2f} +/- {np.std(train_cost[-10:]):.2f} \n"
-                f"\tepisodic lengths: {np.mean(train_lengths[-10:]):.2f} +/- {np.std(train_lengths[-10:]):.2f} \n"
+                f"iteration {iteration}/{self.cfg.num_iterations}"
             )
+            if len(train_steps) > klog:
+                self._logger.info(
+                    f"Last {klog} episodes: \n" 
+                    f"\tglobal step: {global_step}/{self.cfg.total_timesteps} \n"
+                    f"\tepisodic returns: {np.mean(train_return[-klog:]):.2f} +/- {np.std(train_return[-klog:]):.2f} \n"
+                    f"\tepisodic costs: {np.mean(train_cost[-klog:]):.2f} +/- {np.std(train_cost[-klog:]):.2f} \n"
+                    f"\tepisodic lengths: {np.mean(train_lengths[-klog:]):.2f} +/- {np.std(train_lengths[-klog:]):.2f} \n"
+                )
 
             agent = self.get_actor()
 

@@ -1,22 +1,17 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
+import gymnasium
 import torch
+from torch.utils.tensorboard import SummaryWriter
 
 
 class RLTrainer(ABC):
     @abstractmethod
     def train(
-        self,
-        obs: torch.Tensor,
-        actions: torch.Tensor,
-        rewards: torch.Tensor,
-        dones: torch.Tensor,
-        next_obs: torch.Tensor,
-        next_done: Optional[torch.Tensor] = None,
-        values: Optional[torch.Tensor] = None,
-        logprobs: Optional[torch.Tensor] = None,
-        global_step: Optional[int] = None,
+            self,
+            envs: gymnasium.Env,
+            writer: Optional[SummaryWriter],
     ) -> dict[str, float]:
         pass
 

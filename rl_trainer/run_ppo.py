@@ -14,14 +14,15 @@ import tyro
 from torch.utils.tensorboard import SummaryWriter
 
 from fosco.systems.gym_env.system_env import SystemEnv
+from rl_trainer.ppo.ppo_config import PPOConfig
 from rl_trainer.safe_ppo.safeppo_trainer import SafePPOTrainer
 from rl_trainer.ppo.ppo_trainer import PPOTrainer
 from rl_trainer.common.utils import make_env
 
 
 @dataclass
-class Args:
-    exp_name: str = os.path.basename(__file__)[: -len(".py")]
+class Args(PPOConfig):
+    exp_name: str = pathlib.Path(__file__).stem
     """the name of this experiment"""
     seed: int = 1
     """seed of the experiment"""
@@ -43,60 +44,12 @@ class Args:
     """render mode during training if no capture video"""
     save_model: bool = True
     """whether to save model into the `runs/{run_name}` folder"""
-    upload_model: bool = False
-    """whether to upload the saved model to huggingface"""
-    hf_entity: str = ""
-    """the user or org name of the model repository from the Hugging Face Hub"""
     logdir: str = f"{pathlib.Path(__file__).parent.parent}/runs"
     """the directory to save the logs"""
-
-    # Algorithm specific arguments
     env_id: str = "Hopper-v4"  # "systems:SingleIntegrator-GoToUnsafeReward-v0"
     """the id of the environment"""
     trainer_id: str = "ppo"
     """the id of the rl trainer"""
-    total_timesteps: int = 50000
-    """total timesteps of the experiments"""
-    learning_rate: float = 3e-4
-    """the learning rate of the optimizer"""
-    num_envs: int = 1
-    """the number of parallel game environments"""
-    num_steps: int = 2048
-    """the number of steps to run in each environment per policy rollout"""
-    num_eval_episodes: int = 10
-    """the number of episodes to evaluate the policy at the end of training"""
-    anneal_lr: bool = True
-    """Toggle learning rate annealing for policy and value networks"""
-    gamma: float = 0.99
-    """the discount factor gamma"""
-    gae_lambda: float = 0.95
-    """the lambda for the general advantage estimation"""
-    num_minibatches: int = 32
-    """the number of mini-batches"""
-    update_epochs: int = 10
-    """the K epochs to update the policy"""
-    norm_adv: bool = True
-    """Toggles advantages normalization"""
-    clip_coef: float = 0.2
-    """the surrogate clipping coefficient"""
-    clip_vloss: bool = True
-    """Toggles whether or not to use a clipped loss for the value function, as per the paper."""
-    ent_coef: float = 0.0
-    """coefficient of the entropy"""
-    vf_coef: float = 0.5
-    """coefficient of the value function"""
-    max_grad_norm: float = 0.5
-    """the maximum norm for the gradient clipping"""
-    target_kl: float = None
-    """the target KL divergence threshold"""
-
-    # to be filled in runtime
-    batch_size: int = 0
-    """the batch size (computed in runtime)"""
-    minibatch_size: int = 0
-    """the mini-batch size (computed in runtime)"""
-    num_iterations: int = 0
-    """the number of iterations (computed in runtime)"""
 
 
 def evaluate(
@@ -200,118 +153,18 @@ def run(args):
     ), "only continuous action space is supported"
 
     if args.trainer_id == "ppo":
-        trainer = PPOTrainer(envs=envs, args=args, device=device)
+        trainer = PPOTrainer(envs=envs, config=args, device=device)
     elif args.trainer_id == "safe-ppo":
         if not isinstance(envs.envs[0].unwrapped, SystemEnv):
             raise TypeError(f"SafePPO only supports SystemEnv, got {envs.envs[0].unwrapped}")
         from barriers import make_barrier
         system = envs.envs[0].unwrapped.system
         barrier = make_barrier(system=system)
-        trainer = SafePPOTrainer(envs=envs, barrier=barrier, args=args, device=device)
+        trainer = SafePPOTrainer(envs=envs, barrier=barrier, config=args, device=device)
     else:
         raise NotImplementedError(f"No trainer implemented for id={args.trainer_id}")
 
-    # TRY NOT TO MODIFY: start the game
-    global_step = 0
-    start_time = time.time()
-    next_obs, _ = envs.reset(seed=args.seed)
-    next_obs = torch.Tensor(next_obs).to(device)
-    next_done = torch.zeros(args.num_envs).to(device)
-
-    for iteration in range(1, args.num_iterations + 1):
-        agent = trainer.get_actor()
-
-        # data collection
-        for step in range(0, args.num_steps):
-            global_step += args.num_envs
-            cur_obs = torch.clone(next_obs)
-
-            # ALGO LOGIC: action logic
-            # note: we dont want to keep gradients of inference but we cannot use torch.nograd because we need
-            # autograd for the barrier derivative
-            # with torch.no_grad():
-            results = agent.get_action_and_value(next_obs)
-            results = {
-                k: v.detach() for k, v in results.items()
-            }  # solution: detach all returned values
-            action = (
-                results["safe_action"]
-                if "safe_action" in results
-                else results["action"]
-            )
-
-            # TRY NOT TO MODIFY: execute the game and log data.
-            next_obs, reward, terminations, truncations, infos = envs.step(
-                action.cpu().numpy()
-            )
-            next_done = np.logical_or(terminations, truncations)
-            next_obs, next_done = (
-                torch.Tensor(next_obs).to(device),
-                torch.Tensor(next_done).to(device),
-            )
-            envs.envs[0].render()
-
-            if "final_info" not in infos:
-                cost = (
-                    infos["costs"][0]
-                    if "costs" in infos
-                    else np.zeros(args.num_envs, dtype=np.float32)
-                )
-            else:
-                cost = []
-                for i, info in enumerate(infos["final_info"]):
-                    if info is None:
-                        c = (
-                            infos["costs"][i]
-                            if "costs" in infos
-                            else np.zeros(args.num_envs, dtype=np.float32)
-                        )
-                        cost.append(c)
-                    else:
-                        c = (
-                            info["costs"]
-                            if "costs" in infos
-                            else np.zeros(args.num_envs, dtype=np.float32)
-                        )
-                        cost.append(c)
-
-            trainer.buffer.push(
-                obs=cur_obs,
-                done=next_done,
-                reward=torch.tensor(reward).to(device).view(-1),
-                cost=torch.tensor(cost).to(device).view(-1),
-                **results,
-            )
-
-            if "final_info" in infos:
-                for info in infos["final_info"]:
-                    if info and "episode" in info:
-                        print(
-                            f"global_step={global_step}, episodic_return={info['episode']['r']}, episodic_cost={info['episode']['c']}"
-                        )
-                        if writer:
-                            writer.add_scalar(
-                                "charts/episodic_return", info["episode"]["r"], global_step
-                            )
-                            writer.add_scalar(
-                                "charts/episodic_cost", info["episode"]["c"], global_step
-                            )
-                            writer.add_scalar(
-                                "charts/episodic_length", info["episode"]["l"], global_step
-                            )
-
-        # update agent
-        train_infos = trainer.train(next_obs=next_obs, next_done=next_done,)
-
-        # TRY NOT TO MODIFY: record rewards for plotting purposes
-        sps = int(global_step / (time.time() - start_time))
-        print("SPS:", sps)
-        if writer:
-            for k, v in train_infos.items():
-                writer.add_scalar(k, v, global_step)
-            writer.add_scalar(
-                "charts/SPS", int(global_step / (time.time() - start_time)), global_step
-            )
+    trainer.train(envs=envs, writer=writer)
 
     if logdir and args.save_model:
         raise warnings.warn("saving model is not tested yet")

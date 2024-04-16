@@ -7,10 +7,9 @@ import torch
 
 from barriers import make_barrier, make_compensator
 from fosco.certificates import make_certificate, Certificate
-from fosco.common.domains import Rectangle, Set
+from fosco.common.domains import Set
 from fosco.config import CegisConfig, CegisResult
 from fosco.consolidator import make_consolidator, Consolidator
-from fosco.common.consts import DomainName, CertificateType
 from fosco.learner import make_learner, LearnerNN
 from fosco.plotting.data import scatter_datasets
 from fosco.plotting.functions import (

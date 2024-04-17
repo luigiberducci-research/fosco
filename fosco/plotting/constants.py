@@ -1,7 +1,7 @@
-from plotly.graph_objs import Figure
-import matplotlib as mpl
+from plotly.graph_objs import Figure as plotlyFigure
+from matplotlib.figure import Figure as mplFigure
 
-FigureType = Figure | mpl.figure.Figure
+FigureType = plotlyFigure | mplFigure
 
 DOMAIN_COLORS = {
     "init": "blue",

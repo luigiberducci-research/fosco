@@ -1,6 +1,7 @@
 import unittest
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 from fosco.common.domains import Rectangle, Sphere, Intersection
 from fosco.models import TorchMLP
@@ -75,7 +76,6 @@ class TestPlottingUtils(unittest.TestCase):
         self.assertTrue(
             isinstance(fig, Figure), f"plot should return a plotly figure, got {fig}"
         )
-
         # fig.show()
 
         fig, ax = plt.subplots(subplot_kw=dict(projection="3d"))
@@ -85,5 +85,60 @@ class TestPlottingUtils(unittest.TestCase):
             isinstance(fig, plt.Figure),
             f"plot should return a matplotlib figure, got {fig}",
         )
+        # plt.show()
 
+    def test_plot_datasets(self):
+        from plotly.graph_objs import Figure
+        import matplotlib.pyplot as plt
+        from fosco.plotting.utils2d import scatter_datasets
+
+        from fosco.systems import make_system
+
+        system = make_system("SingleIntegrator")()
+        domains = system.domains
+
+        datas = {}
+        for name, domain in domains.items():
+            data = domain.generate_data(100)
+            datas[name] = data
+
+        fig = Figure()
+        fig = scatter_datasets(datas, counter_examples={}, fig=fig)
+        self.assertTrue(
+            isinstance(fig, Figure), f"plot should return a plotly figure, got {fig}"
+        )
+        # fig.show()
+
+        fig, ax = plt.subplots()
+        fig = scatter_datasets(datas, counter_examples={}, fig=fig)
+        self.assertTrue(
+            isinstance(fig, plt.Figure),
+            f"plot should return a matplotlib figure, got {fig}",
+        )
+        # plt.show()
+
+    def test_plot_functions(self):
+        from plotly.graph_objs import Figure
+        import matplotlib.pyplot as plt
+        from fosco.plotting.utils3d import plot_surface
+
+        def func(x):
+            assert (
+                len(x.shape) == 2 and x.shape[1] == 2
+            ), "x must be a batch of 2d points"
+            return np.sin(x[:, 0])  # + np.cos(x[:, 1])
+
+        fig = Figure()
+        fig = plot_surface(func, (-10, 10), (-5, 5), levels=[0], label="test", fig=fig)
+        self.assertTrue(
+            isinstance(fig, Figure), f"plot should return a plotly figure, got {fig}"
+        )
+        # fig.show()
+
+        fig, ax = plt.subplots(subplot_kw=dict(projection="3d"))
+        fig = plot_surface(func, (-10, 10), (-5, 5), levels=[0], label="test", fig=fig)
+        self.assertTrue(
+            isinstance(fig, plt.Figure),
+            f"plot should return a matplotlib figure, got {fig}",
+        )
         # plt.show()

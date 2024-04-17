@@ -157,10 +157,7 @@ class TestModel(unittest.TestCase):
             ),
         }
 
-        cfg = CegisConfig(
-            BARRIER_TO_LOAD="default",
-            CEGIS_MAX_ITERS=10,
-        )
+        cfg = CegisConfig(BARRIER_TO_LOAD="default", CEGIS_MAX_ITERS=10,)
 
         cegis = Cegis(system=system_fn(), domains=sets, config=cfg, data_gen=data_gen)
 
@@ -210,9 +207,7 @@ class TestModel(unittest.TestCase):
             output_activation="linear",
         )
 
-        model = SequentialTorchMLP(
-            mlps=[mlp1, mlp2],
-        )
+        model = SequentialTorchMLP(mlps=[mlp1, mlp2],)
 
         x_batch = torch.randn(10, 2)
         y_batch = model(x_batch)
@@ -367,14 +362,8 @@ class TestModel(unittest.TestCase):
 
         mlp1 = TorchMLP(
             input_size=2,
-            hidden_sizes=(
-                4,
-                4,
-            ),
-            activation=(
-                "relu",
-                "relu",
-            ),
+            hidden_sizes=(4, 4,),
+            activation=("relu", "relu",),
             output_size=1,
             output_activation="linear",
         )

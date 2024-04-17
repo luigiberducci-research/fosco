@@ -9,7 +9,7 @@ from plotly.graph_objs import Figure
 
 from fosco.common.domains import Set, Rectangle
 from fosco.models import TorchSymDiffFn, TorchSymFn
-from fosco.plotting.constants import DOMAIN_COLORS
+from fosco.plotting.constants import DOMAIN_COLORS, FigureType
 from fosco.plotting.domains import plot_domain
 from fosco.plotting.utils3d import plot_surface
 
@@ -37,6 +37,7 @@ def plot_func_and_domains(
     levels: list[float] = None,
     domains: dict[str, Set] = None,
     dim_select: tuple[int, int] = None,
+    fig: FigureType = None,
 ) -> Figure:
     """
     Plot the function of a torch module projected onto 2d input space.
@@ -82,8 +83,7 @@ def plot_func_and_domains(
         in_domain.upper_bounds[dim_select[1]],
     )
 
-    fig = Figure()
-
+    fig = fig or go.Figure()
     fig = plot_surface(
         func=proj_func,
         xrange=xrange,
@@ -95,11 +95,14 @@ def plot_func_and_domains(
 
     for dname, domain in domains.items():
         color = DOMAIN_COLORS[dname] if dname in DOMAIN_COLORS else None
-        fig = plot_domain(domain, fig, color=color, dim_select=dim_select, label=dname)
+        fig = plot_domain(
+            domain=domain, fig=fig, color=color, dim_select=dim_select, label=dname
+        )
 
     # show legend and hide colorbar
-    fig.update_traces(showlegend=True)
-    fig.update_traces(showscale=False, selector=dict(type="surface"))
+    if isinstance(fig, go.Figure):
+        fig.update_traces(showlegend=True)
+        fig.update_traces(showscale=False, selector=dict(type="surface"))
 
     return fig
 

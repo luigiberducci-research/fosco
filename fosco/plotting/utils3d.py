@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib as mpl
 
 import plotly.graph_objects as go
+from matplotlib import cm
 from plotly.graph_objs import Surface
 
 from fosco.common.domains import Set
@@ -18,13 +19,14 @@ def plot_surface(
     levels: list[float] = None,
     label: str = "",
     bins: int = 100,
-    level_color: str = "white",
+    level_color: str = "black",
     opacity: float = 1.0,
-    fig: go.Figure = None,
+    fig: FigureType = None,
 ):
     """
     Plot the surface of the function over 2d space.
     """
+    fig = fig or go.Figure()
     levels = levels or []
 
     x = np.linspace(xrange[0], xrange[1], bins)
@@ -35,24 +37,25 @@ def plot_surface(
     inputs = np.hstack([Xflat, Yflat])
     z = func(inputs).reshape(bins, bins)
 
-    if fig is None:
-        fig = go.Figure(data=[go.Surface(x=x, y=y, z=z)])
-    else:
-        fig.add_trace(go.Surface(x=x, y=y, z=z, opacity=opacity, name=label))
+    if isinstance(fig, mpl.figure.Figure):
+        fig = plot_surface3d_mpl(X, Y, z, fig, label, color=None, opacity=opacity)
+        fig.gca().contour(X, Y, z, levels=levels, colors=level_color, linewidths=2)
+    elif isinstance(fig, go.Figure):
+        fig = plot_surface3d_plotly(X, Y, z, fig, label, color=None, opacity=opacity)
 
-    for level in levels:
-        small_sz = 0.01
-        fig.update_traces(
-            contours_z=dict(
-                show=True,
-                color=level_color,
-                highlightcolor="limegreen",
-                project_z=False,
-                start=level,
-                end=level + small_sz,
-                size=small_sz,
+        for level in levels:
+            small_sz = 0.01
+            fig.update_traces(
+                contours_z=dict(
+                    show=True,
+                    color=level_color,
+                    highlightcolor="limegreen",
+                    project_z=False,
+                    start=level,
+                    end=level + small_sz,
+                    size=small_sz,
+                )
             )
-        )
 
     return fig
 
@@ -78,17 +81,25 @@ def plot_scattered_points3d(
     return fig
 
 
-def plot_surface3d_plotly(xs, ys, zs, fig, label="", color=None) -> FigureType:
+def plot_surface3d_plotly(
+    xs, ys, zs, fig, label="", color=None, opacity=None
+) -> FigureType:
     if color:
         color = [[0.0, color], [1.0, color]]
 
-    surface = Surface(x=xs, y=ys, z=zs, colorscale=color, showscale=False, name=label)
+    surface = Surface(
+        x=xs, y=ys, z=zs, colorscale=color, showscale=False, name=label, opacity=opacity
+    )
     fig.add_trace(surface)
     return fig
 
 
-def plot_surface3d_mpl(xs, ys, zs, fig, label="", color=None) -> FigureType:
-    fig.gca().plot_surface(xs, ys, zs, color=color, label=label, alpha=0.80)
+def plot_surface3d_mpl(
+    xs, ys, zs, fig, label="", color=None, opacity=None
+) -> FigureType:
+    fig.gca().plot_surface(
+        xs, ys, zs, color=color, label=label, alpha=opacity, cmap=cm.plasma
+    )
     return fig
 
 

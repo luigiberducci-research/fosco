@@ -96,8 +96,7 @@ class TestRLTraining(unittest.TestCase):
         )
 
         self.assertTrue(
-            any(costs > 0),
-            f"We expect some costs to be >0, got {costs}",
+            any(costs > 0), f"We expect some costs to be >0, got {costs}",
         )
 
         # delete logdir once test is done
@@ -139,8 +138,7 @@ class TestRLTraining(unittest.TestCase):
         )
 
         self.assertTrue(
-            all(costs <= 0),
-            f"We expect all costs to be 0, got {costs}",
+            all(costs <= 0), f"We expect all costs to be 0, got {costs}",
         )
 
         # delete logdir once test is done
@@ -175,12 +173,10 @@ class TestRLTraining(unittest.TestCase):
         costs = df[df["metric"] == "eval/episodic_cost"]["value"]
 
         self.assertTrue(
-            len(returns) > 0,
-            f"We expect to have some returns, got {len(returns)}",
+            len(returns) > 0, f"We expect to have some returns, got {len(returns)}",
         )
         self.assertTrue(
-            len(costs) > 0,
-            f"We expect to have some costs, got {len(costs)}",
+            len(costs) > 0, f"We expect to have some costs, got {len(costs)}",
         )
 
         # delete logdir once test is done

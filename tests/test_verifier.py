@@ -31,14 +31,10 @@ class TestVerifier(unittest.TestCase):
 
         vars = verifier_fn.new_vars(n=1)
         verifier = verifier_fn(
-            solver_vars=vars,
-            constraints_method=constraint_gen,
-            solver_timeout=10,
+            solver_vars=vars, constraints_method=constraint_gen, solver_timeout=10,
         )
         verifier2 = verifier_fn(
-            solver_vars=vars,
-            constraints_method=constraint_gen2,
-            solver_timeout=10,
+            solver_vars=vars, constraints_method=constraint_gen2, solver_timeout=10,
         )
 
         C = vars[0] + 1.0
@@ -120,14 +116,10 @@ class TestVerifier(unittest.TestCase):
 
         vars = verifier_fn.new_vars(n=1)
         verifier = verifier_fn(
-            solver_vars=vars,
-            constraints_method=constraint_gen,
-            solver_timeout=10,
+            solver_vars=vars, constraints_method=constraint_gen, solver_timeout=10,
         )
         verifier2 = verifier_fn(
-            solver_vars=vars,
-            constraints_method=constraint_gen2,
-            solver_timeout=10,
+            solver_vars=vars, constraints_method=constraint_gen2, solver_timeout=10,
         )
 
         C = vars[0] + 1.0

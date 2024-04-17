@@ -16,11 +16,12 @@ class SafePPOTrainer(PPOTrainer):
     def __init__(
         self,
         envs: gymnasium.Env,
-        barrier: nn.Module,
         config: PPOConfig,
+        barrier: nn.Module,
+        compensator: nn.Module = None,
         device: Optional[torch.device] = None,
     ) -> None:
-        agent_cls = partial(SafeActorCriticAgent, barrier=barrier)
+        agent_cls = partial(SafeActorCriticAgent, barrier=barrier, compensator=compensator)
         super().__init__(
             envs=envs,
             config=config,

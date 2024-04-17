@@ -156,13 +156,10 @@ class Rectangle(Set):
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
         all_constr = torch.logical_and(
-            torch.tensor(self.upper_bounds) >= x, torch.tensor(self.lower_bounds) <= x
+            torch.tensor(self.upper_bounds) >= x,
+            torch.tensor(self.lower_bounds) <= x
         )
-        ans = torch.zeros((x.shape[0]))
-        for idx in range(all_constr.shape[0]):
-            ans[idx] = all_constr[idx, :].all()
-
-        return ans.bool()
+        return all_constr.all(dim=-1)
 
 
 class Sphere(Set):
@@ -232,7 +229,7 @@ class Sphere(Set):
         if self.dim_select:
             x = x[:, self.dim_select]
         c = torch.tensor(self.center).reshape(1, -1).to(x.device)
-        return (x - c).norm(2, dim=-1) - self.radius ** 2 <= epsilon
+        return (x - c).norm(2, dim=-1) - self.radius <= epsilon
 
 
 class Union(Set):

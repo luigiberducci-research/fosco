@@ -158,11 +158,7 @@ def hard_hyper_tan(x):
     _If = fns["If"]
 
     for idx in range(len(y)):
-        y[idx, 0] = _If(
-            y[idx, 0] > 1.0,
-            1.0,
-            _If(y[idx, 0] < -1.0, -1.0, y[idx, 0]),
-        )
+        y[idx, 0] = _If(y[idx, 0] > 1.0, 1.0, _If(y[idx, 0] < -1.0, -1.0, y[idx, 0]),)
     return y
 
 
@@ -189,9 +185,7 @@ def hard_sigm(x):
 
     for idx in range(len(y)):
         y[idx, 0] = _If(
-            y[idx, 0] > 3.0,
-            1.0,
-            _If(y[idx, 0] < -3.0, 0.0, y[idx, 0] / 6 + 0.5),
+            y[idx, 0] > 3.0, 1.0, _If(y[idx, 0] < -3.0, 0.0, y[idx, 0] / 6 + 0.5),
         )
     return y
 
@@ -226,7 +220,7 @@ def rational_sym(x):
     """
     Rational activation f(x) = 1/(1 + x^2)
     """
-    return x / (1 + (x**2) ** 0.5)
+    return x / (1 + (x ** 2) ** 0.5)
 
 
 ##############################
@@ -280,11 +274,7 @@ def hard_hyper_tan_der(x):
     fns = get_solver_fns(x[0])
     _If = fns["If"]
     for idx in range(len(y)):
-        y[idx, 0] = _If(
-            y[idx, 0] > 1.0,
-            0.0,
-            _If(y[idx, 0] < -1.0, 0.0, 1),
-        )
+        y[idx, 0] = _If(y[idx, 0] > 1.0, 0.0, _If(y[idx, 0] < -1.0, 0.0, 1),)
 
     return y
 
@@ -314,14 +304,10 @@ def hard_sigm_der(x):
     y = x.copy()
 
     for idx in range(len(y)):
-        y[idx, 0] = _If(
-            y[idx, 0] > 3.0,
-            0.0,
-            _If(y[idx, 0] < -3.0, 0.0, 1 / 6),
-        )
+        y[idx, 0] = _If(y[idx, 0] > 3.0, 0.0, _If(y[idx, 0] < -3.0, 0.0, 1 / 6),)
 
     return y
 
 
 def rational_der_sym(x):
-    return 1 / (1 + x**2)
+    return 1 / (1 + x ** 2)

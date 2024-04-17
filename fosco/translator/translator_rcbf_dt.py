@@ -64,16 +64,20 @@ class RobustMLPTranslatorDT(MLPTranslatorDT):
         Vdot_symbolic = symbolic_dict["Vdot_symbolic"]
 
         # robust cbf: compensation term
-        sigma_symbolic, sigma_symbolic_constr, sigma_symbolic_vars = (
-            sigma_net.forward_smt(x=x_vars)
-        )
+        (
+            sigma_symbolic,
+            sigma_symbolic_constr,
+            sigma_symbolic_vars,
+        ) = sigma_net.forward_smt(x=x_vars)
         sigma_symbolic = symplify_fn(sigma_symbolic)
 
         # time-diff of barrier at the next step under uncertain dynamics
         next_xz = xdot + xdot_residual
-        Vnextz_symbolic, Vnextz_symbolic_constr, Vnextz_symbolic_vars = (
-            V_net.forward_smt(x=next_xz)
-        )
+        (
+            Vnextz_symbolic,
+            Vnextz_symbolic_constr,
+            Vnextz_symbolic_vars,
+        ) = V_net.forward_smt(x=next_xz)
         Vdotz_symbolic = Vnextz_symbolic - V_symbolic
 
         # residual in the time-difference of V

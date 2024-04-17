@@ -183,10 +183,7 @@ class PPOTrainer(RLTrainer):
                                 )
 
             # update agent
-            train_infos = self._update(
-                next_obs=next_obs,
-                next_done=next_done,
-            )
+            train_infos = self._update(next_obs=next_obs, next_done=next_done,)
 
             # TRY NOT TO MODIFY: record rewards for plotting purposes
             sps = int(global_step / (time.time() - start_time))
@@ -207,11 +204,7 @@ class PPOTrainer(RLTrainer):
             "train_costs": np.array(train_cost),
         }
 
-    def _update(
-        self,
-        next_obs,
-        next_done,
-    ) -> dict[str, float]:
+    def _update(self, next_obs, next_done,) -> dict[str, float]:
         data = self.buffer.sample()
         obs = data["obs"]
         logprobs = data["logprob"]

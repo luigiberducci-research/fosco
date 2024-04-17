@@ -374,9 +374,7 @@ class RobustGate(TorchSymDiffModel):
         params = {
             "module": self.__module__,
             "class": self.__class__.__name__,
-            "kwargs": {
-                "activation_type": self._activation_type,
-            },
+            "kwargs": {"activation_type": self._activation_type,},
         }
 
         param_path = model_path.parent / f"{model_name}.yaml"

@@ -18,7 +18,9 @@ import plotly.graph_objects as go
 from fosco.systems import ControlAffineDynamics, UncertainControlAffineDynamics
 
 
-def plot_torch_function(function: TorchSymDiffFn, domains: dict[str, Set], fig: FigureType = None) -> go.Figure:
+def plot_torch_function(
+    function: TorchSymDiffFn, domains: dict[str, Set], fig: FigureType = None
+) -> go.Figure:
     in_domain: Rectangle = domains[DomainName.XD.value]
     other_domains = {
         k: v
@@ -32,12 +34,12 @@ def plot_torch_function(function: TorchSymDiffFn, domains: dict[str, Set], fig: 
 
 
 def plot_func_and_domains(
-        func: Callable[[np.ndarray], np.ndarray],
-        in_domain: Rectangle,
-        levels: list[float] = None,
-        domains: dict[str, Set] = None,
-        dim_select: tuple[int, int] = None,
-        fig: FigureType = None,
+    func: Callable[[np.ndarray], np.ndarray],
+    in_domain: Rectangle,
+    levels: list[float] = None,
+    domains: dict[str, Set] = None,
+    dim_select: tuple[int, int] = None,
+    fig: FigureType = None,
 ) -> Figure:
     """
     Plot the function of a torch module projected onto 2d input space.
@@ -48,7 +50,7 @@ def plot_func_and_domains(
 
     assert len(dim_select) == 2, "dim_select must be a tuple of 2 int"
     assert (
-            type(dim_select[0]) == type(dim_select[1]) == int
+        type(dim_select[0]) == type(dim_select[1]) == int
     ), "dim_select must be a tuple of 2 int"
     assert isinstance(
         in_domain, Rectangle
@@ -63,7 +65,7 @@ def plot_func_and_domains(
         The dimensions not in dim_select are set to the mean of the domain.
         """
         assert (
-                len(x.shape) == 2 and x.shape[1] == len(dim_select) == 2
+            len(x.shape) == 2 and x.shape[1] == len(dim_select) == 2
         ), "x must be a batch of 2d points"
 
         lb, ub = np.array(in_domain.lower_bounds), np.array(in_domain.upper_bounds)
@@ -104,7 +106,7 @@ def plot_func_and_domains(
 
 
 def plot_torch_function_grads(
-        function: TorchSymDiffFn, domains: dict[str, Set]
+    function: TorchSymDiffFn, domains: dict[str, Set]
 ) -> tuple[list[go.Figure], list[str]]:
     in_domain: Rectangle = domains[DomainName.XD.value]
     other_domains = {
@@ -126,7 +128,7 @@ def plot_torch_function_grads(
 
 
 def plot_lie_derivative(
-        function: TorchSymDiffFn, system: ControlAffineDynamics, domains: dict[str, Set],
+    function: TorchSymDiffFn, system: ControlAffineDynamics, domains: dict[str, Set],
 ) -> tuple[list[go.Figure], list[str]]:
     time_domain = system.time_domain
     in_domain: Rectangle = domains[DomainName.XD.value]
@@ -149,7 +151,7 @@ def plot_lie_derivative(
     for u_orig in np.concatenate((u_vertices, [zero_u])):
         ctrl = (
             lambda x: torch.ones((x.shape[0], system.n_controls))
-                      * torch.tensor(u_orig).float()
+            * torch.tensor(u_orig).float()
         )
         if isinstance(system, UncertainControlAffineDynamics):
             f = lambda x, u: system._f_torch(x, u, z=None, only_nominal=True)
@@ -176,7 +178,7 @@ def plot_lie_derivative(
 
 
 def lie_derivative_fn(
-        certificate: TorchSymDiffFn, f: Callable, ctrl: Callable, is_dt: bool
+    certificate: TorchSymDiffFn, f: Callable, ctrl: Callable, is_dt: bool
 ) -> Callable[[np.ndarray], np.ndarray]:
     def lie_derivative(x):
         grad_net = certificate.gradient(x)
@@ -197,11 +199,11 @@ def lie_derivative_fn(
 
 
 def plot_cbf_condition(
-        barrier: TorchSymDiffFn,
-        system: ControlAffineDynamics,
-        domains: dict[str, Set],
-        compensator: TorchSymFn = None,
-        alpha: Callable[[np.ndarray], np.ndarray] = None,
+    barrier: TorchSymDiffFn,
+    system: ControlAffineDynamics,
+    domains: dict[str, Set],
+    compensator: TorchSymFn = None,
+    alpha: Callable[[np.ndarray], np.ndarray] = None,
 ) -> tuple[list[go.Figure], list[str]]:
     if alpha is None:
         alpha = lambda x: 1.0 * x
@@ -232,7 +234,7 @@ def plot_cbf_condition(
     for u_orig in np.concatenate((u_vertices, [zero_u])):
         ctrl = (
             lambda x: torch.ones((x.shape[0], system.n_controls))
-                      * torch.tensor(u_orig).float()
+            * torch.tensor(u_orig).float()
         )
 
         is_dt = time_domain == TimeDomain.DISCRETE
@@ -259,19 +261,19 @@ def plot_cbf_condition(
 
 
 def cbf_condition_fn(
-        certificate, alpha, f, ctrl, sigma=None, is_dt=False
+    certificate, alpha, f, ctrl, sigma=None, is_dt=False
 ) -> Callable[[np.ndarray], np.ndarray]:
     def cbf_condition(x):
         if sigma:
             return (
-                    lie_derivative_fn(certificate, f, ctrl, is_dt)(x).squeeze()
-                    - sigma(x).squeeze()
-                    + alpha(certificate(x)).squeeze()
+                lie_derivative_fn(certificate, f, ctrl, is_dt)(x).squeeze()
+                - sigma(x).squeeze()
+                + alpha(certificate(x)).squeeze()
             )
         else:
             return (
-                    lie_derivative_fn(certificate, f, ctrl, is_dt)(x).squeeze()
-                    + alpha(certificate(x)).squeeze()
+                lie_derivative_fn(certificate, f, ctrl, is_dt)(x).squeeze()
+                + alpha(certificate(x)).squeeze()
             )
 
     return cbf_condition

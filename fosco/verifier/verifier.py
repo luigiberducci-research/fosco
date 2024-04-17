@@ -13,12 +13,12 @@ INF: float = 1e300
 
 class Verifier(ABC):
     def __init__(
-            self,
-            constraints_method: Callable[..., Generator],
-            solver_vars: list[SYMBOL],
-            solver_timeout: int,
-            rounding: int = -1,
-            verbose: int = 0,
+        self,
+        constraints_method: Callable[..., Generator],
+        solver_vars: list[SYMBOL],
+        solver_timeout: int,
+        rounding: int = -1,
+        verbose: int = 0,
     ):
         super().__init__()
         self.xs = solver_vars
@@ -39,19 +39,19 @@ class Verifier(ABC):
 
     def _assert_state(self) -> None:
         assert (
-                self._solver_timeout > 0
+            self._solver_timeout > 0
         ), f"Solver's timeout must be greater than 0, got {self._solver_timeout}"
         assert isinstance(
             self._solver_timeout, int
         ), "solver timeout must be an integer (in seconds)"
-        assert isinstance(self._rounding, int) and self._rounding >= -1, "rounding must be an integer >= -1"
+        assert (
+            isinstance(self._rounding, int) and self._rounding >= -1
+        ), "rounding must be an integer >= -1"
 
     @staticmethod
     @abstractmethod
     def new_vars(
-            n: Optional[int] = None,
-            var_names: Optional[list[str]] = None,
-            base: str = "x"
+        n: Optional[int] = None, var_names: Optional[list[str]] = None, base: str = "x"
     ) -> list[SYMBOL]:
         """
         Returns a list of symbolic variables.
@@ -112,20 +112,20 @@ class Verifier(ABC):
 
     @timed
     def verify(
-            self,
-            V_symbolic: SYMBOL,
-            V_symbolic_constr: Iterable[SYMBOL],
-            V_symbolic_vars: list[SYMBOL],
-            sigma_symbolic: SYMBOL | None,
-            sigma_symbolic_constr: Iterable[SYMBOL],
-            sigma_symbolic_vars: list[SYMBOL],
-            Vdot_symbolic: SYMBOL,
-            Vdot_symbolic_constr: Iterable[SYMBOL],
-            Vdot_symbolic_vars: list[SYMBOL],
-            Vdot_residual_symbolic: SYMBOL | None,
-            Vdot_residual_symbolic_constr: Iterable[SYMBOL],
-            Vdot_residual_symbolic_vars: list[SYMBOL],
-            **kwargs,
+        self,
+        V_symbolic: SYMBOL,
+        V_symbolic_constr: Iterable[SYMBOL],
+        V_symbolic_vars: list[SYMBOL],
+        sigma_symbolic: SYMBOL | None,
+        sigma_symbolic_constr: Iterable[SYMBOL],
+        sigma_symbolic_vars: list[SYMBOL],
+        Vdot_symbolic: SYMBOL,
+        Vdot_symbolic_constr: Iterable[SYMBOL],
+        Vdot_symbolic_vars: list[SYMBOL],
+        Vdot_residual_symbolic: SYMBOL | None,
+        Vdot_residual_symbolic_constr: Iterable[SYMBOL],
+        Vdot_residual_symbolic_vars: list[SYMBOL],
+        **kwargs,
     ):
         """
         :param V_symbolic: z3 expr of function V
@@ -160,8 +160,9 @@ class Verifier(ABC):
 
         for group in fmls:
             for label, condition_vars in group.items():
-                assert isinstance(condition_vars, tuple) and len(condition_vars) == 3, \
-                    f"Expected tuple (condition, dataset-vars, aux-vars), got {condition_vars}"
+                assert (
+                    isinstance(condition_vars, tuple) and len(condition_vars) == 3
+                ), f"Expected tuple (condition, dataset-vars, aux-vars), got {condition_vars}"
                 condition, vars, aux_vars = condition_vars
 
                 s = self.new_solver()
@@ -201,8 +202,13 @@ class Verifier(ABC):
 
                     # debug
                     for sym_name, sym in zip(
-                            ["V", "Sigma", "Vdot", "Vdot_residual"],
-                            [V_symbolic, sigma_symbolic, Vdot_symbolic, Vdot_residual_symbolic],
+                        ["V", "Sigma", "Vdot", "Vdot_residual"],
+                        [
+                            V_symbolic,
+                            sigma_symbolic,
+                            Vdot_symbolic,
+                            Vdot_residual_symbolic,
+                        ],
                     ):
                         if sym is None:
                             continue
@@ -213,7 +219,9 @@ class Verifier(ABC):
                             fraction = replaced.as_fraction()
                             value = float(fraction.numerator / fraction.denominator)
                         else:
-                            self._logger.debug(f"Cannot extract value from {replaced} of type {type(replaced)}")
+                            self._logger.debug(
+                                f"Cannot extract value from {replaced} of type {type(replaced)}"
+                            )
                             value = str(replaced)
                         self._logger.debug(f"[cex] {sym_name}: {value}")
 

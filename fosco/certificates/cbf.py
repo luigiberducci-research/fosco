@@ -216,7 +216,6 @@ class ControlBarrierFunction(Certificate):
 
 
 class TrainableCBF(TrainableCertificate, ControlBarrierFunction):
-
     @staticmethod
     def learn(
         learner,

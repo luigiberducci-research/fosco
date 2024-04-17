@@ -77,11 +77,17 @@ def plot_scattered_points3d(
     Z = z_start * np.ones_like(X)
 
     if isinstance(fig, mpl.figure.Figure):
-        fig = scatter_points3d_mpl(xs=X, ys=Y, zs=Z, fig=fig, label=label, color=color, opacity=opacity)
+        fig = scatter_points3d_mpl(
+            xs=X, ys=Y, zs=Z, fig=fig, label=label, color=color, opacity=opacity
+        )
     elif isinstance(fig, go.Figure):
-        fig = scatter_points3d_plotly(xs=X, ys=Y, zs=Z, fig=fig, label=label, color=color, opacity=opacity)
+        fig = scatter_points3d_plotly(
+            xs=X, ys=Y, zs=Z, fig=fig, label=label, color=color, opacity=opacity
+        )
     else:
-        raise NotImplementedError(f"plot_scattered_points3d not implemented for {type(fig)}")
+        raise NotImplementedError(
+            f"plot_scattered_points3d not implemented for {type(fig)}"
+        )
     return fig
 
 
@@ -107,14 +113,23 @@ def plot_surface3d_mpl(
     return fig
 
 
-def scatter_points3d_plotly(xs, ys, zs, fig, label="", color=None, opacity=1.0) -> FigureType:
+def scatter_points3d_plotly(
+    xs, ys, zs, fig, label="", color=None, opacity=1.0
+) -> FigureType:
     fig.add_scatter3d(
-        x=xs, y=ys, z=zs, mode="markers", marker=dict(size=1, color=color, opacity=opacity), name=label
+        x=xs,
+        y=ys,
+        z=zs,
+        mode="markers",
+        marker=dict(size=1, color=color, opacity=opacity),
+        name=label,
     )
     return fig
 
 
-def scatter_points3d_mpl(xs, ys, zs, fig, label="", color=None, opacity=1.0) -> FigureType:
+def scatter_points3d_mpl(
+    xs, ys, zs, fig, label="", color=None, opacity=1.0
+) -> FigureType:
     fig.gca().scatter(xs, ys, zs, color=color, label=label, alpha=opacity)
     return fig
 

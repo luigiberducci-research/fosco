@@ -1,4 +1,3 @@
-
 import math
 from functools import partial
 from collections.abc import Iterable
@@ -104,7 +103,9 @@ class Rectangle(Set):
         self.lower_bounds = tuple([float(lb_i) for lb_i in lb])
         self.upper_bounds = tuple([float(ub_i) for ub_i in ub])
         self.dim_select = dim_select
-        self.volume = np.prod([ub_i - lb_i for lb_i, ub_i in zip(self.lower_bounds, self.upper_bounds)])
+        self.volume = np.prod(
+            [ub_i - lb_i for lb_i, ub_i in zip(self.lower_bounds, self.upper_bounds)]
+        )
         super().__init__(vars=vars)
 
     def __repr__(self):
@@ -196,12 +197,12 @@ class Sphere(Set):
         if self.include_boundary:
             domain = (
                 sum([(x[i] - self.center[i]) ** 2 for i in range(self.dimension)])
-                <= self.radius**2
+                <= self.radius ** 2
             )
         else:
             domain = (
                 sum([(x[i] - self.center[i]) ** 2 for i in range(self.dimension)])
-                < self.radius**2
+                < self.radius ** 2
             )
         return domain
 
@@ -210,7 +211,7 @@ class Sphere(Set):
         param batch_size: number of data points to generate
         returns: data points generated in relevant domain according to shape
         """
-        return round_init_data(self.center, self.radius**2, batch_size)
+        return round_init_data(self.center, self.radius ** 2, batch_size)
 
     def check_containment(
         self, x: np.ndarray | torch.Tensor, epsilon: float = 1e-6
@@ -231,7 +232,7 @@ class Sphere(Set):
         if self.dim_select:
             x = x[:, self.dim_select]
         c = torch.tensor(self.center).reshape(1, -1).to(x.device)
-        return (x - c).norm(2, dim=-1) - self.radius**2 <= epsilon
+        return (x - c).norm(2, dim=-1) - self.radius ** 2 <= epsilon
 
 
 class Union(Set):

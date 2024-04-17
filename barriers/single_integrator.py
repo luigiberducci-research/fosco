@@ -30,7 +30,7 @@ class SingleIntegratorCBF(TorchSymDiffModel):
         h(x) = | x - x_o |^2 - R^2
         """
         self._assert_forward_input(x=x)
-        hx = x[:, 0] ** 2 + x[:, 1] ** 2 - self._safety_dist**2
+        hx = x[:, 0] ** 2 + x[:, 1] ** 2 - self._safety_dist ** 2
         self._assert_forward_output(x=hx)
         return hx
 
@@ -38,7 +38,7 @@ class SingleIntegratorCBF(TorchSymDiffModel):
         self, x: list[SYMBOL]
     ) -> tuple[SYMBOL, Iterable[SYMBOL], Iterable[SYMBOL]]:
         self._assert_forward_smt_input(x=x)
-        hx = x[0] ** 2 + x[1] ** 2 - self._safety_dist**2
+        hx = x[0] ** 2 + x[1] ** 2 - self._safety_dist ** 2
         hx_vars = x.copy()
         self._assert_forward_smt_output(x=hx)
         return hx, [], hx_vars
@@ -215,7 +215,6 @@ class SingleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
 
 
 class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel):
-
     def __init__(self, h: TorchSymDiffModel, system: UncertainControlAffineDynamics):
         super().__init__()
         self._system = system
@@ -317,7 +316,7 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
         So we use a polynomial approximation which is valid for r in [0, inf]
         """
         # return 2 / (1 + torch.exp(hx)) # z3 does not supports exp, try polynomial; also we can see what is the range of hx,
-        return self._epsilon + 1 / (hx**2 + 1)
+        return self._epsilon + 1 / (hx ** 2 + 1)
 
     def _k_function_smt(self, hx: SYMBOL) -> tuple[SYMBOL, Iterable[SYMBOL]]:
         """
@@ -326,7 +325,7 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
         # assert isinstance(hx, DRSYMBOL), f"expected dreals symbolic expression, got {hx}"
         # fns = get_solver_fns(x=[hx])
         # return 2 / (1 + fns["Exp"](hx))
-        return self._epsilon + 1 / (hx**2 + 1)
+        return self._epsilon + 1 / (hx ** 2 + 1)
 
     def save(self, *args, **kwargs):
         warnings.warn("Saving is not supported for hand-crafted models")
@@ -337,7 +336,6 @@ class SingleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
 
 
 class SingleIntegratorConvexHullUncertainty(TorchSymModel):
-
     def __init__(self, h: TorchSymDiffModel, system: ConvexHull):
         super().__init__()
         self._system = system
@@ -432,7 +430,6 @@ class SingleIntegratorConvexHullUncertainty(TorchSymModel):
 
 
 class SingleIntegratorPolytopeUncertainty(TorchSymModel):
-
     def __init__(self, h: TorchSymDiffModel, system: UncertainControlAffineDynamics):
         super().__init__()
         self._system = system

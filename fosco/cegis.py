@@ -327,8 +327,7 @@ class Cegis:
 
         if isinstance(self.f, UncertainControlAffineDynamics):
             fig = plot_torch_function(
-                function=self.learner.xsigma,
-                domains=self.domains,
+                function=self.learner.xsigma, domains=self.domains,
             )
             self.logger.log_image(tag="compensator", image=fig, step=iteration)
 

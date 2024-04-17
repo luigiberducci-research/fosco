@@ -12,15 +12,23 @@ from fosco.plotting.utils3d import (
 )
 
 
-def plot_state_domains(domains: dict[str, Set], fig: FigureType, dim_select: tuple[int, int] = None,
-                       opacity: float = 1.0) -> FigureType:
+def plot_state_domains(
+    domains: dict[str, Set],
+    fig: FigureType,
+    dim_select: tuple[int, int] = None,
+    opacity: float = 1.0,
+) -> FigureType:
     for dname, domain in domains.items():
         if dname not in DOMAIN_COLORS:
             continue
         color = DOMAIN_COLORS[dname]
         fig = plot_domain(
-            domain=domain, fig=fig, color=color, dim_select=dim_select, label=dname,
-            opacity=opacity
+            domain=domain,
+            fig=fig,
+            color=color,
+            dim_select=dim_select,
+            label=dname,
+            opacity=opacity,
         )
 
     if isinstance(fig, mpl.figure.Figure):
@@ -34,34 +42,62 @@ def plot_state_domains(domains: dict[str, Set], fig: FigureType, dim_select: tup
 
 
 def plot_domain(
-        domain: Set,
-        fig: FigureType,
-        color: str,
-        opacity: float = 1.0,
-        dim_select: tuple[int, int] = None,
-        label: str = "",
-        z_start: float = 0.0,
+    domain: Set,
+    fig: FigureType,
+    color: str,
+    opacity: float = 1.0,
+    dim_select: tuple[int, int] = None,
+    label: str = "",
+    z_start: float = 0.0,
 ) -> FigureType:
     """
     Plot the domain in 2d.
     """
     if isinstance(domain, Rectangle):
-        fig = plot_rectangle(domain=domain, fig=fig, color=color, opacity=opacity, dim_select=dim_select, label=label,
-                             z_start=z_start)
+        fig = plot_rectangle(
+            domain=domain,
+            fig=fig,
+            color=color,
+            opacity=opacity,
+            dim_select=dim_select,
+            label=label,
+            z_start=z_start,
+        )
     elif isinstance(domain, Sphere):
-        fig = plot_sphere(domain=domain, fig=fig, color=color, opacity=opacity, dim_select=dim_select, label=label,
-                          z_start=z_start)
+        fig = plot_sphere(
+            domain=domain,
+            fig=fig,
+            color=color,
+            opacity=opacity,
+            dim_select=dim_select,
+            label=label,
+            z_start=z_start,
+        )
     elif isinstance(domain, Union):
         is_first = True
         for subdomain in domain.sets:
             label = label if is_first else None
-            fig = plot_domain(domain=subdomain, fig=fig, color=color, opacity=opacity, dim_select=dim_select,
-                              label=label, z_start=z_start)
+            fig = plot_domain(
+                domain=subdomain,
+                fig=fig,
+                color=color,
+                opacity=opacity,
+                dim_select=dim_select,
+                label=label,
+                z_start=z_start,
+            )
             is_first = False
     elif hasattr(domain, "generate_data"):
         # not a conventional domain, plot scattered points
-        fig = plot_scattered_points3d(domain=domain, fig=fig, color=color, opacity=opacity, dim_select=dim_select,
-                                      label=label, z_start=z_start)
+        fig = plot_scattered_points3d(
+            domain=domain,
+            fig=fig,
+            color=color,
+            opacity=opacity,
+            dim_select=dim_select,
+            label=label,
+            z_start=z_start,
+        )
     else:
         raise NotImplementedError(f"plot_domain not implemented for {type(domain)}")
 
@@ -69,13 +105,13 @@ def plot_domain(
 
 
 def plot_rectangle(
-        domain: Rectangle,
-        fig: FigureType,
-        color: str = None,
-        opacity: float = 1.0,
-        dim_select: tuple[int, int] = None,
-        label: str = "",
-        z_start: float = 0.0,
+    domain: Rectangle,
+    fig: FigureType,
+    color: str = None,
+    opacity: float = 1.0,
+    dim_select: tuple[int, int] = None,
+    label: str = "",
+    z_start: float = 0.0,
 ) -> FigureType:
     """
     Plot the rectangle domain as surface in 3d figure.
@@ -95,9 +131,13 @@ def plot_rectangle(
     Z = z_start * np.ones((bins, bins))
 
     if isinstance(fig, mpl.figure.Figure):
-        fig = plot_surface3d_mpl(xs=X, ys=Y, zs=Z, fig=fig, label=label, color=color, opacity=opacity)
+        fig = plot_surface3d_mpl(
+            xs=X, ys=Y, zs=Z, fig=fig, label=label, color=color, opacity=opacity
+        )
     elif isinstance(fig, Figure):
-        fig = plot_surface3d_plotly(xs=X, ys=Y, zs=Z, fig=fig, label=label, color=color, opacity=opacity)
+        fig = plot_surface3d_plotly(
+            xs=X, ys=Y, zs=Z, fig=fig, label=label, color=color, opacity=opacity
+        )
     else:
         raise NotImplementedError(f"plot_rectangle not implemented for {type(fig)}")
 
@@ -105,13 +145,13 @@ def plot_rectangle(
 
 
 def plot_sphere(
-        domain: Sphere,
-        fig: FigureType,
-        color: str = None,
-        opacity: float = 1.0,
-        dim_select: tuple[int, int] = None,
-        label: str = "",
-        z_start: float = 0.0,
+    domain: Sphere,
+    fig: FigureType,
+    color: str = None,
+    opacity: float = 1.0,
+    dim_select: tuple[int, int] = None,
+    label: str = "",
+    z_start: float = 0.0,
 ) -> FigureType:
     """
     Plot the sphere domain in 2d.
@@ -124,16 +164,20 @@ def plot_sphere(
     radius = domain.radius
 
     resolution = 20  # lower resolution is faster but less accurate
-    u, v = np.mgrid[0: 2 * np.pi: resolution * 2j, 0: np.pi: resolution * 1j]
+    u, v = np.mgrid[0 : 2 * np.pi : resolution * 2j, 0 : np.pi : resolution * 1j]
 
     X = radius * np.cos(u) * np.sin(v) + x0
     Y = radius * np.sin(u) * np.sin(v) + y0
     Z = z_start * np.ones(X.shape)
 
     if isinstance(fig, mpl.figure.Figure):
-        fig = plot_surface3d_mpl(xs=X, ys=Y, zs=Z, fig=fig, label=label, color=color, opacity=opacity)
+        fig = plot_surface3d_mpl(
+            xs=X, ys=Y, zs=Z, fig=fig, label=label, color=color, opacity=opacity
+        )
     elif isinstance(fig, Figure):
-        fig = plot_surface3d_plotly(xs=X, ys=Y, zs=Z, fig=fig, label=label, color=color, opacity=opacity)
+        fig = plot_surface3d_plotly(
+            xs=X, ys=Y, zs=Z, fig=fig, label=label, color=color, opacity=opacity
+        )
     else:
         raise NotImplementedError(f"plot_sphere not implemented for {type(fig)}")
 
@@ -148,11 +192,9 @@ if __name__ == "__main__":
 
     fig = Figure()
 
-
     def func(x):
         assert len(x.shape) == 2 and x.shape[1] == 2, "x must be a batch of 2d points"
         return np.sin(x[:, 0]) + np.cos(x[:, 1])
-
 
     fig = plot_surface(
         func, (-5, 5), (-5, 5), levels=[0], label="surface", fig=fig, opacity=0.75

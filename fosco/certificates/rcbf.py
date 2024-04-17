@@ -314,8 +314,7 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
         states_dz = datasets[ZD][:, :n_vars]
         input_dz = datasets[ZD][:, n_vars : n_vars + n_controls]
         uncert_dz = datasets[ZD][
-            :,
-            n_vars + n_controls : n_vars + n_controls + n_uncertain,
+            :, n_vars + n_controls : n_vars + n_controls + n_uncertain,
         ]
 
         losses, accuracies, infos = {}, {}, {}
@@ -342,15 +341,17 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
                 f_torch=partial(f_torch, z=None, only_nominal=True),
             )
 
-            barrier_loss, barrier_losses, barrier_accuracies = (
-                TrainableRCBF._compute_loss(
-                    learner=learner,
-                    B_i=B_i,
-                    B_u=B_u,
-                    B_d=B_d,
-                    Bdot_d=Bdot_d - sigma_d,
-                    alpha=1.0,
-                )
+            (
+                barrier_loss,
+                barrier_losses,
+                barrier_accuracies,
+            ) = TrainableRCBF._compute_loss(
+                learner=learner,
+                B_i=B_i,
+                B_u=B_u,
+                B_d=B_d,
+                Bdot_d=Bdot_d - sigma_d,
+                alpha=1.0,
             )
 
             barrier_loss.backward()
@@ -374,14 +375,16 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
                 f_torch=partial(f_torch, z=uncert_dz, only_nominal=False),
             )
 
-            sigma_loss, sigma_losses, sigma_accuracies = (
-                TrainableRCBF.compute_robust_loss(
-                    learner=learner,
-                    B_dz=B_dz,
-                    Bdotz_dz=Bdotz_dz,
-                    Bdot_dz=Bdot_dz,
-                    sigma_dz=sigma_dz,
-                )
+            (
+                sigma_loss,
+                sigma_losses,
+                sigma_accuracies,
+            ) = TrainableRCBF.compute_robust_loss(
+                learner=learner,
+                B_dz=B_dz,
+                Bdotz_dz=Bdotz_dz,
+                Bdot_dz=Bdot_dz,
+                sigma_dz=sigma_dz,
             )
 
             losses = {**barrier_losses, **sigma_losses}
@@ -437,10 +440,7 @@ class TrainableRCBF(TrainableCBF, RobustControlBarrierFunction):
         weight_conservative_s = learner.loss_weights["conservative_sigma"]
 
         accuracy_z = (
-            torch.logical_and(
-                B_dz < belt_margin,
-                sigma_dz + Bdotz_dz - Bdot_dz >= 0,
-            )
+            torch.logical_and(B_dz < belt_margin, sigma_dz + Bdotz_dz - Bdot_dz >= 0,)
             .count_nonzero()
             .item()
         )

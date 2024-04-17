@@ -32,11 +32,7 @@ def main():
     system = make_system(system_id=system_id)()
     system = add_uncertainty(system=system, uncertainty_type=uncertainty_id)
 
-    env = SystemEnv(
-        system=system,
-        dt=dt,
-        max_steps=max_steps,
-    )
+    env = SystemEnv(system=system, dt=dt, max_steps=max_steps,)
 
     barrier = make_barrier(system=system, model_to_load=barrier_to_load)
     compensator = make_compensator(system=system, model_to_load=compensator_to_load)

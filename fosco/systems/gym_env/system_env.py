@@ -146,9 +146,7 @@ class SystemEnv(gymnasium.Env):
         )
 
     def reset(
-        self,
-        seed: int | None = None,
-        options: dict[str, Any] | None = None,
+        self, seed: int | None = None, options: dict[str, Any] | None = None,
     ) -> tuple[TensorType, dict[str, Any]]:
         if seed:
             super().reset(seed=seed)
@@ -187,8 +185,7 @@ class SystemEnv(gymnasium.Env):
         return obs_batch, info
 
     def step(
-        self,
-        actions: TensorType,
+        self, actions: TensorType,
     ) -> Tuple[TensorType, TensorType, TensorType, TensorType, Dict]:
         """
         Steps the model environment with the given batch of actions.
@@ -356,20 +353,14 @@ class SystemEnv(gymnasium.Env):
             pygame.draw.rect(
                 canvas,
                 color,
-                (
-                    (position * ppu).astype(int),
-                    (size * ppu).astype(int),
-                ),
+                ((position * ppu).astype(int), (size * ppu).astype(int),),
             )
         elif isinstance(self.system.unsafe_domain, Sphere):
             position = np.array(self.system.unsafe_domain.center) - origin_translation
             radius = self.system.unsafe_domain.radius * ppu
             color = [200, 0, 0]
             pygame.draw.circle(
-                canvas,
-                color,
-                (position * ppu).astype(int),
-                radius,
+                canvas, color, (position * ppu).astype(int), radius,
             )
 
         # Draw agents
@@ -382,10 +373,7 @@ class SystemEnv(gymnasium.Env):
                 color = [200, 0, 0]
 
             pygame.draw.circle(
-                canvas,
-                color,
-                (position * ppu).astype(int),
-                radius,
+                canvas, color, (position * ppu).astype(int), radius,
             )
             # add label in the center with agent index
             font = pygame.font.Font(None, 100)

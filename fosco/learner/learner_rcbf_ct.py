@@ -59,8 +59,7 @@ class LearnerRobustCBF(LearnerCBF):
             # xsigma(x) = xsigma(h(x))
             head_model = RobustGate(activation_type="hsigmoid")
             self.xsigma = SequentialTorchMLP(
-                mlps=[self.net, head_model],
-                register_module=[False, True],
+                mlps=[self.net, head_model], register_module=[False, True],
             )
 
         # override optimizer with all module parameters

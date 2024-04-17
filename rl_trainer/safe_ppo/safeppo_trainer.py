@@ -21,12 +21,11 @@ class SafePPOTrainer(PPOTrainer):
         compensator: nn.Module = None,
         device: Optional[torch.device] = None,
     ) -> None:
-        agent_cls = partial(SafeActorCriticAgent, barrier=barrier, compensator=compensator)
+        agent_cls = partial(
+            SafeActorCriticAgent, barrier=barrier, compensator=compensator
+        )
         super().__init__(
-            envs=envs,
-            config=config,
-            agent_cls=agent_cls,
-            device=device,
+            envs=envs, config=config, agent_cls=agent_cls, device=device,
         )
 
         buffer_shapes = {
@@ -51,9 +50,7 @@ class SafePPOTrainer(PPOTrainer):
         )
 
     def _update(
-        self,
-        next_obs: torch.Tensor,
-        next_done: Optional[torch.Tensor] = None,
+        self, next_obs: torch.Tensor, next_done: Optional[torch.Tensor] = None,
     ) -> dict[str, float]:
         data = self.buffer.sample()
         obs = data["obs"]

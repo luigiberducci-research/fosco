@@ -52,9 +52,11 @@ class RobustMLPTranslator(MLPTranslator):
         xdot_residual = np.array(xdot_residual).reshape(-1, 1)
 
         # robust cbf: compensation term
-        sigma_symbolic, sigma_symbolic_constr, sigma_symbolic_vars = (
-            sigma_net.forward_smt(x=x_vars)
-        )
+        (
+            sigma_symbolic,
+            sigma_symbolic_constr,
+            sigma_symbolic_vars,
+        ) = sigma_net.forward_smt(x=x_vars)
 
         # lie derivative under uncertain dynamics
         Vgrad_symbolic, Vgrad_symbolic_constr, Vgrad_symbolic_vars = V_net.gradient_smt(

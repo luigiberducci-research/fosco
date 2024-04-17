@@ -36,16 +36,10 @@ def main(args):
     }
 
     config = CegisConfig(
-        CERTIFICATE="cbf",
-        BARRIER_TO_LOAD="default",
-        CEGIS_MAX_ITERS=1,
+        CERTIFICATE="cbf", BARRIER_TO_LOAD="default", CEGIS_MAX_ITERS=1,
     )
     cegis = Cegis(
-        system=system,
-        domains=sets,
-        data_gen=data_gen,
-        config=config,
-        verbose=verbose,
+        system=system, domains=sets, data_gen=data_gen, config=config, verbose=verbose,
     )
 
     result = cegis.solve()

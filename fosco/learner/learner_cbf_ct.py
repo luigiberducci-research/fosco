@@ -122,9 +122,7 @@ class LearnerCBF(LearnerNN):
     @timed
     def update(self, datasets, xdot_func, **kwargs) -> dict:
         output = self.learn_method(
-            learner=self,
-            optimizers=self.optimizers,
-            datasets=datasets,
+            learner=self, optimizers=self.optimizers, datasets=datasets,
         )
         return output
 

@@ -55,20 +55,10 @@ class StaticOffice(ControlAffineDynamics):
         lbounds, ubounds = system_domain.lower_bounds, system_domain.upper_bounds
 
         # override x, y (first two dims)
-        lbounds = (
-            -10.0,
-            -10.0,
-        ) + lbounds[2:]
-        ubounds = (
-            10.0,
-            10.0,
-        ) + ubounds[2:]
+        lbounds = (-10.0, -10.0,) + lbounds[2:]
+        ubounds = (10.0, 10.0,) + ubounds[2:]
 
-        return domains.Rectangle(
-            vars=self.vars,
-            lb=lbounds,
-            ub=ubounds,
-        )
+        return domains.Rectangle(vars=self.vars, lb=lbounds, ub=ubounds,)
 
     @property
     def input_domain(self) -> Set:
@@ -83,20 +73,10 @@ class StaticOffice(ControlAffineDynamics):
 
         lbounds, ubounds = system_domain.lower_bounds, system_domain.upper_bounds
 
-        lbounds = (
-            -10.0,
-            -10.0,
-        ) + lbounds[2:]
-        ubounds = (
-            -9.0,
-            -9.0,
-        ) + ubounds[2:]
+        lbounds = (-10.0, -10.0,) + lbounds[2:]
+        ubounds = (-9.0, -9.0,) + ubounds[2:]
 
-        return domains.Rectangle(
-            vars=self.vars,
-            lb=lbounds,
-            ub=ubounds,
-        )
+        return domains.Rectangle(vars=self.vars, lb=lbounds, ub=ubounds,)
 
     @property
     def unsafe_domain(self) -> Set:

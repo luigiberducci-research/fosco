@@ -53,11 +53,7 @@ def main():
         fig.show()
 
     # create simulation environment
-    env = SystemEnv(
-        system=system,
-        dt=sim_dt,
-        max_steps=sim_max_steps,
-    )
+    env = SystemEnv(system=system, dt=sim_dt, max_steps=sim_max_steps,)
 
     # create safe policy
     pi = SafeActorCriticAgent(envs=env, barrier=barrier)
@@ -147,12 +143,7 @@ def learn_barrier(system, params, seed, verbose) -> torch.nn.Module:
         N_DATA=params["n_data_samples"],
         SEED=seed,
         LOGGER=None,
-        LOSS_WEIGHTS={
-            "init": 1.0,
-            "unsafe": 1.0,
-            "lie": 1.0,
-            "conservative_b": 2.0,
-        },
+        LOSS_WEIGHTS={"init": 1.0, "unsafe": 1.0, "lie": 1.0, "conservative_b": 2.0,},
     )
     cegis = Cegis(
         system=system, domains=sets, config=config, data_gen=data_gen, verbose=verbose

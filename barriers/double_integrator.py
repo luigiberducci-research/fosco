@@ -63,13 +63,13 @@ class DoubleIntegratorCBF(TorchSymDiffModel):
 
         dhdx0 = (
             x[:, 0] * torch.sqrt(self._amax * dist_cap) / (2 * dist_cap * dp_norm)
-            - x[:, 0] * (x[:, 0] * x[:, 2] + x[:, 1] * x[:, 3]) / dp_norm**3
+            - x[:, 0] * (x[:, 0] * x[:, 2] + x[:, 1] * x[:, 3]) / dp_norm ** 3
             + x[:, 2] / dp_norm
         )
 
         dhdx1 = (
             x[:, 1] * torch.sqrt(self._amax * dist_cap) / (2 * dist_cap * dp_norm)
-            - x[:, 1] * (x[:, 0] * x[:, 2] + x[:, 1] * x[:, 3]) / dp_norm**3
+            - x[:, 1] * (x[:, 0] * x[:, 2] + x[:, 1] * x[:, 3]) / dp_norm ** 3
             + x[:, 3] / dp_norm
         )
 
@@ -241,7 +241,6 @@ class DoubleIntegratorCompensatorAdditiveBoundedUncertainty(TorchSymModel):
 
 
 class DoubleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel):
-
     def __init__(self, h: TorchSymDiffModel, system: UncertainControlAffineDynamics):
         super().__init__()
         self._system = system
@@ -343,7 +342,7 @@ class DoubleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
         So we use a polynomial approximation which is valid for r in [0, inf]
         """
         # return 2 / (1 + torch.exp(hx)) # z3 does not supports exp, try polynomial; also we can see what is the range of hx,
-        return self._epsilon + 1 / (hx**2 + 1)
+        return self._epsilon + 1 / (hx ** 2 + 1)
 
     def _k_function_smt(self, hx: SYMBOL) -> tuple[SYMBOL, Iterable[SYMBOL]]:
         """
@@ -352,7 +351,7 @@ class DoubleIntegratorTunableCompensatorAdditiveBoundedUncertainty(TorchSymModel
         # assert isinstance(hx, DRSYMBOL), f"expected dreals symbolic expression, got {hx}"
         # fns = get_solver_fns(x=[hx])
         # return 2 / (1 + fns["Exp"](hx))
-        return self._epsilon + 1 / (hx**2 + 1)
+        return self._epsilon + 1 / (hx ** 2 + 1)
 
     def save(self, *args, **kwargs):
         warnings.warn("Saving is not supported for hand-crafted models")

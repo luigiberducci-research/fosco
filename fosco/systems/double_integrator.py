@@ -53,9 +53,7 @@ class DoubleIntegrator(ControlAffineDynamics):
         # )
 
         init_unsafe = domains.Rectangle(
-            vars=self.vars,
-            lb=(-3.0, -3.0, -5.0, -5.0),
-            ub=(3.0, 3.0, 5.0, 5.0),
+            vars=self.vars, lb=(-3.0, -3.0, -5.0, -5.0), ub=(3.0, 3.0, 5.0, 5.0),
         )
         return domains.Complement(set=init_unsafe, outer_set=self.state_domain)
 

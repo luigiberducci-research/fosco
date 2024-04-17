@@ -56,11 +56,7 @@ def main():
         fig.show()
 
     # create simulation environment
-    env = SystemEnv(
-        system=system,
-        dt=sim_dt,
-        max_steps=sim_max_steps,
-    )
+    env = SystemEnv(system=system, dt=sim_dt, max_steps=sim_max_steps,)
 
     # create safe policy
     pi = SafeActorCriticAgent(envs=env, barrier=barrier, compensator=compensator)

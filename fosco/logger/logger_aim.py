@@ -9,7 +9,6 @@ from fosco.logger.logger import Logger, VideoType, ImageType
 
 
 class AimLogger(Logger):
-
     def __init__(self, config: dict = None, experiment: str = None, verbose: int = 0):
         super().__init__(config=config, verbose=verbose)
         self._run = aim.Run(experiment=experiment)

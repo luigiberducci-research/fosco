@@ -65,7 +65,6 @@ class SafeActorCriticAgent(ActorCriticAgent):
         self.device = device or torch.device("cpu")
         self.to(self.device)
 
-
     def _make_barrier_layer(self) -> CvxpyLayer:
         """
         Constructs a CvxpyLayer to implement the CBF problem:
@@ -90,7 +89,7 @@ class SafeActorCriticAgent(ActorCriticAgent):
         constraints += [Lfhx + Lghx @ u + alphahx + slack >= 0.0]
 
         # objective: u.T Q u + p.T u
-        objective = 1 / 2 * cp.quad_form(u, Q) + px.T @ u + 1000 * slack**2
+        objective = 1 / 2 * cp.quad_form(u, Q) + px.T @ u + 1000 * slack ** 2
         problem = cp.Problem(cp.Minimize(objective), constraints)
 
         return CvxpyLayer(

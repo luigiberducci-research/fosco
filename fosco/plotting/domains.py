@@ -1,17 +1,19 @@
-import numpy as np
-
+import matplotlib as mpl
 from plotly.graph_objs import Figure, Surface
+import numpy as np
 
 from fosco.common.domains import Rectangle, Sphere, Set, Union
 
+FigureType = Figure | mpl.figure.Figure
+
 
 def plot_rectangle(
-    domain: Rectangle,
-    fig: Figure,
-    color: str = None,
-    dim_select: tuple[int, int] = None,
-    label: str = "",
-) -> Figure:
+        domain: Rectangle,
+        fig: Figure,
+        color: str = None,
+        dim_select: tuple[int, int] = None,
+        label: str = "",
+) -> FigureType:
     """
     Plot the rectangle domain as surface in 3d figure.
     """
@@ -26,27 +28,26 @@ def plot_rectangle(
     bins = 10
     X = np.linspace(x0, x1, bins)
     Y = np.linspace(y0, y1, bins)
+    X, Y = np.meshgrid(X, Y)
     Z = np.zeros((bins, bins))
 
-    if color:
-        single_color = [[0.0, color], [1.0, color]]
+    if isinstance(fig, mpl.figure.Figure):
+        fig = plot_surface_mpl(X, Y, Z, fig, label, color)
+    elif isinstance(fig, Figure):
+        fig = plot_surface_plotly(X, Y, Z, fig, label, color)
     else:
-        single_color = None
-    surface = Surface(
-        z=Z, x=X, y=Y, colorscale=single_color, showscale=False, name=label
-    )
-    fig.add_trace(surface)
+        raise NotImplementedError(f"plot_sphere not implemented for {type(fig)}")
 
     return fig
 
 
 def plot_sphere(
-    domain: Sphere,
-    fig: Figure,
-    color: str,
-    dim_select: tuple[int, int] = None,
-    label: str = "",
-) -> Figure:
+        domain: Sphere,
+        fig: FigureType,
+        color: str = None,
+        dim_select: tuple[int, int] = None,
+        label: str = "",
+) -> FigureType:
     """
     Plot the sphere domain in 2d.
     """
@@ -58,28 +59,73 @@ def plot_sphere(
     radius = domain.radius
 
     resolution = 20  # lower resolution is faster but less accurate
-    u, v = np.mgrid[0 : 2 * np.pi : resolution * 2j, 0 : np.pi : resolution * 1j]
+    u, v = np.mgrid[0: 2 * np.pi: resolution * 2j, 0: np.pi: resolution * 1j]
 
     X = radius * np.cos(u) * np.sin(v) + x0
     Y = radius * np.sin(u) * np.sin(v) + y0
     Z = np.zeros(X.shape)
 
-    single_color = [[0.0, color], [1.0, color]]
-    surface = Surface(
-        x=X, y=Y, z=Z, colorscale=single_color, showscale=False, name=label
-    )
-    fig.add_trace(surface)
+    if isinstance(fig, mpl.figure.Figure):
+        fig = plot_surface_mpl(X, Y, Z, fig, label, color)
+    elif isinstance(fig, Figure):
+        fig = plot_surface_plotly(X, Y, Z, fig, label, color)
+    else:
+        raise NotImplementedError(f"plot_sphere not implemented for {type(fig)}")
 
     return fig
 
 
+def plot_scattered_points(
+        domain: Set,
+        fig: FigureType,
+        color: str,
+        dim_select: tuple[int, int] = None,
+        label: str = "",
+) -> FigureType:
+    data = domain.generate_data(500)
+    dim_select = dim_select or (0, 1)
+
+    X = data[:, dim_select[0]]
+    Y = data[:, dim_select[1]]
+    Z = np.zeros_like(X)
+
+    if isinstance(fig, mpl.figure.Figure):
+        fig = scatter_points_mpl(X, Y, Z, fig, label, color)
+    else:
+        fig = scatter_points_plotly(X, Y, Z, fig, label, color)
+    return fig
+
+
+def plot_surface_plotly(xs, ys, zs, fig, label="", color=None) -> FigureType:
+    if color:
+        color = [[0.0, color], [1.0, color]]
+
+    surface = Surface(
+        x=xs, y=ys, z=zs, colorscale=color, showscale=False, name=label
+    )
+    fig.add_trace(surface)
+    return fig
+
+
+def plot_surface_mpl(xs, ys, zs, fig, label="", color=None) -> FigureType:
+    fig.gca().plot_surface(xs, ys, zs, color=color, label=label, alpha=0.80)
+    return fig
+
+def scatter_points_plotly(xs, ys, zs, fig, label="", color=None) -> FigureType:
+    fig.add_scatter3d(x=xs, y=ys, z=zs, mode="markers", marker=dict(size=1, color=color), name=label)
+    return fig
+
+def scatter_points_mpl(xs, ys, zs, fig, label="", color=None) -> FigureType:
+    fig.gca().scatter(xs, ys, zs, color=color, label=label)
+    return fig
+
 def plot_domain(
-    domain: Set,
-    fig: Figure,
-    color: str,
-    dim_select: tuple[int, int] = None,
-    label: str = "",
-) -> Figure:
+        domain: Set,
+        fig: FigureType,
+        color: str,
+        dim_select: tuple[int, int] = None,
+        label: str = "",
+) -> FigureType:
     """
     Plot the domain in 2d.
     """
@@ -95,16 +141,7 @@ def plot_domain(
             is_first = False
     elif hasattr(domain, "generate_data"):
         # not a conventional domain, plot scattered points
-        data = domain.generate_data(500)
-        dim_select = dim_select or (0, 1)
-        fig.add_scatter3d(
-            x=data[:, dim_select[0]],
-            y=data[:, dim_select[1]],
-            z=np.zeros_like(data[:, 0]),
-            mode="markers",
-            marker=dict(size=1, color=color),
-            name=label,
-        )
+        fig = plot_scattered_points(domain, fig, color, dim_select, label)
     else:
         raise NotImplementedError(f"plot_domain not implemented for {type(domain)}")
 
@@ -120,9 +157,11 @@ if __name__ == "__main__":
 
     fig = Figure()
 
+
     def func(x):
         assert len(x.shape) == 2 and x.shape[1] == 2, "x must be a batch of 2d points"
         return np.sin(x[:, 0]) + np.cos(x[:, 1])
+
 
     fig = plot_surface(
         func, (-5, 5), (-5, 5), levels=[0], label="surface", fig=fig, opacity=0.75

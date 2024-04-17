@@ -1,7 +1,10 @@
 import unittest
 
-from fosco.common.domains import Rectangle
+import matplotlib.pyplot as plt
+
+from fosco.common.domains import Rectangle, Sphere, Intersection
 from fosco.models import TorchMLP
+from fosco.plotting.domains import plot_rectangle, plot_sphere, plot_domain
 from fosco.plotting.functions import plot_func_and_domains
 
 
@@ -61,3 +64,26 @@ class TestPlottingUtils(unittest.TestCase):
                 self.assertTrue(
                     isinstance(fig, Figure), "plot should return a figure, got {fig}"
                 )
+
+    def test_plot_domains(self):
+        from plotly.graph_objs import Figure
+        import matplotlib.pyplot as plt
+
+        box = Rectangle(vars=["x0", "x1", "x2"], lb=[0, 1, 0], ub=[2, 3, 4])
+        sphere = Sphere(vars=["x0", "x1", "x2"], center=[0, 1, 3], radius=1.333)
+        intersect = Intersection(sets=[box, sphere])
+
+        fig = Figure()
+        for domain, color in zip([box, sphere, intersect], ["red", "green", "blue"]):
+            fig = plot_domain(domain, fig, color=color)
+        self.assertTrue(isinstance(fig, Figure), f"plot should return a plotly figure, got {fig}")
+
+        fig.show()
+
+        fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
+        for domain, color in zip([box, sphere, intersect], ["red", "green", "blue"]):
+            fig = plot_domain(domain, fig, color=color)
+        self.assertTrue(isinstance(fig, plt.Figure), f"plot should return a matplotlib figure, got {fig}")
+
+
+        plt.show()

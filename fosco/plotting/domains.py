@@ -7,12 +7,41 @@ from fosco.common.domains import Rectangle, Sphere, Set, Union
 FigureType = Figure | mpl.figure.Figure
 
 
+def plot_domain(
+    domain: Set,
+    fig: FigureType,
+    color: str,
+    dim_select: tuple[int, int] = None,
+    label: str = "",
+) -> FigureType:
+    """
+    Plot the domain in 2d.
+    """
+    if isinstance(domain, Rectangle):
+        fig = plot_rectangle(domain, fig, color, dim_select, label)
+    elif isinstance(domain, Sphere):
+        fig = plot_sphere(domain, fig, color, dim_select, label)
+    elif isinstance(domain, Union):
+        is_first = True
+        for subdomain in domain.sets:
+            label = label if is_first else None
+            fig = plot_domain(subdomain, fig, color, dim_select, label)
+            is_first = False
+    elif hasattr(domain, "generate_data"):
+        # not a conventional domain, plot scattered points
+        fig = plot_scattered_points(domain, fig, color, dim_select, label)
+    else:
+        raise NotImplementedError(f"plot_domain not implemented for {type(domain)}")
+
+    return fig
+
+
 def plot_rectangle(
-        domain: Rectangle,
-        fig: Figure,
-        color: str = None,
-        dim_select: tuple[int, int] = None,
-        label: str = "",
+    domain: Rectangle,
+    fig: Figure,
+    color: str = None,
+    dim_select: tuple[int, int] = None,
+    label: str = "",
 ) -> FigureType:
     """
     Plot the rectangle domain as surface in 3d figure.
@@ -42,11 +71,11 @@ def plot_rectangle(
 
 
 def plot_sphere(
-        domain: Sphere,
-        fig: FigureType,
-        color: str = None,
-        dim_select: tuple[int, int] = None,
-        label: str = "",
+    domain: Sphere,
+    fig: FigureType,
+    color: str = None,
+    dim_select: tuple[int, int] = None,
+    label: str = "",
 ) -> FigureType:
     """
     Plot the sphere domain in 2d.
@@ -59,7 +88,7 @@ def plot_sphere(
     radius = domain.radius
 
     resolution = 20  # lower resolution is faster but less accurate
-    u, v = np.mgrid[0: 2 * np.pi: resolution * 2j, 0: np.pi: resolution * 1j]
+    u, v = np.mgrid[0 : 2 * np.pi : resolution * 2j, 0 : np.pi : resolution * 1j]
 
     X = radius * np.cos(u) * np.sin(v) + x0
     Y = radius * np.sin(u) * np.sin(v) + y0
@@ -76,11 +105,11 @@ def plot_sphere(
 
 
 def plot_scattered_points(
-        domain: Set,
-        fig: FigureType,
-        color: str,
-        dim_select: tuple[int, int] = None,
-        label: str = "",
+    domain: Set,
+    fig: FigureType,
+    color: str,
+    dim_select: tuple[int, int] = None,
+    label: str = "",
 ) -> FigureType:
     data = domain.generate_data(500)
     dim_select = dim_select or (0, 1)
@@ -100,9 +129,7 @@ def plot_surface_plotly(xs, ys, zs, fig, label="", color=None) -> FigureType:
     if color:
         color = [[0.0, color], [1.0, color]]
 
-    surface = Surface(
-        x=xs, y=ys, z=zs, colorscale=color, showscale=False, name=label
-    )
+    surface = Surface(x=xs, y=ys, z=zs, colorscale=color, showscale=False, name=label)
     fig.add_trace(surface)
     return fig
 
@@ -111,40 +138,16 @@ def plot_surface_mpl(xs, ys, zs, fig, label="", color=None) -> FigureType:
     fig.gca().plot_surface(xs, ys, zs, color=color, label=label, alpha=0.80)
     return fig
 
+
 def scatter_points_plotly(xs, ys, zs, fig, label="", color=None) -> FigureType:
-    fig.add_scatter3d(x=xs, y=ys, z=zs, mode="markers", marker=dict(size=1, color=color), name=label)
+    fig.add_scatter3d(
+        x=xs, y=ys, z=zs, mode="markers", marker=dict(size=1, color=color), name=label
+    )
     return fig
+
 
 def scatter_points_mpl(xs, ys, zs, fig, label="", color=None) -> FigureType:
     fig.gca().scatter(xs, ys, zs, color=color, label=label)
-    return fig
-
-def plot_domain(
-        domain: Set,
-        fig: FigureType,
-        color: str,
-        dim_select: tuple[int, int] = None,
-        label: str = "",
-) -> FigureType:
-    """
-    Plot the domain in 2d.
-    """
-    if isinstance(domain, Rectangle):
-        fig = plot_rectangle(domain, fig, color, dim_select, label)
-    elif isinstance(domain, Sphere):
-        fig = plot_sphere(domain, fig, color, dim_select, label)
-    elif isinstance(domain, Union):
-        is_first = True
-        for subdomain in domain.sets:
-            label = label if is_first else None
-            fig = plot_domain(subdomain, fig, color, dim_select, label)
-            is_first = False
-    elif hasattr(domain, "generate_data"):
-        # not a conventional domain, plot scattered points
-        fig = plot_scattered_points(domain, fig, color, dim_select, label)
-    else:
-        raise NotImplementedError(f"plot_domain not implemented for {type(domain)}")
-
     return fig
 
 
@@ -157,11 +160,9 @@ if __name__ == "__main__":
 
     fig = Figure()
 
-
     def func(x):
         assert len(x.shape) == 2 and x.shape[1] == 2, "x must be a batch of 2d points"
         return np.sin(x[:, 0]) + np.cos(x[:, 1])
-
 
     fig = plot_surface(
         func, (-5, 5), (-5, 5), levels=[0], label="surface", fig=fig, opacity=0.75

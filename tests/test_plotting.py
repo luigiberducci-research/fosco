@@ -14,9 +14,7 @@ class TestPlottingUtils(unittest.TestCase):
 
         n_dim = 2
         domain = Rectangle(
-            vars=[f"x{i}" for i in range(n_dim)],
-            lb=(-1.0,) * n_dim,
-            ub=(1.0,) * n_dim,
+            vars=[f"x{i}" for i in range(n_dim)], lb=(-1.0,) * n_dim, ub=(1.0,) * n_dim,
         )
         model = TorchMLP(
             input_size=domain.dimension,
@@ -41,9 +39,7 @@ class TestPlottingUtils(unittest.TestCase):
 
         n_dim = 3
         domain = Rectangle(
-            vars=[f"x{i}" for i in range(n_dim)],
-            lb=(-1.0,) * n_dim,
-            ub=(1.0,) * n_dim,
+            vars=[f"x{i}" for i in range(n_dim)], lb=(-1.0,) * n_dim, ub=(1.0,) * n_dim,
         )
         model = TorchMLP(
             input_size=domain.dimension,
@@ -76,14 +72,18 @@ class TestPlottingUtils(unittest.TestCase):
         fig = Figure()
         for domain, color in zip([box, sphere, intersect], ["red", "green", "blue"]):
             fig = plot_domain(domain, fig, color=color)
-        self.assertTrue(isinstance(fig, Figure), f"plot should return a plotly figure, got {fig}")
+        self.assertTrue(
+            isinstance(fig, Figure), f"plot should return a plotly figure, got {fig}"
+        )
 
-        fig.show()
+        # fig.show()
 
-        fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
+        fig, ax = plt.subplots(subplot_kw=dict(projection="3d"))
         for domain, color in zip([box, sphere, intersect], ["red", "green", "blue"]):
             fig = plot_domain(domain, fig, color=color)
-        self.assertTrue(isinstance(fig, plt.Figure), f"plot should return a matplotlib figure, got {fig}")
+        self.assertTrue(
+            isinstance(fig, plt.Figure),
+            f"plot should return a matplotlib figure, got {fig}",
+        )
 
-
-        plt.show()
+        # plt.show()

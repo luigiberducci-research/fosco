@@ -94,16 +94,16 @@ class SumToOneSet(Set):
 class Rectangle(Set):
     def __init__(
         self,
-        lb: tuple[float, ...],
-        ub: tuple[float, ...],
+        lb: Iterable[float, ...],
+        ub: Iterable[float, ...],
         vars: Iterable[str],
         dim_select=None,
     ):
         self.name = "box"
-        self.lower_bounds = lb
-        self.upper_bounds = ub
+        self.lower_bounds = tuple([float(lb_i) for lb_i in lb])
+        self.upper_bounds = tuple([float(ub_i) for ub_i in ub])
         self.dim_select = dim_select
-        self.volume = np.prod([ub_i - lb_i for lb_i, ub_i in zip(lb, ub)])
+        self.volume = np.prod([ub_i - lb_i for lb_i, ub_i in zip(self.lower_bounds, self.upper_bounds)])
         super().__init__(vars=vars)
 
     def __repr__(self):
@@ -166,14 +166,14 @@ class Rectangle(Set):
 class Sphere(Set):
     def __init__(
         self,
-        center,
-        radius,
+        center: Iterable[float, ...],
+        radius: float,
         vars: Iterable[str],
         dim_select=None,
         include_boundary: bool = True,
     ):
-        self.center = center
-        self.radius = radius
+        self.center = tuple([float(c_i) for c_i in center])
+        self.radius = float(radius)
         self.include_boundary = include_boundary
         super().__init__(vars=vars)
         self.dim_select = dim_select

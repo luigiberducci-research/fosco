@@ -97,7 +97,7 @@ class TestPolicy(unittest.TestCase):
         env = SystemEnv(system=system, max_steps=500, dt=0.1, device=device)
 
         # create random safe policy
-        model = SafeActorCriticAgent(envs=env, barrier=barrier)
+        model = SafeActorCriticAgent(envs=env, barrier=barrier, device=device)
         model.eval()
 
         # simulation

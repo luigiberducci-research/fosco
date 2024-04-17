@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Optional
 
 import gymnasium
 import torch
@@ -20,6 +20,7 @@ class SafeActorCriticAgent(ActorCriticAgent):
         envs: SystemEnv,
         barrier: TorchSymDiffModel | Callable,
         compensator: TorchSymDiffModel | Callable = None,
+        device: Optional[torch.device | str] = None,
     ):
         super().__init__(envs=envs)
         self.classk_size = 1
@@ -59,6 +60,11 @@ class SafeActorCriticAgent(ActorCriticAgent):
         )
         self.fx = envs.unwrapped.system.system.fx_torch
         self.gx = envs.unwrapped.system.system.gx_torch
+
+        # device
+        self.device = device or torch.device("cpu")
+        self.to(self.device)
+
 
     def _make_barrier_layer(self) -> CvxpyLayer:
         """

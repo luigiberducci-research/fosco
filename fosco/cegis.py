@@ -12,7 +12,7 @@ from fosco.common.domains import Set
 from fosco.config import CegisConfig, CegisResult
 from fosco.consolidator import make_consolidator, Consolidator
 from fosco.learner import make_learner, LearnerNN
-from fosco.plotting.data import scatter_datasets
+from fosco.plotting.utils2d import scatter_datasets
 from fosco.plotting.functions import (
     plot_torch_function,
     plot_torch_function_grads,

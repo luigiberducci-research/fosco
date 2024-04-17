@@ -1,10 +1,15 @@
 import matplotlib as mpl
-from plotly.graph_objs import Figure, Surface
 import numpy as np
+from plotly.graph_objs import Figure
 
 from fosco.common.domains import Rectangle, Sphere, Set, Union
-
-FigureType = Figure | mpl.figure.Figure
+from fosco.plotting.constants import FigureType
+from fosco.plotting.utils3d import (
+    plot_surface,
+    plot_scattered_points3d,
+    plot_surface3d_mpl,
+    plot_surface3d_plotly,
+)
 
 
 def plot_domain(
@@ -29,7 +34,7 @@ def plot_domain(
             is_first = False
     elif hasattr(domain, "generate_data"):
         # not a conventional domain, plot scattered points
-        fig = plot_scattered_points(domain, fig, color, dim_select, label)
+        fig = plot_scattered_points3d(domain, fig, color, dim_select, label)
     else:
         raise NotImplementedError(f"plot_domain not implemented for {type(domain)}")
 
@@ -38,7 +43,7 @@ def plot_domain(
 
 def plot_rectangle(
     domain: Rectangle,
-    fig: Figure,
+    fig: FigureType,
     color: str = None,
     dim_select: tuple[int, int] = None,
     label: str = "",
@@ -61,9 +66,9 @@ def plot_rectangle(
     Z = np.zeros((bins, bins))
 
     if isinstance(fig, mpl.figure.Figure):
-        fig = plot_surface_mpl(X, Y, Z, fig, label, color)
+        fig = plot_surface3d_mpl(X, Y, Z, fig, label, color)
     elif isinstance(fig, Figure):
-        fig = plot_surface_plotly(X, Y, Z, fig, label, color)
+        fig = plot_surface3d_plotly(X, Y, Z, fig, label, color)
     else:
         raise NotImplementedError(f"plot_sphere not implemented for {type(fig)}")
 
@@ -95,65 +100,17 @@ def plot_sphere(
     Z = np.zeros(X.shape)
 
     if isinstance(fig, mpl.figure.Figure):
-        fig = plot_surface_mpl(X, Y, Z, fig, label, color)
+        fig = plot_surface3d_mpl(X, Y, Z, fig, label, color)
     elif isinstance(fig, Figure):
-        fig = plot_surface_plotly(X, Y, Z, fig, label, color)
+        fig = plot_surface3d_plotly(X, Y, Z, fig, label, color)
     else:
         raise NotImplementedError(f"plot_sphere not implemented for {type(fig)}")
 
     return fig
 
 
-def plot_scattered_points(
-    domain: Set,
-    fig: FigureType,
-    color: str,
-    dim_select: tuple[int, int] = None,
-    label: str = "",
-) -> FigureType:
-    data = domain.generate_data(500)
-    dim_select = dim_select or (0, 1)
-
-    X = data[:, dim_select[0]]
-    Y = data[:, dim_select[1]]
-    Z = np.zeros_like(X)
-
-    if isinstance(fig, mpl.figure.Figure):
-        fig = scatter_points_mpl(X, Y, Z, fig, label, color)
-    else:
-        fig = scatter_points_plotly(X, Y, Z, fig, label, color)
-    return fig
-
-
-def plot_surface_plotly(xs, ys, zs, fig, label="", color=None) -> FigureType:
-    if color:
-        color = [[0.0, color], [1.0, color]]
-
-    surface = Surface(x=xs, y=ys, z=zs, colorscale=color, showscale=False, name=label)
-    fig.add_trace(surface)
-    return fig
-
-
-def plot_surface_mpl(xs, ys, zs, fig, label="", color=None) -> FigureType:
-    fig.gca().plot_surface(xs, ys, zs, color=color, label=label, alpha=0.80)
-    return fig
-
-
-def scatter_points_plotly(xs, ys, zs, fig, label="", color=None) -> FigureType:
-    fig.add_scatter3d(
-        x=xs, y=ys, z=zs, mode="markers", marker=dict(size=1, color=color), name=label
-    )
-    return fig
-
-
-def scatter_points_mpl(xs, ys, zs, fig, label="", color=None) -> FigureType:
-    fig.gca().scatter(xs, ys, zs, color=color, label=label)
-    return fig
-
-
 if __name__ == "__main__":
     import numpy as np
-    from fosco.plotting.surface import plot_surface
 
     domain1 = Rectangle(vars=["x0", "x1", "x2"], lb=[0, 1, 0], ub=[2, 3, 4])
     domain2 = Sphere(vars=["x0", "x1", "x2"], center=[0, 1, 3], radius=1.333)

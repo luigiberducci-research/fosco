@@ -2,16 +2,20 @@ from typing import Callable
 
 import numpy as np
 
+import matplotlib as mpl
+
 import plotly.graph_objects as go
+from plotly.graph_objs import Surface
 
 from fosco.common.domains import Set
+from fosco.plotting.constants import FigureType
 
 
 def plot_surface(
     func: Callable[[np.ndarray], np.ndarray],
     xrange: tuple[float, float],
     yrange: tuple[float, float],
-    levels: list[float] = [],
+    levels: list[float] = None,
     label: str = "",
     bins: int = 100,
     level_color: str = "white",
@@ -21,7 +25,7 @@ def plot_surface(
     """
     Plot the surface of the function over 2d space.
     """
-    # Read data from a csv
+    levels = levels or []
 
     x = np.linspace(xrange[0], xrange[1], bins)
     y = np.linspace(yrange[0], yrange[1], bins)
@@ -50,6 +54,53 @@ def plot_surface(
             )
         )
 
+    return fig
+
+
+def plot_scattered_points3d(
+    domain: Set,
+    fig: FigureType,
+    color: str,
+    dim_select: tuple[int, int] = None,
+    label: str = "",
+) -> FigureType:
+    data = domain.generate_data(500)
+    dim_select = dim_select or (0, 1)
+
+    X = data[:, dim_select[0]]
+    Y = data[:, dim_select[1]]
+    Z = np.zeros_like(X)
+
+    if isinstance(fig, mpl.figure.Figure):
+        fig = scatter_points3d_mpl(X, Y, Z, fig, label, color)
+    else:
+        fig = scatter_points3d_plotly(X, Y, Z, fig, label, color)
+    return fig
+
+
+def plot_surface3d_plotly(xs, ys, zs, fig, label="", color=None) -> FigureType:
+    if color:
+        color = [[0.0, color], [1.0, color]]
+
+    surface = Surface(x=xs, y=ys, z=zs, colorscale=color, showscale=False, name=label)
+    fig.add_trace(surface)
+    return fig
+
+
+def plot_surface3d_mpl(xs, ys, zs, fig, label="", color=None) -> FigureType:
+    fig.gca().plot_surface(xs, ys, zs, color=color, label=label, alpha=0.80)
+    return fig
+
+
+def scatter_points3d_plotly(xs, ys, zs, fig, label="", color=None) -> FigureType:
+    fig.add_scatter3d(
+        x=xs, y=ys, z=zs, mode="markers", marker=dict(size=1, color=color), name=label
+    )
+    return fig
+
+
+def scatter_points3d_mpl(xs, ys, zs, fig, label="", color=None) -> FigureType:
+    fig.gca().scatter(xs, ys, zs, color=color, label=label)
     return fig
 
 

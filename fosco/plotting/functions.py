@@ -11,7 +11,7 @@ from fosco.common.domains import Set, Rectangle
 from fosco.models import TorchSymDiffFn, TorchSymFn
 from fosco.plotting.constants import DOMAIN_COLORS
 from fosco.plotting.domains import plot_domain
-from fosco.plotting.surface import plot_surface
+from fosco.plotting.utils3d import plot_surface
 
 import plotly.graph_objects as go
 
@@ -26,10 +26,7 @@ def plot_torch_function(function: TorchSymDiffFn, domains: dict[str, Set]) -> go
         if k in [DomainName.XI.value, DomainName.XU.value]
     }
     fig = plot_func_and_domains(
-        func=function,
-        in_domain=in_domain,
-        levels=[0.0],
-        domains=other_domains,
+        func=function, in_domain=in_domain, levels=[0.0], domains=other_domains,
     )
     return fig
 
@@ -122,10 +119,7 @@ def plot_torch_function_grads(
     for dim in range(function.input_size):
         func = lambda x: function.gradient(x)[:, dim]
         fig = plot_func_and_domains(
-            func=func,
-            in_domain=in_domain,
-            levels=[0.0],
-            domains=other_domains,
+            func=func, in_domain=in_domain, levels=[0.0], domains=other_domains,
         )
         figs.append(fig)
         titles.append(str(dim))
@@ -133,9 +127,7 @@ def plot_torch_function_grads(
 
 
 def plot_lie_derivative(
-    function: TorchSymDiffFn,
-    system: ControlAffineDynamics,
-    domains: dict[str, Set],
+    function: TorchSymDiffFn, system: ControlAffineDynamics, domains: dict[str, Set],
 ) -> tuple[list[go.Figure], list[str]]:
     time_domain = system.time_domain
     in_domain: Rectangle = domains[DomainName.XD.value]

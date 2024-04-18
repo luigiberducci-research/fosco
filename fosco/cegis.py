@@ -40,6 +40,7 @@ class Cegis:
         self.config = config
         self.data_gen = data_gen
         self.verbose = min(max(verbose, 0), len(LOGGING_LEVELS) - 1)
+        self.iteration = 0
 
         # seeding
         if self.config.SEED is None:
@@ -221,15 +222,18 @@ class Cegis:
             verbose=self.verbose,
         )
 
-    def solve(self) -> CegisResult:
+    def solve(self, n_iterations: int = None) -> CegisResult:
         state = self.init_state()
 
-        it = None
+        n_iterations = n_iterations or self.config.CEGIS_MAX_ITERS
+        for i in range(n_iterations):
 
-        # todo pretrain supervised-learning
+            if self.iteration >= self.config.CEGIS_MAX_ITERS:
+                self.tlogger.info("Max iterations reached")
+                break
 
-        for it in range(1, self.config.CEGIS_MAX_ITERS + 1):
-            self.tlogger.info(f"Iteration {it}")
+            self.iteration += 1
+            self.tlogger.info(f"Iteration {self.iteration}")
 
             # Log training distribution
             context = "dataset"
@@ -237,7 +241,7 @@ class Cegis:
                 self.logger.log_scalar(
                     tag=f"{name}_data",
                     value=len(dataset),
-                    step=it,
+                    step=self.iteration,
                     context={context: name},
                 )
 
@@ -246,32 +250,45 @@ class Cegis:
             outputs, elapsed_time = self.learner.update(**state)
             for context, dict_metrics in outputs.items():
                 self.logger.log_scalar(
-                    tag=None, value=dict_metrics, step=it, context={context: True}
+                    tag=None,
+                    value=dict_metrics,
+                    step=self.iteration,
+                    context={context: True},
                 )
-            self.logger.log_scalar(tag="time_learner", value=elapsed_time, step=it)
+            self.logger.log_scalar(
+                tag="time_learner", value=elapsed_time, step=self.iteration
+            )
 
             # Translator component
             self.tlogger.debug("Translator")
             outputs, elapsed_time = self.translator.translate(**state)
             state.update(outputs)
-            self.logger.log_scalar(tag="time_translator", value=elapsed_time, step=it)
+            self.logger.log_scalar(
+                tag="time_translator", value=elapsed_time, step=self.iteration
+            )
 
             # Verifier component
             self.tlogger.debug("Verifier")
             outputs, elapsed_time = self.verifier.verify(**state)
             state.update(outputs)
-            self.logger.log_scalar(tag="time_verifier", value=elapsed_time, step=it)
+            self.logger.log_scalar(
+                tag="time_verifier", value=elapsed_time, step=self.iteration
+            )
 
             # Consolidator component
             self.tlogger.debug("Consolidator")
             outputs, elapsed_time = self.consolidator.get(**state)
             state.update(outputs)
-            self.logger.log_scalar(tag="time_consolidator", value=elapsed_time, step=it)
+            self.logger.log_scalar(
+                tag="time_consolidator", value=elapsed_time, step=self.iteration
+            )
 
             # Debug plot - Learned functions
-            self._plot_all(state=state, iteration=it)
+            self._plot_all(state=state, iteration=self.iteration)
 
-            self.logger.log_model(tag="learner", model=self.learner, step=it)
+            self.logger.log_model(
+                tag="learner", model=self.learner, step=self.iteration
+            )
 
             # Check termination
             if state["found"]:
@@ -280,10 +297,11 @@ class Cegis:
 
             self.tlogger.info("")
 
-        self.tlogger.info(f"CEG Pretraining finished after {it} iterations")
-        self.logger.log_model(tag="learner_final", model=self.learner, step=it)
+        self.logger.log_model(
+            tag="learner_final", model=self.learner, step=self.iteration
+        )
 
-        infos = {"iter": it}
+        infos = {"iter": self.iteration}
         self._result = CegisResult(
             found=state["found"],
             barrier=state["V_net"],
@@ -327,7 +345,8 @@ class Cegis:
 
         if isinstance(self.f, UncertainControlAffineDynamics):
             fig = plot_torch_function(
-                function=self.learner.xsigma, domains=self.domains,
+                function=self.learner.xsigma,
+                domains=self.domains,
             )
             self.logger.log_image(tag="compensator", image=fig, step=iteration)
 

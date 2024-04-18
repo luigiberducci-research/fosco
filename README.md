@@ -17,7 +17,7 @@ for control-affine systems.
 We combine **counterexample-guided pretraining** and **RL algorithms** to
 learn a policy which is guaranteed to be safe to a set of environmental assumptions.
 
-![Example CBF Single-Integrator](docs%2Fsingle_integrator.gif)
+![Learning CBF](docs/cbf_training.gif)
 
 ## :wrench: Installation 
 The code is written in Python 3.10 and uses [PyTorch](https://pytorch.org/) for
@@ -29,25 +29,25 @@ To install the required dependencies, run
 pip install -r requirements.txt
 ```
 
-## :rocket: Examples 
-We provide a simple example for a single-integrator system in 
-[`run_example.py`](run_example.py).
+## :rocket: Getting Started
+We provide some examples and notebooks to get started with the codebase.
 
-To run the example, run
-```bash
-python run_example.py
-```
+Currently, we provide the following examples in the `examples` folder:
+- `tutorial_hello_world`: an example to use FoSRL on a 2d environment with linear dynamics. 
+We show how to learn a valid CBF and conduct safe policy optimization.
+- `tutorial_uncertainty`: an example to use FoSRL with uncertain dynamics.
+We show how to learn a valid Robust CBF and conduct safe policy optimization under non-deterministic noise.
 
-## :warning: Disclaimer
-This is a research prototype, which builds on prior work on Lyapunov functions,
-and extend it to support CBF and Robust CBF.
-Our implementation refactored part of the original codebase.
 
-However, if interested in other class of Lyapunov certificates,
-we invite to refer to the [FOSSIL](https://github.com/oxford-oxcav/fossil) codebase.
+### :warning: Disclaimer
+This is a research prototype, which builds on prior work on Lyapunov functions ([FOSSIL](https://github.com/oxford-oxcav/fossil)).
+Here, we focus on support for CBF and Robust CBF and their adoption in reinforcement learning.
 
 
 # Known issues
+We collect some of the issues that we have encountered during the development of this project.
+These are not strictly related to FoSRL but rather installation and compatibility issues. 
+However, we think it might be useful for users who encounter similar issues.
 
 1. Rendering in Mujoco env
 If when using mujoco environments, you run into the following error

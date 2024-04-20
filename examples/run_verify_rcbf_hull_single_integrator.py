@@ -87,7 +87,7 @@ def main(args):
     )
     
     cegis = Cegis(
-        system=system_fn,
+        system=system_fn(),
         domains=sets,
         data_gen=data_gen,
         config=config,

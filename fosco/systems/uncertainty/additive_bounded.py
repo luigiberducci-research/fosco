@@ -4,8 +4,7 @@ import torch
 from fosco.common import domains
 from fosco.common.domains import Set
 from fosco.systems import ControlAffineDynamics
-from fosco.systems.uncertainty.uncertainty_wrapper import register
-from fosco.systems.uncertainty.uncertainty_wrapper import UncertaintyWrapper
+from fosco.systems.uncertainty.uncertainty_wrapper import register, UncertaintyWrapper
 
 
 @register

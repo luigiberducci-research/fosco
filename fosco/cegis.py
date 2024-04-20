@@ -34,7 +34,7 @@ class Cegis:
         config: CegisConfig,
         data_gen: dict[str, Callable[[int], torch.Tensor]],
         verbose: int = 0,
-    ):
+    ):  
         self.f = system
         self.domains = domains
         self.config = config

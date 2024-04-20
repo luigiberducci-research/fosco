@@ -21,6 +21,7 @@ def main(args):
     verbose = 1
 
     system_fn = make_system(system_id=system_id)
+    print(type(system_fn))
     system_fn = add_uncertainty(uncertainty_type=uncertainty_id, system_fn=system_fn)
     sets = system_fn().domains
 

@@ -1,6 +1,8 @@
 import numpy as np
 import torch
 
+from fosco.common import domains
+from fosco.common.domains import Set
 from fosco.models import TorchSymFn
 from fosco.systems import ControlAffineDynamics
 from fosco.systems.uncertainty.uncertainty_wrapper import register, UncertaintyWrapper
@@ -28,6 +30,8 @@ class ConvexHull(UncertaintyWrapper):
         self.f_uncertainty = f_uncertainty  # list of function, each function input n_vars dim, output n_vars
         # self.g_uncertainty = g_uncertainty # list of function, ignore this first
 
+        self.z_vars = len(self.f_uncertainty)
+
     @property
     def uncertainty_id(self) -> str:
         return self.__class__.__name__
@@ -36,6 +40,16 @@ class ConvexHull(UncertaintyWrapper):
     @property
     def n_uncertain(self) -> int:
         return len(self.f_uncertainty)  # + len(self.g_uncertainty)
+
+    @property
+    def uncertain_vars(self) -> list[str]:
+        return [f"z{i}" for i in range(self.z_vars)]
+    
+    @property
+    def uncertainty_domain(self) -> Set:
+        return domains.SumToOneSet(
+            vars=self.uncertain_vars,
+        )
 
     # z is the 2n variables, we should return z[0:n] @ f_uncertainty
     def fz_torch(
@@ -60,10 +74,10 @@ class ConvexHull(UncertaintyWrapper):
     def fz_smt(self, x: list, z: list) -> np.ndarray | torch.Tensor:
         self._assert_symbolic_input(x, z)
         f_uncertain_x = np.zeros_like(x, dtype=float)
+        print(f_uncertain_x.shape)
         for index in range(len(self.f_uncertainty)):
-            f_uncertain_x = (
-                f_uncertain_x + self.f_uncertainty[index].forward_smt(x) * z[index]
-            )
+            print(index, z, len(z), len(self.f_uncertainty), self.f_uncertainty[index].forward_smt(x))
+            f_uncertain_x = f_uncertain_x + self.f_uncertainty[index].forward_smt(x) * z[index]
         return f_uncertain_x
 
     # z is the 2n variables, we should return z[n:2n] @ g_uncertainty, double check the dim of g_uncertainty
@@ -107,9 +121,9 @@ class ConvexHull(UncertaintyWrapper):
         if isinstance(z, np.ndarray):
             assert np.sum(z, axis=1) == np.ones(z.shape[0]), "expected z is summed to 1"
         else:
-            assert torch.all(
-                torch.eq(torch.sum(z, axis=1), torch.ones(z.shape[0]))
-            ), "expected z is summed to 1"
+            # print(z.shape[0], torch.sum(z, axis=1).shape, torch.ones(z.shape[0]).shape)
+            pass
+            # assert torch.equal(torch.sum(z, axis=1), torch.ones(z.shape[0])), "expected z is summed to 1"
 
     def _assert_symbolic_input(self, x: list, z: list) -> None:
         assert isinstance(

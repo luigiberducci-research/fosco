@@ -14,7 +14,7 @@ from fosco.systems import SingleIntegrator
 class MultiParticle(ControlAffineDynamics):
     """
     Multi-particle system with state
-    [dx1_0, dx1_1, ..., dx2_0, dx2_1, ...] relative to the first agent (ego),
+    [x0_0, x0_1, ..., dx1_0, dx1_1, ..., dx2_0, dx2_1, ...] as state ego, relative state agent 1, relative state agent 2
     the control inputs [u0_0, u0_1, ...] are for the first agent (ego).
 
     dX/dt = 0 - ID u
@@ -43,8 +43,8 @@ class MultiParticle(ControlAffineDynamics):
 
     @property
     def vars(self) -> tuple[str, ...]:
-        variables = []
-        # _aid suffix for the agent id but 0 for the first agent (ego)
+        variables = [f"{var}_0" for var in self._single_agent_dynamics.vars]    # first ego variables
+        # _aid suffix for the agent id, excluding 0 for the first agent (ego)
         for aid in range(1, self._n_agents):
             variables.extend([f"d{var}_{aid}" for var in self._single_agent_dynamics.vars])
         return tuple(variables)
@@ -61,12 +61,12 @@ class MultiParticle(ControlAffineDynamics):
     @property
     def state_domain(self) -> Rectangle:
         # assume the state domain is the same for all agents, replicate it for all agents
-        lb = np.array(self._single_agent_dynamics.state_domain.lower_bounds * (self._n_agents - 1))
-        ub = np.array(self._single_agent_dynamics.state_domain.upper_bounds * (self._n_agents - 1))
+        lb = np.array(self._single_agent_dynamics.state_domain.lower_bounds * self._n_agents)
+        ub = np.array(self._single_agent_dynamics.state_domain.upper_bounds * self._n_agents)
         return domains.Rectangle(
             vars=self.vars,
-            lb=lb,
-            ub=ub,
+            lb=tuple(lb),
+            ub=tuple(ub),
         )
 
 
@@ -85,12 +85,11 @@ class MultiParticle(ControlAffineDynamics):
         lowerbound = self.state_domain.lower_bounds
         upperbound = self.state_domain.upper_bounds
         init_domains = []
-        for aid in range(1, self._n_agents):
+        for state_i in range(1, self._n_agents):
             lb = np.array(lowerbound)
             ub = np.array(upperbound)
 
             # set the initial range for the agent aid
-            state_i = aid - 1
             n_vars_single = self._single_agent_dynamics.n_vars
             lb[n_vars_single * state_i: n_vars_single * (state_i + 1)] = -self._initial_distance
             ub[n_vars_single * state_i: n_vars_single * (state_i + 1)] = self._initial_distance
@@ -98,8 +97,8 @@ class MultiParticle(ControlAffineDynamics):
             complement_box_i = domains.Complement(
                 domains.Rectangle(
                     vars=self.vars,
-                    lb=lb,
-                    ub=ub,
+                    lb=tuple(lb),
+                    ub=tuple(ub),
                 ),
                 outer_set=self.state_domain
             )
@@ -118,20 +117,19 @@ class MultiParticle(ControlAffineDynamics):
         lowerbound = self.state_domain.lower_bounds
         upperbound = self.state_domain.upper_bounds
         unsafe_domains = []
-        for aid in range(1, self._n_agents):
+        for state_i in range(1, self._n_agents):
             lb = np.array(lowerbound)
             ub = np.array(upperbound)
 
             # set the collision range for the agent aid
-            state_i = aid - 1
             n_vars_single = self._single_agent_dynamics.n_vars
             lb[n_vars_single * state_i: n_vars_single * (state_i + 1)] = -self._collision_distance
             ub[n_vars_single * state_i: n_vars_single * (state_i + 1)] = self._collision_distance
 
             box_i = domains.Rectangle(
                 vars=self.vars,
-                lb=lb,
-                ub=ub,
+                lb=tuple(lb),
+                ub=tuple(ub),
             )
             unsafe_domains.append(box_i)
 
@@ -158,10 +156,13 @@ class MultiParticle(ControlAffineDynamics):
                 len(x.shape) == 3
         ), "expected batched input with shape (batch_size, state_dim, 1)"
         if isinstance(x, np.ndarray):
-            gx = np.tile(- np.eye(self.n_controls), (self._n_agents - 1, 1))
+            gx = np.tile(np.eye(self.n_controls), (self._n_agents, 1))
+            # from the first n-controls, invert sign
+            gx[self.n_controls:] = -gx[self.n_controls:]
             gx_batch = np.tile(gx, (x.shape[0], 1, 1))
         else:
-            gx = torch.eye(self.n_controls).repeat((self._n_agents - 1, 1))
+            gx = torch.eye(self.n_controls).repeat((self._n_agents, 1))
+            gx[self.n_controls:] = -gx[self.n_controls:]
             gx_batch = gx[None].repeat(x.shape[0], 1, 1).to(x.device)
         return gx_batch
 
@@ -177,9 +178,10 @@ class MultiParticle(ControlAffineDynamics):
 
 
         # ego agent
+        pos_0 = obs.squeeze()[:2]
         ego_obj = RenderObject(
             type="circle",
-            position=np.zeros(2,),
+            position=pos_0,
             size=self._collision_distance / 2,
             color=[0, 0, 200]
         )
@@ -187,13 +189,13 @@ class MultiParticle(ControlAffineDynamics):
         # other agents
         n_vars_single = self._single_agent_dynamics.n_vars
         objects = []
-        for aid in range(1, self._n_agents):
-            state_i = aid - 1
-            x = obs.squeeze()[n_vars_single * state_i: n_vars_single * (state_i + 1)]
+        for state_i in range(1, self._n_agents):
+            dx = obs.squeeze()[n_vars_single * state_i: n_vars_single * (state_i + 1)]
+            pos_i = pos_0 + dx[:2]
             objects.append(
                 RenderObject(
                     type="circle",
-                    position=x[:2],
+                    position=pos_i,
                     size=self._collision_distance / 2,
                     color=[200, 0, 0]
                 )

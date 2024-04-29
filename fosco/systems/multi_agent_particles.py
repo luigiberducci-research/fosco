@@ -206,70 +206,9 @@ class MultiParticle(ControlAffineDynamics):
         return [ego_obj] + objects
 
 
-class UncertainMultiParticle(MultiParticle, UncertainControlAffineDynamics):
-
-    @property
-    def uncertain_vars(self) -> tuple[str, ...]:
-        variables = []
-        # _aid suffix for the agent id, excluding 0 for the first agent (ego)
-        for aid in range(1, self._n_agents):
-            variables.extend([f"z{var}_{aid}" for var in self._single_agent_dynamics.controls])
-        return tuple(variables)
-
-    @property
-    def uncertainty_domain(self) -> Set:
-        # assume the uncertain variables are the input domains
-        lb = np.array(self._single_agent_dynamics.input_domain.lower_bounds * (self._n_agents - 1))
-        ub = np.array(self._single_agent_dynamics.input_domain.upper_bounds * (self._n_agents - 1))
-        return domains.Rectangle(
-            vars=self.uncertain_vars,
-            lb=tuple(lb),
-            ub=tuple(ub),
-        )
-
-    def fz_torch(
-            self, x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
-    ) -> np.ndarray | torch.Tensor:
-        if isinstance(x, np.ndarray):
-            fz = np.tile(np.eye(self.n_controls), (self._n_agents, 1))
-            fz[:self.n_controls, :] = 0.0   # no impact on ego
-            fz_batch = np.tile(fz, (x.shape[0], 1, 1))
-        else:
-            fz = torch.eye(self.n_controls).repeat((self._n_agents, 1))
-            fz[self.n_controls:, :] = 0.0
-            fz_batch = fz
-        return fz_batch
-
-    def fz_smt(self, x: list, z: list) -> np.ndarray | torch.Tensor:
-        fz = np.tile(np.eye(self.n_controls), (self._n_agents, 1))
-        fz[:self.n_controls, :] = 0.0  # no impact on ego
-        return fz
-
-    def gz_torch(
-            self, x: np.ndarray | torch.Tensor, z: np.ndarray | torch.Tensor
-    ) -> np.ndarray | torch.Tensor:
-        if isinstance(x, np.ndarray):
-            gx = np.zeros((self.n_vars, self.n_controls))[None].repeat(
-                x.shape[0], axis=0
-            )
-        else:
-            gx = torch.zeros((self.n_vars, self.n_controls))[None].repeat(
-                (x.shape[0], 1, 1)
-            )
-        return gx
-
-    def gz_smt(self, x: list, z: list) -> np.ndarray | torch.Tensor:
-        return np.zeros((self.n_vars, self.n_controls))
-
-
 register(
-    name="StaticMultiParticleSingleIntegrator",
+    name="MultiParticleSingleIntegrator",
     entrypoint=partial(MultiParticle, single_agent_dynamics=SingleIntegrator()),
-)
-
-register(
-    name="DynamicMultiParticleSingleIntegrator",
-    entrypoint=partial(UncertainMultiParticle, single_agent_dynamics=SingleIntegrator()),
 )
 
 if __name__=="__main__":

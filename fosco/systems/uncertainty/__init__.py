@@ -1,5 +1,6 @@
 from .additive_bounded import AdditiveBounded
 from .convex_hull import ConvexHull
+from .multiagent_wrapper import DynamicAgents
 from .uncertainty_wrapper import UNCERTAINTY_REGISTRY
 from .. import ControlAffineDynamics
 

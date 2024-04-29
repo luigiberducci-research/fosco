@@ -18,8 +18,8 @@ def main(args):
     resampling_std = args.resampling_std
     barrier_to_load = args.barrier_to_load
     sigma_to_load = args.sigma_to_load
-    activations = args.activations or []
-    n_hidden_neurons = args.n_hiddens or []
+    activations = args.activations or ["htanh"]
+    n_hidden_neurons = args.n_hiddens or [10]
     n_data_samples = args.n_data_samples
     optimizer = args.optimizer
     learning_rate = args.lr
@@ -143,7 +143,7 @@ if __name__ == "__main__":
     parser.add_argument("--sigma-to-load", type=str, default=None)
 
     parser.add_argument("--verifier", type=str, default="z3")
-    parser.add_argument("--resampling-n", type=int, default=100)
+    parser.add_argument("--resampling-n", type=int, default=1000)
     parser.add_argument("--resampling-std", type=float, default=5e-3)
 
     parser.add_argument("--activations", type=str, nargs="+", default=None)
@@ -160,7 +160,7 @@ if __name__ == "__main__":
     parser.add_argument("--loss-unsafe-weight", type=float, default=1.0)
     parser.add_argument("--loss-lie-weight", type=float, default=1.0)
     parser.add_argument("--loss-robust-weight", type=float, default=1.0)
-    parser.add_argument("--loss-conservative-b-weight", type=float, default=0.0)
+    parser.add_argument("--loss-conservative-b-weight", type=float, default=0.1)
     parser.add_argument("--loss-conservative-sigma-weight", type=float, default=0.0)
 
     parser.add_argument("--verbose", type=int, default=1)

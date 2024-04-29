@@ -15,7 +15,9 @@ class TestMultiAgentSystem(unittest.TestCase):
         multi_sys = MultiParticle(single_agent_dynamics=single_sys, n_agents=3)
 
         self.assertEqual(multi_sys.id, "MultiParticleSingleIntegrator3")
-        self.assertEqual(multi_sys.vars, ("dx0_1", "dx1_1", "dx0_2", "dx1_2"))
+        self.assertEqual(
+            multi_sys.vars, ("x0_0", "x1_0", "dx0_1", "dx1_1", "dx0_2", "dx1_2")
+        )
         self.assertEqual(multi_sys.controls, ("u0_0", "u1_0"))
 
     def test_domains(self):
@@ -27,14 +29,24 @@ class TestMultiAgentSystem(unittest.TestCase):
             single_agent_dynamics=single_sys,
             n_agents=3,
             collision_distance=collision_distance,
-            initial_distance=initial_distance
+            initial_distance=initial_distance,
         )
 
         self.assertEqual(multi_sys.time_domain, single_sys.time_domain)
-        self.assertTrue(all(multi_sys.state_domain.lower_bounds[:2] == single_sys.state_domain.lower_bounds))
-        self.assertTrue(all(multi_sys.state_domain.upper_bounds[:2] == single_sys.state_domain.upper_bounds))
-        self.assertTrue(multi_sys.input_domain.lower_bounds == single_sys.input_domain.lower_bounds)
-        self.assertTrue(multi_sys.input_domain.upper_bounds == single_sys.input_domain.upper_bounds)
+        self.assertTrue(
+            multi_sys.state_domain.lower_bounds[:2]
+            == single_sys.state_domain.lower_bounds
+        )
+        self.assertTrue(
+            multi_sys.state_domain.upper_bounds[:2]
+            == single_sys.state_domain.upper_bounds
+        )
+        self.assertTrue(
+            multi_sys.input_domain.lower_bounds == single_sys.input_domain.lower_bounds
+        )
+        self.assertTrue(
+            multi_sys.input_domain.upper_bounds == single_sys.input_domain.upper_bounds
+        )
 
         # to check unsafe set, use samples
         samples = multi_sys.unsafe_domain.generate_data(1000)
@@ -44,17 +56,15 @@ class TestMultiAgentSystem(unittest.TestCase):
         # to check init set, use samples
         # for each pair, at least one of the dimension has to be > initial_distance
         samples = multi_sys.init_domain.generate_data(1000)
-        for aid in range(0, multi_sys._n_agents - 1):
-            max_distance = torch.max(torch.abs(samples[:, 2 * aid:2 * (aid + 1)]), axis=1)
+        for aid in range(1, multi_sys._n_agents):
+            max_distance = torch.max(
+                torch.abs(samples[:, 2 * aid : 2 * (aid + 1)]), axis=1
+            )
             self.assertTrue(torch.all(max_distance.values > initial_distance))
-
 
     def test_dynamics(self):
         single_sys = make_system("SingleIntegrator")()
-        multi_sys = MultiParticle(
-            single_agent_dynamics=single_sys,
-            n_agents=3,
-        )
+        multi_sys = MultiParticle(single_agent_dynamics=single_sys, n_agents=3,)
 
         states = multi_sys.state_domain.generate_data(10).reshape(10, -1, 1)
 
@@ -98,6 +108,11 @@ class TestMultiAgentSystem(unittest.TestCase):
         # fx all zeros
         self.assertTrue(all(fx_smt == 0))
 
-        # gx = [-I, -I, -I]
-        for i in range(multi_sys._n_agents - 1):
-            self.assertTrue(np.allclose(gx_smt[i*2:(i+1)*2, :], -np.eye(multi_sys.n_controls)))
+        # gx = [I, -I, -I, -I]
+        self.assertTrue(np.allclose(gx_smt[:2, :], np.eye(multi_sys.n_controls)))
+        for i in range(1, multi_sys._n_agents):
+            self.assertTrue(
+                np.allclose(
+                    gx_smt[i * 2 : (i + 1) * 2, :], -np.eye(multi_sys.n_controls)
+                )
+            )

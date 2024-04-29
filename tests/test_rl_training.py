@@ -60,7 +60,7 @@ class TestRLTraining(unittest.TestCase):
             # delete logdir once test is done
             shutil.rmtree(logdir)
 
-    def _test_safeppo_single_integrator(self):
+    def _test_ppo_single_integrator(self):
         """
         Try to run ppo in the single integrator environment.
         Expected to learn to go to the goal, with some cost violations.
@@ -73,7 +73,7 @@ class TestRLTraining(unittest.TestCase):
         args.seed = 0
         args.env_id = "fosco.systems:SingleIntegrator-GoToUnsafeReward-v0"
         args.trainer_id = "ppo"
-        args.use_true_barrier = True
+        args.use_true_barrier = False
         args.update_epochs = 10
         args.num_steps = 64
         args.total_timesteps = 2000

@@ -13,8 +13,8 @@ class CBFSafetyFilter:
         ), "action lower and upper bounds must have same dimension"
 
         self.h = h_model  # todo: replace torch model with TorchMLP
-        self.f = env.system.fx_torch
-        self.g = env.system.gx_torch
+        self.f = env._base_system.fx_torch
+        self.g = env._base_system.gx_torch
 
         self.prob = self.setup_problem()
 

@@ -56,10 +56,10 @@ class SafeActorCriticAgent(ActorCriticAgent):
 
         # extract continuous dynamics
         assert isinstance(envs.system, EulerDTSystem) and not isinstance(
-            envs.unwrapped.system.system, EulerDTSystem
+            envs.unwrapped.system._base_system, EulerDTSystem
         )
-        self.fx = envs.unwrapped.system.system.fx_torch
-        self.gx = envs.unwrapped.system.system.gx_torch
+        self.fx = envs.unwrapped.system._base_system.fx_torch
+        self.gx = envs.unwrapped.system._base_system.gx_torch
 
         # device
         self.device = device or torch.device("cpu")

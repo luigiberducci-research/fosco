@@ -9,7 +9,7 @@ from fosco.systems.uncertainty import add_uncertainty
 def main(args):
     exp_name = args.exp_name
     seed = args.seed
-    system_type = args.system
+    system_type = args._base_system
     dt = args.dt
     uncertainty_type = args.uncertainty
     certificate_type = args.certificate

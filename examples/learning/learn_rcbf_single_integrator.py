@@ -48,9 +48,9 @@ def main():
     system = add_uncertainty(uncertainty_type=uncertainty_type, system=system)
 
     # learn control barrier function
-    # barrier, compensator = learn_barrier_and_compensator(system=system, params=params, seed=seed, verbose=verbose)
-    barrier = make_barrier(system=system)
-    compensator = make_compensator(system=system)
+    barrier, compensator = learn_barrier_and_compensator(system=system, params=params, seed=seed, verbose=verbose)
+    #barrier = make_barrier(system=system)
+    #compensator = make_compensator(system=system)
     for func in [barrier, compensator]:
         fig = plot_torch_function(function=func, domains=system.domains)
         fig.show()
@@ -75,7 +75,7 @@ def main():
         # with torch.no_grad():
         obs = obs[None] if len(obs.shape) == 1 else obs
         results = pi.get_action_and_value(x=obs)
-        u = results["safe_action"].detach().numpy()
+        u = results["action"].detach().numpy()
 
         obs, rewards, terminations, truncations, infos = env.step(u)
         env.render()

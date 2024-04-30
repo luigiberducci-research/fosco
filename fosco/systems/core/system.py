@@ -202,8 +202,10 @@ class UncertainControlAffineDynamics(ControlAffineDynamics):
         v = v.reshape(-1, self.n_vars, 1)
         u = u.reshape(-1, self.n_controls, 1)
 
-        fx_torch = self._base_system.fx_torch
-        gx_torch = self._base_system.gx_torch
+        #fx_torch = self._base_system.fx_torch
+        #gx_torch = self._base_system.gx_torch
+        fx_torch = self.fx_torch
+        gx_torch = self.gx_torch
         if only_nominal:
             vdot = fx_torch(v) + gx_torch(v) @ u
         else:

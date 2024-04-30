@@ -6,6 +6,7 @@ aim
 numpy
 # for learner
 torch
+torchvision
 # for verification
 z3-solver
 dreal

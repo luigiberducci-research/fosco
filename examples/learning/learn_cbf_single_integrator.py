@@ -72,7 +72,7 @@ def main():
         # with torch.no_grad():
         obs = obs[None] if len(obs.shape) == 1 else obs
         results = pi.get_action_and_value(x=obs)
-        u = results["safe_action"].detach().numpy()
+        u = results["action"].detach().numpy()
 
         obs, rewards, terminations, truncations, infos = env.step(u)
         env.render()

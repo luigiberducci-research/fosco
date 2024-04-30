@@ -32,7 +32,7 @@ def main():
     # learning parameters
     params = {
         "activations": ["htanh"],
-        "n_hidden_neurons": [5],
+        "n_hidden_neurons": [20],
         "max_iters": 50,
         "n_data_samples": 5000,
         "n_resampling": 100,
@@ -74,7 +74,7 @@ def main():
         # with torch.no_grad():
         obs = obs[None] if len(obs.shape) == 1 else obs
         results = pi.get_action_and_value(x=obs)
-        u = results["safe_action"].detach().numpy()
+        u = results["action"].detach().numpy()
 
         obs, rewards, terminations, truncations, infos = env.step(u)
         env.render()

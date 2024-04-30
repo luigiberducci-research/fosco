@@ -135,7 +135,7 @@ def run(args):
             )
         from barriers import make_barrier
 
-        system = envs.envs[0].unwrapped.system
+        system = envs.envs[0].unwrapped._base_system
         barrier = make_barrier(system=system)
         trainer = SafePPOTrainer(envs=envs, barrier=barrier, config=args, device=device)
     else:

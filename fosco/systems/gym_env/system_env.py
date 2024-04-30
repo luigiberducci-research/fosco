@@ -19,6 +19,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+import warnings
 from collections import namedtuple
 from typing import Dict, Optional, Tuple, Callable, Any
 
@@ -28,12 +29,12 @@ import numpy as np
 import torch
 import pygame
 
-from fosco.common.domains import Rectangle, Sphere
+from fosco.common.domains import Rectangle, Sphere, Set, Union
 from fosco.systems.core.system import (
     ControlAffineDynamics,
     UncertainControlAffineDynamics,
 )
-from fosco.systems.discrete_time.system_dt import EulerDTSystem
+from fosco.systems.discrete_time.system_dt import EulerDTSystem, UncertainEulerDTSystem
 from fosco.systems.gym_env.rewards import RewardFnType
 
 TermFnType = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
@@ -78,8 +79,12 @@ class SystemEnv(gymnasium.Env):
         super(SystemEnv, self).__init__()
 
         assert not isinstance(system, EulerDTSystem)
-        system = EulerDTSystem(system=system, dt=dt)
-        self.system = system
+        if isinstance(system, UncertainControlAffineDynamics):
+            self.is_uncertain = True
+            self.system = UncertainEulerDTSystem(system=system, dt=dt)
+        else:
+            self.is_uncertain = False
+            self.system = EulerDTSystem(system=system, dt=dt)
         assert isinstance(
             self.system, EulerDTSystem
         ), f"system must be a discrete-time system, got {type(self.system)}"
@@ -241,9 +246,9 @@ class SystemEnv(gymnasium.Env):
                 actions = torch.from_numpy(actions).to(self._device)
 
             # step
-            if isinstance(self.system, UncertainControlAffineDynamics):
-                batch_size = self._current_obs.shape[0]
+            if self.is_uncertain:
                 # todo: add deterministic or stochastic mode
+                batch_size = self._current_obs.shape[0]
                 z = self.system.uncertainty_domain.generate_data(batch_size)
                 next_observs = self.system.f(v=self._current_obs, u=actions, z=z)
             else:
@@ -351,8 +356,8 @@ class SystemEnv(gymnasium.Env):
         # Draw origin
         origin_translation = np.array(self.system.state_domain.lower_bounds[:2])
 
-        if hasattr(self.system.system, "render_state_with_objects"):
-            objects = self.system.system.render_state_with_objects(obs=self._current_obs.numpy())
+        if hasattr(self.system._base_system, "render_state_with_objects"):
+            objects = self.system._base_system.render_state_with_objects(obs=self._current_obs.numpy())
         else:
             objects = self._render_state_with_objects(obs=self._current_obs)
 
@@ -384,29 +389,15 @@ class SystemEnv(gymnasium.Env):
             )
 
     def _render_state_with_objects(self, obs) -> list[RenderObject]:
+        objects = []
         if len(self._current_obs.shape) == 2 and self._current_obs.shape[0] > 1:
-            return []
+            return objects
 
         # Add unsafe set
-        if str(self.system.unsafe_domain).startswith("Rectangle"):
-            dom_type = "rectangle"
-            position = np.array(self.system.unsafe_domain.lower_bounds[:2])
-            size = np.array(self.system.unsafe_domain.upper_bounds[:2]) - np.array(
-                self.system.unsafe_domain.lower_bounds[:2]
-            )
-        elif str(self.system.unsafe_domain).startswith("Sphere"):
-            dom_type = "circle"
-            position = np.array(self.system.unsafe_domain.center)
-            size = self.system.unsafe_domain.radius
-        else:
-            raise ValueError("Unsupported rendering for domain type {}".format(type(self.system.unsafe_domain)))
+        unsafe_obj = self._dom_to_obj(self.system.unsafe_domain, color=[200, 0, 0])
 
-        unsafe_obj = RenderObject(
-            type=dom_type,
-            position=position,
-            size=size,
-            color=[200, 0, 0],
-        )
+        if unsafe_obj is not None:
+            objects.append(unsafe_obj)
 
         # agent
         position = obs.squeeze()[:2].numpy()
@@ -417,8 +408,25 @@ class SystemEnv(gymnasium.Env):
             size=radius,
             color=[0, 0, 200],
         )
+        objects.append(agent_obj)
 
-        return [unsafe_obj, agent_obj]
+        return objects
+
+    def _dom_to_obj(self, domain: Set, color: list = None) -> RenderObject:
+        if isinstance(domain, Rectangle):
+            dom_type = "rectangle"
+            position = np.array(self.system.unsafe_domain.lower_bounds[:2])
+            size = np.array(self.system.unsafe_domain.upper_bounds[:2]) - np.array(
+                self.system.unsafe_domain.lower_bounds[:2]
+            )
+        elif isinstance(domain, Sphere):
+            dom_type = "circle"
+            position = np.array(self.system.unsafe_domain.center)
+            size = self.system.unsafe_domain.radius
+        else:
+            return None
+
+        return RenderObject(type=dom_type, position=position, size=size, color=color)
 
 
 if __name__=="__main__":

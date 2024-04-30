@@ -5,15 +5,14 @@ from datetime import datetime
 from functools import partial
 import random
 
+
 import gymnasium
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from matplotlib import cm
 from matplotlib.backends.backend_agg import FigureCanvasAgg
-from torch.utils.data import Dataset, DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.transforms import transforms
 
 from fosco.certificates import make_certificate
 from fosco.certificates.cbf import TrainableCBF
@@ -21,39 +20,14 @@ from fosco.common.domains import Sphere
 from fosco.config import CegisConfig
 from fosco.learner import make_learner
 from fosco.plotting.domains import plot_sphere
-from fosco.plotting.functions import plot_torch_function
-from fosco.systems import make_system, MultiParticle, UncertainControlAffineDynamics
+from fosco.systems import make_system
 from fosco.systems.gym_env.system_env import SystemEnv
 from fosco.systems.uncertainty import add_uncertainty
 from fosco.verifier import make_verifier
 
 XD, XI, XU, ZD = "lie", "init", "unsafe", "robust"
 
-logging.basicConfig(level=logging.DEBUG)
-
-
-class TransitionDataset(Dataset):
-    def __init__(self, generators: dict, n_samples: int):
-        self.data = {
-            k: generators[k](n_samples) for k in generators
-        }
-        self.n_samples = n_samples
-
-    def __getitem__(self, item):
-        return torch.cat([self.data[k][item] for k in self.data], dim=0)
-
-    def __len__(self):
-        return self.n_samples
-
-class ConcatDataset(Dataset):
-    def __init__(self, **datasets):
-        self.datasets = datasets
-
-    def __getitem__(self, i):
-        return {kd: d[i] for kd, d in self.datasets.items()}
-
-    def __len__(self):
-        return min(len(d) for d in self.datasets)
+logging.basicConfig(level=logging.INFO)
 
 
 def make_env():
@@ -64,7 +38,7 @@ def make_env():
     return env
 
 
-def setup_learner(system, config):
+def setup_learner(system, config, device):
     verbose = 1
     learner_type = make_learner(system=system)
 
@@ -94,6 +68,7 @@ def setup_learner(system, config):
         loss_weights=config.LOSS_WEIGHTS,
         loss_relu=config.LOSS_RELU,
         verbose=verbose,
+        device=device
     )
 
     n_uncertain = system.n_uncertain
@@ -110,106 +85,99 @@ def setup_learner(system, config):
     return certificate, learner_instance
 
 
-def prepare_data(domains, n_data: int, train_perc: float):
+def prepare_data(domains, n_data: int, train_perc: float, shuffle=True):
     sets = domains
     datasets = {
-        "init": TransitionDataset(generators={"state": sets["init"].generate_data}, n_samples=n_data),
-        "unsafe": TransitionDataset(generators={"state": sets["unsafe"].generate_data}, n_samples=n_data),
-        "lie": TransitionDataset(generators={
-            "state": sets["lie"].generate_data,
-            "control": sets["input"].generate_data,
-            "uncertainty": sets["uncertainty"].generate_data
-        }, n_samples=n_data),
-        "robust": TransitionDataset(generators={
-            "state": sets["lie"].generate_data,
-            "control": sets["input"].generate_data,
-            "uncertainty": sets["uncertainty"].generate_data
-        }, n_samples=n_data),
+        "init": {
+            "state": sets["init"].generate_data(n_data)
+        },
+        "unsafe": {
+            "state": sets["unsafe"].generate_data(n_data)
+                   },
+        "lie": {
+            "state": sets["lie"].generate_data(n_data),
+            "input": torch.zeros(n_data, sets["input"].dimension),
+            "uncertainty": sets["uncertainty"].generate_data(n_data)
+        },
+        "robust": {
+            "state": sets["lie"].generate_data(n_data),
+            "input": torch.zeros(n_data, sets["input"].dimension),
+            "uncertainty": sets["uncertainty"].generate_data(n_data),
+        }
     }
-    concat_dataset = ConcatDataset(**datasets)
 
-    n_train = int(train_perc * len(concat_dataset))
-    n_val = len(concat_dataset) - n_train
-    train_dataset, val_dataset = random_split(concat_dataset, [n_train, n_val])
+    # split train and validation
+    all_ids = np.arange(n_data)
+    if shuffle:
+        np.random.shuffle(all_ids)
 
-    return train_dataset, val_dataset
+    train_ids = all_ids[: int(n_data * train_perc)]
+    val_ids = all_ids[int(n_data * train_perc) :]
 
+    train_data = {
+        dataset: {
+            key: datasets[dataset][key][train_ids] for key in datasets[dataset]
+        } for dataset in datasets
+    }
+    val_data = {
+        dataset: {
+            key: datasets[dataset][key][val_ids] for key in datasets[dataset]
+        } for dataset in datasets
+    }
 
-def run_inference(learner, datasets, n_vars, n_controls, n_uncertain, f_torch):
+    return train_data, val_data
+
+def run_inference(learner, datasets, f_torch):
     net = learner.net
     xsigma = learner.xsigma
 
-    i1 = datasets[XD].shape[0]
-    i2 = datasets[XI].shape[0]
-    i3 = datasets[XU].shape[0]
-
-    states_d = torch.cat([datasets[label][:, :n_vars] for label in [XD, XI, XU]])
-    input_d = datasets[XD][:, n_vars: n_vars + n_controls]
-
-    B = net(states_d)
-    sigma = xsigma(states_d)
-
-    B_d = B[:i1, 0]
-    B_i = B[i1: i1 + i2, 0]
-    B_u = B[i1 + i2: i1 + i2 + i3, 0]
-
-    assert (
-            B_d.shape[0] == input_d.shape[0]
-    ), f"expected pairs of state,input data. Got {B_d.shape[0]} and {input_d.shape[0]}"
-    sigma_d = sigma[:i1, 0]
     Bdot_d = TrainableCBF._compute_barrier_difference(
-        X_d=datasets[XD][:, :n_vars],
-        U_d=datasets[XD][:, n_vars: n_vars + n_controls],
+        X_d=datasets[XD]["state"],
+        U_d=datasets[XD]["input"],
         barrier=net,
         f_torch=partial(f_torch, z=None, only_nominal=True),
     )
 
     return {
-        "B_d": B_d,
-        "B_i": B_i,
-        "B_u": B_u,
+        "B_d": net(datasets[XD]["state"])[:, 0],
+        "B_i": net(datasets[XI]["state"])[:, 0],
+        "B_u": net(datasets[XU]["state"])[:, 0],
         "Bdot_d": Bdot_d,
-        "sigma_d": sigma_d,
+        "sigma_d": xsigma(datasets[XD]["state"])[:, 0],
     }
 
+def run_inference_compensator(learner, datasets, f_torch):
+    net = learner.net
+    xsigma = learner.xsigma
 
-def run_inference_compensator(learner, datasets, n_vars, n_controls, n_uncertain, f_torch):
-    states_dz = datasets[ZD][:, :n_vars]
-    input_dz = datasets[ZD][:, n_vars: n_vars + n_controls]
-    uncert_dz = datasets[ZD][
-                :, n_vars + n_controls: n_vars + n_controls + n_uncertain,
-                ]
-
-    B_dz = learner.net(states_dz)[:, 0]
-    sigma_dz = learner.xsigma(states_dz)[:, 0]
     Bdot_dz = TrainableCBF._compute_barrier_difference(
-        X_d=states_dz,
-        U_d=input_dz,
+        X_d=datasets[ZD]["state"],
+        U_d=datasets[ZD]["input"],
         barrier=learner.net,
-        f_torch=partial(f_torch, z=uncert_dz, only_nominal=True),
+        f_torch=partial(f_torch, z=None, only_nominal=True),
     )
     Bdotz_dz = TrainableCBF._compute_barrier_difference(
-        X_d=states_dz,
-        U_d=input_dz,
+        X_d=datasets[ZD]["state"],
+        U_d=datasets[ZD]["input"],
         barrier=learner.net,
-        f_torch=partial(f_torch, z=uncert_dz, only_nominal=False),
+        f_torch=partial(f_torch, z=datasets[ZD]["uncertainty"], only_nominal=False),
     )
 
     return {
-        "B_dz": B_dz,
+        "B_dz": net(datasets[ZD]["state"])[:, 0],
         "Bdot_dz": Bdot_dz,
         "Bdotz_dz": Bdotz_dz,
-        "sigma_dz": sigma_dz,
+        "sigma_dz": xsigma(datasets[ZD]["state"])[:, 0]
     }
-
 
 
 def main():
     normalize_data = False
     train_perc = 0.8
     use_cuda = True
-    debug = True
-    batch_size = 32
+    debug = False
+    num_data = 1000000
+    batch_size = 100000
 
     cfg = CegisConfig(
         EXP_NAME="multi-agent",
@@ -217,9 +185,9 @@ def main():
         VERIFIER="z3",
         ACTIVATION=["htanh", "htanh"],
         N_HIDDEN_NEURONS=[64, 64],
-        N_DATA=1000000,
+        N_DATA=num_data,
         SEED=42,
-        N_EPOCHS=50000,
+        N_EPOCHS=1000,
         OPTIMIZER="adam",
         LEARNING_RATE=1e-3,
         WEIGHT_DECAY=1e-4,
@@ -241,6 +209,7 @@ def main():
         device = torch.device("cpu")
     logging.info(f"Device: {device}")
 
+
     # seeding
     random.seed(cfg.SEED)
     np.random.seed(cfg.SEED)
@@ -258,42 +227,42 @@ def main():
 
     #
     env = make_env()
-    n_vars, n_controls, n_uncertain = env.system.n_vars, env.system.n_controls, env.system.n_uncertain
     f_torch = env.system.f
 
     # learner
-    certificate, learner = setup_learner(system=env.system, config=cfg)
+    certificate, learner = setup_learner(system=env.system, config=cfg, device=device)
 
     # datasets
-    train_datasets, val_datasets = prepare_data(domains=env.system.domains, n_data=cfg.N_DATA, train_perc=train_perc)
-    print(train_datasets[0])
-    logging.info(f"Data: {len(train_datasets)} training, {len(val_datasets)} validation")
+    datasets, val_datasets = prepare_data(
+        domains=env.system.domains, n_data=cfg.N_DATA, train_perc=train_perc,
+        shuffle=False
+    )
+    logging.info(f"Data: {len(datasets[XD]['state'])} training, {len(val_datasets[XD]['state'])} validation")
 
-    # data transform
+    # move data to device
+    for k in datasets:
+        for key in datasets[k]:
+            datasets[k][key] = datasets[k][key].to(device)
+    for k in val_datasets:
+        for key in val_datasets[k]:
+            val_datasets[k][key] = val_datasets[k][key].to(device)
+
+    # normalization
     if normalize_data:
-        raise NotImplementedError()
-        states_d = torch.cat([train_datasets[label][:, :n_vars] for label in [XD, XI, XU]])
+        states_d = torch.cat([datasets[key]["state"] for key in datasets])
         state_mean = states_d.mean(dim=0)
         state_std = states_d.std(dim=0)
     else:
-        state_mean = torch.zeros(n_vars)
-        state_std = torch.ones(n_vars)
-
-    transform = transforms.Compose([
-        lambda xuz: torch.cat([(xuz[:n_vars] - state_mean) / state_std, xuz[n_vars:]])
-    ])
+        state_mean = 0.0
+        state_std = 1.0
     logging.info(f"Normalization: {state_mean} +/- {state_std}")
 
-    #
-    data_loader = DataLoader(
-        train_datasets,
-        batch_size=batch_size,
-        shuffle=True,
-        pin_memory=True,
-    )
+    for k in datasets:
+        datasets[k]["state"] = (datasets[k]["state"] - state_mean) / state_std
 
     # learn
     optimizers = learner.optimizers
+
 
     losses = {}
     accuracies = {}
@@ -301,14 +270,11 @@ def main():
     val_accuracies = {}
 
     # validation before training
-    """
     val_outputs = run_inference(
-        learner=learner, datasets=val_datasets, n_vars=n_vars, n_controls=n_controls,
-        n_uncertain=n_uncertain, f_torch=f_torch
+        learner=learner, datasets=val_datasets, f_torch=f_torch
     )
     val_outputs2 = run_inference_compensator(
-        learner=learner, datasets=val_datasets, n_vars=n_vars, n_controls=n_controls,
-        n_uncertain=n_uncertain, f_torch=f_torch
+        learner=learner, datasets=val_datasets, f_torch=f_torch
     )
 
     (
@@ -348,20 +314,21 @@ def main():
         f"Epoch 0: barrier: val loss: {barrier_loss_val}, "
         f"compensator: val loss: {sigma_loss_val:.3f}"
     )
-    """
 
     for t in range(learner.epochs):
 
-        for ib, datasets in enumerate(data_loader):
+        num_train_data = len(datasets[XD]["state"])
+        for i in range(0, num_train_data, batch_size):
+            batch = {
+                k: {key: val[i:i+batch_size] for key, val in datasets[k].items()}
+                for k in datasets
+            }
 
             optimizers["barrier"].zero_grad()
 
             # training
             t0 = time.time()
-            outputs = run_inference(
-                learner=learner, datasets=datasets, n_vars=n_vars, n_controls=n_controls,
-                n_uncertain=n_uncertain, f_torch=f_torch
-            )
+            outputs = run_inference(learner=learner, datasets=batch, f_torch=f_torch)
             logging.debug("Inference time: %.3f", time.time() - t0)
 
             t0 = time.time()
@@ -388,10 +355,7 @@ def main():
             optimizers["xsigma"].zero_grad()
 
             t0 = time.time()
-            outputs2 = run_inference_compensator(
-                learner=learner, datasets=datasets, n_vars=n_vars, n_controls=n_controls,
-                n_uncertain=n_uncertain, f_torch=f_torch
-            )
+            outputs2 = run_inference_compensator(learner=learner, datasets=batch, f_torch=f_torch)
             logging.debug("Inference time: %.3f", time.time() - t0)
 
             t0 = time.time()
@@ -416,12 +380,10 @@ def main():
             # validation
             t0 = time.time()
             val_outputs = run_inference(
-                learner=learner, datasets=val_datasets, n_vars=n_vars, n_controls=n_controls,
-                n_uncertain=n_uncertain, f_torch=f_torch
+                learner=learner, datasets=val_datasets, f_torch=f_torch
             )
             val_outputs2 = run_inference_compensator(
-                learner=learner, datasets=val_datasets, n_vars=n_vars, n_controls=n_controls,
-                n_uncertain=n_uncertain, f_torch=f_torch
+                learner=learner, datasets=val_datasets, f_torch=f_torch
             )
             logging.debug("Validation inference time: %.3f", time.time() - t0)
 
@@ -454,41 +416,42 @@ def main():
             )
             logging.debug("Validation compensator loss time: %.3f", time.time() - t0)
 
+        t0 = time.time()
+        for k, loss in barrier_losses.items():
+            writer.add_scalar(f"train_loss/{k}", loss, t + 1)
+        for k, loss in sigma_losses.items():
+            writer.add_scalar(f"train_loss/{k}", loss, t + 1)
+        for k, accu in barrier_accuracies.items():
+            writer.add_scalar(f"train_accuracy/{k}", accu, t + 1)
+        for k, accu in sigma_accuracies.items():
+            writer.add_scalar(f"train_accuracy/{k}", accu, t + 1)
+
+        for k, loss in barrier_losses_val.items():
+            writer.add_scalar(f"val_loss/{k}", loss, t+1)
+        for k, loss in sigma_losses_val.items():
+            writer.add_scalar(f"val_loss/{k}", loss, t+1)
+        for k, accu in barrier_accuracies_val.items():
+            writer.add_scalar(f"val_accuracy/{k}", accu, t+1)
+        for k, accu in sigma_accuracies_val.items():
+            writer.add_scalar(f"val_accuracy/{k}", accu, t+1)
+        logging.debug("Logging time: %.3f", time.time() - t0)
+
+        if t % math.ceil(min(1000, learner.epochs / 10)) == 0:
+            # log_loss_acc(t, loss, accuracy, learner.verbose)
+            logging.info(
+                f"Epoch {t + 1}: barrier: loss: {barrier_loss:.3f}, val loss: {barrier_loss_val}, "
+                f"compensator: loss: {sigma_loss:.3f}, val loss: {sigma_loss_val:.3f}"
+            )
+
             t0 = time.time()
-            for k, loss in barrier_losses.items():
-                writer.add_scalar(f"train_loss/{k}", loss, t + 1)
-            for k, loss in sigma_losses.items():
-                writer.add_scalar(f"train_loss/{k}", loss, t + 1)
-            for k, accu in barrier_accuracies.items():
-                writer.add_scalar(f"train_accuracy/{k}", accu, t + 1)
-            for k, accu in sigma_accuracies.items():
-                writer.add_scalar(f"train_accuracy/{k}", accu, t + 1)
+            images = plot_functions(learner, env, datasets=val_datasets, seed=cfg.SEED, state_mean=state_mean, state_std=state_std)
+            for name, img in images.items():
+                writer.add_image(name, img, t, dataformats="HWC")
+            logging.debug("Plotting time: %.3f", time.time() - t0)
 
-            for k, loss in barrier_losses_val.items():
-                writer.add_scalar(f"val_loss/{k}", loss, t + 1)
-            for k, loss in sigma_losses_val.items():
-                writer.add_scalar(f"val_loss/{k}", loss, t + 1)
-            for k, accu in barrier_accuracies_val.items():
-                writer.add_scalar(f"val_accuracy/{k}", accu, t + 1)
-            for k, accu in sigma_accuracies_val.items():
-                writer.add_scalar(f"val_accuracy/{k}", accu, t + 1)
-            logging.debug("Logging time: %.3f", time.time() - t0)
-
-            if t % math.ceil(min(1000, learner.epochs / 10)) == 0:
-                # log_loss_acc(t, loss, accuracy, learner.verbose)
-                logging.info(
-                    f"Epoch {t + 1}: barrier: loss: {barrier_loss:.3f}, val loss: {barrier_loss_val}, "
-                    f"compensator: loss: {sigma_loss:.3f}, val loss: {sigma_loss_val:.3f}"
-                )
-
-                t0 = time.time()
-                images = plot_functions(learner, env, datasets=val_datasets, seed=cfg.SEED, state_mean=state_mean,
-                                        state_std=state_std)
-                for name, img in images.items():
-                    writer.add_image(name, img, t, dataformats="HWC")
-                logging.debug("Plotting time: %.3f", time.time() - t0)
 
     writer.close()
+
 
     return {
         "loss": losses,
@@ -498,35 +461,14 @@ def main():
     }
 
 
-def plot_functions_old(learner, env):
-    images = {}
-    for name, fn in zip(["barrier", "compensator"], [learner.net, learner.xsigma]):
-        fig = plt.figure()
-        ax = plt.axes(projection='3d')
-        canvas = FigureCanvasAgg(fig)
-
-        fig = plot_torch_function(
-            function=fn,
-            domains={XD: env.system.domains[XD]},
-            fig=fig
-        )
-        canvas.draw()
-        s, (width, height) = canvas.print_to_buffer()
-
-        image_from_plot = np.frombuffer(s, np.uint8).reshape((height, width, 4))
-        images[name] = image_from_plot
-
-    return images
-
-
 def plot_functions(learner, env, datasets, seed, state_mean=0.0, state_std=1.0):
     images = {}
 
     n_samples = 5
-    # states0, _ = env.reset(seed=seed, options={"batch_size": n_samples})
-    # if states0.ndim == 1:
+    #states0, _ = env.reset(seed=seed, options={"batch_size": n_samples})
+    #if states0.ndim == 1:
     #    states0 = states0[None, :]
-    states0 = datasets[XD][:n_samples]
+    states0 = datasets[XD]["state"][:n_samples].cpu().numpy()
 
     domain = env.system.domains[XD]
     xy_lb = domain.lower_bounds[:2]
@@ -548,11 +490,13 @@ def plot_functions(learner, env, datasets, seed, state_mean=0.0, state_std=1.0):
         npc1_X, npc1_Y = npc1_xy[0] - X, npc1_dxy[1] - Y
 
         all_states = np.stack([X, Y, npc0_X, npc0_Y, npc1_X, npc1_Y], axis=-1).reshape(-1, 6)
+        all_states = torch.from_numpy(all_states).float().to(learner.device)
         all_states = (all_states - state_mean) / state_std
+
 
         for name, fn in zip(["barrier", "compensator"], [learner.net, learner.xsigma]):
             with torch.no_grad():
-                z_vals = fn(torch.tensor(all_states, dtype=torch.float32)).numpy()
+                z_vals = fn(all_states).cpu().numpy()
             z_vals = z_vals.reshape(X.shape)
 
             fig = plt.figure()

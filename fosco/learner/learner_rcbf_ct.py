@@ -1,6 +1,7 @@
 import pathlib
 from typing import Optional
 
+import torch
 import yaml
 from torch import nn
 
@@ -30,6 +31,7 @@ class LearnerRobustCBF(LearnerCBF):
         loss_relu: str,
         optimizer: Optional[str] = None,
         initial_models: Optional[dict[str, nn.Module]] = None,
+        device: Optional[torch.device] = None,
         verbose: int = 0,
     ):
         super(LearnerRobustCBF, self).__init__(
@@ -44,6 +46,7 @@ class LearnerRobustCBF(LearnerCBF):
             loss_weights=loss_weights,
             loss_relu=loss_relu,
             initial_models=initial_models,
+            device=device,
             verbose=verbose,
         )
 
@@ -61,6 +64,9 @@ class LearnerRobustCBF(LearnerCBF):
             self.xsigma = SequentialTorchMLP(
                 mlps=[self.net, head_model], register_module=[False, True],
             )
+
+        # device
+        self.xsigma.to(self.device)
 
         # override optimizer with all module parameters
         if len(list(self.xsigma.parameters())) > 0:

@@ -31,6 +31,7 @@ class LearnerCBF(LearnerNN):
         loss_relu: str,
         optimizer: Optional[str] = None,
         initial_models: Optional[dict[str, nn.Module]] = None,
+        device: Optional[torch.device] = None,
         verbose: int = 0,
     ):
         super(LearnerCBF, self).__init__(verbose=verbose)
@@ -49,6 +50,10 @@ class LearnerCBF(LearnerNN):
                 hidden_sizes=hidden_sizes,
                 activation=activation,
             )
+
+        # device
+        self.device = device
+        self.net.to(device)
 
         self.optimizer_type = optimizer
         self.optimizer_lr = lr

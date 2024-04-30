@@ -53,7 +53,7 @@ class DynamicAgents(UncertaintyWrapper):
         else:
             fz = torch.zeros((self.n_vars, self.n_uncertain))
             fz[n_vars_i:, :] = torch.eye((n_agents-1) * n_ctrl_i)
-            fz_batch = torch.tile(fz, (x.shape[0], 1, 1))
+            fz_batch = torch.tile(fz, (x.shape[0], 1, 1)).to(x.device)
         return fz_batch @ z
 
     def fz_smt(self, x: list, z: list) -> np.ndarray | torch.Tensor:
@@ -75,7 +75,7 @@ class DynamicAgents(UncertaintyWrapper):
         else:
             gx = torch.zeros((self.n_vars, self.n_controls))[None].repeat(
                 (x.shape[0], 1, 1)
-            )
+            ).to(x.device)
         return gx
 
     def gz_smt(self, x: list, z: list) -> np.ndarray | torch.Tensor:
